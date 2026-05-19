@@ -1,59 +1,339 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+# GASPAR — Plataforma Institucional de Gestão por Processos
 
-## About Laravel
+Sistema institucional de BPM (Business Process Management) desenvolvido para o INCT CO₂ Zero com foco em automação, padronização, rastreabilidade e gerenciamento dinâmico de processos.
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+---
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+# Visão Geral
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+O GASPAR será uma plataforma capaz de permitir que administradores criem:
 
-## Learning Laravel
+- Processos
+- Fluxos de trabalho
+- Formulários
+- Campos personalizados
+- Permissões
+- Etapas
+- Demandas
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+Sem necessidade de programação ou criação manual de tabelas SQL.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+O sistema será orientado a metadados (*metadata-driven architecture*), permitindo flexibilidade e escalabilidade para diferentes áreas institucionais.
 
-## Laravel Sponsors
+---
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+# Objetivo do Projeto
 
-### Premium Partners
+Centralizar e digitalizar processos institucionais do INCT CO₂ Zero através de uma plataforma dinâmica e expansível.
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+O sistema deverá permitir:
 
-## Contributing
+- Criação dinâmica de processos
+- Gestão de demandas
+- Workflows personalizados
+- Controle de permissões
+- Auditoria completa
+- Formulários dinâmicos
+- Rastreabilidade de ações
+- Escalabilidade futura
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+---
 
-## Code of Conduct
+# Objetivo do MVP
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+A primeira versão (MVP) terá como foco validar a engine principal do sistema.
 
-## Security Vulnerabilities
+## O MVP deverá permitir:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+✅ Login e autenticação  
+✅ Controle de permissões  
+✅ Criação de processos  
+✅ Criação dinâmica de formulários  
+✅ Criação dinâmica de campos  
+✅ Criação de demandas  
+✅ Workflow simples  
+✅ Histórico de ações  
+✅ Dashboard inicial  
 
-## License
+---
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+# O MVP NÃO terá inicialmente
+
+❌ IA  
+❌ BPMN avançado  
+❌ Integrações externas  
+❌ Microservices  
+❌ Websocket realtime  
+❌ Analytics avançado  
+❌ Automação complexa  
+
+---
+
+# Arquitetura do Sistema
+
+O projeto seguirá o conceito de:
+
+# Metadata-Driven Architecture
+
+Ou seja:
+
+O administrador cria configurações e o sistema interpreta essas configurações dinamicamente.
+
+---
+
+# Exemplo
+
+O administrador poderá criar:
+
+## Processo:
+Solicitação de Viagem
+
+## Campos:
+- Destino
+- Data
+- Justificativa
+- Centro de custo
+
+Sem necessidade de alterar o banco manualmente.
+
+---
+
+# Estratégia do Banco de Dados
+
+O sistema NÃO criará tabelas dinamicamente.
+
+A estrutura será baseada em:
+
+- Tabelas fixas
+- Metadados
+- Campos JSON
+
+---
+
+# Exemplo de armazenamento
+
+```json
+{
+  "destino": "Brasília",
+  "justificativa": "Evento",
+  "valor": 5000
+}
+```
+
+---
+
+# Stack Oficial do Projeto
+
+## Backend
+- Laravel 12
+- PHP 8.3+
+
+## Admin Panel
+- FilamentPHP
+
+## Frontend
+- Livewire
+- Alpine.js
+
+## Banco de Dados
+- MySQL
+
+## Workflow Visual (futuro)
+- BPMN.io
+
+## Versionamento
+- GitHub
+
+## Hospedagem
+- HostGator (Plano M)
+
+---
+
+# Estrutura Inicial do Sistema
+
+## Core
+- Usuários
+- Permissões
+- Processos
+- Etapas
+- Demandas
+- Workflow
+- Auditoria
+
+---
+
+# Estrutura Base do Banco
+
+## Usuários e Controle
+- users
+- roles
+- permissions
+
+## Workflow
+- processes
+- process_stages
+- process_transitions
+
+## Metadata
+- custom_entities
+- custom_fields
+- custom_records
+
+## Operacional
+- tasks
+- task_history
+- audit_logs
+
+---
+
+# Conceito Principal do MVP
+
+O foco principal do MVP NÃO é construir um sistema bonito.
+
+O foco principal é:
+
+# Validar a engine dinâmica do sistema.
+
+Se a engine funcionar corretamente, o restante do sistema poderá evoluir naturalmente.
+
+---
+
+# Fluxo Básico do Sistema
+
+```txt
+Administrador
+↓
+Cria Processo
+↓
+Cria Campos
+↓
+Define Workflow
+↓
+Usuário cria demanda
+↓
+Sistema executa fluxo
+↓
+Histórico e auditoria registrados
+```
+
+---
+
+# Roadmap do MVP
+
+# Etapa 0 — Estrutura Inicial
+- Configuração do Laravel
+- Configuração do banco
+- Configuração do GitHub
+- Configuração do ambiente
+
+---
+
+# Etapa 1 — Autenticação
+- Login
+- Logout
+- Recuperação de senha
+- Controle de sessão
+- Controle de permissões
+
+---
+
+# Etapa 2 — Engine Dinâmica
+- Criação de entidades
+- Criação de campos
+- Renderização dinâmica de formulários
+- Salvamento dinâmico
+
+---
+
+# Etapa 3 — Workflow
+- Processos
+- Etapas
+- Transições
+- Demandas
+- Histórico
+
+---
+
+# Etapa 4 — Dashboard
+- Minhas demandas
+- Pendências
+- Demandas concluídas
+- Indicadores simples
+
+---
+
+# Etapa 5 — Auditoria
+- Logs de ações
+- Histórico de alterações
+- Rastreabilidade
+
+---
+
+# Organização do Repositório
+
+## Branches
+
+### main
+Produção estável
+
+### develop
+Branch principal de desenvolvimento
+
+### feature/*
+Novas funcionalidades
+
+---
+
+# Estrutura do Trello
+
+## Listas
+- Backlog
+- To Do
+- Doing
+- Testes
+- Done
+
+
+---
+
+# Objetivo Estratégico
+
+Construir uma plataforma institucional flexível capaz de atender múltiplos processos internos sem necessidade de desenvolvimento específico para cada demanda.
+
+---
+
+# Resultado Esperado do MVP
+
+Ao final do MVP, o sistema deverá ser capaz de:
+
+✅ Criar processos dinamicamente  
+✅ Criar formulários dinamicamente  
+✅ Gerenciar demandas  
+✅ Executar workflows básicos  
+✅ Controlar permissões  
+✅ Registrar auditoria  
+✅ Operar institucionalmente  
+
+---
+
+# Futuro da Plataforma
+
+Após validação do MVP, o sistema poderá evoluir para:
+
+- BPMN avançado
+- SLA
+- Notificações automáticas
+- Integrações externas
+- Analytics
+- BI
+- IA
+- Automação avançada
+- APIs institucionais
+- Multi-organização
+
+---
+
+# GASPAR INCT
+
+Plataforma institucional desenvolvida para modernização e automação dos processos do INCT CO₂ Zero.
