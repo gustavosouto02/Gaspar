@@ -19,7 +19,7 @@ class User extends Authenticatable implements FilamentUser
     use HasFactory, Notifiable, HasUuids;
 
     /**
-     * The attributes that are mass assignable.
+     * As colunas que podem ser preenchidas pelo admin
      *
      * @var list<string>
      */
@@ -32,7 +32,7 @@ class User extends Authenticatable implements FilamentUser
     ];
 
     /**
-     * The attributes that should be hidden for serialization.
+     * As colunas que devem ser ocultas
      *
      * @var list<string>
      */
@@ -42,7 +42,7 @@ class User extends Authenticatable implements FilamentUser
     ];
 
     /**
-     * Generate UUIDv7 for the model key.
+     * Gerar uuid7
      */
     public function newUniqueId(): string
     {
