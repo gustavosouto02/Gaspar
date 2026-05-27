@@ -3,15 +3,20 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\UserRoleEnum;
 use Database\Factories\UserFactory;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Str;
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasUuids;
 
     /**
      * The attributes that are mass assignable.
@@ -37,6 +42,22 @@ class User extends Authenticatable
     ];
 
     /**
+     * Generate UUIDv7 for the model key.
+     */
+    public function newUniqueId(): string
+    {
+        return (string) Str::uuid7();
+    }
+
+    /**
+     * Determine if the user can access the Filament panel.
+     */
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return (bool) $this->is_active;
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
@@ -46,6 +67,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'user_role' => UserRoleEnum::class,
+            'is_active' => 'boolean',
         ];
     }
 }

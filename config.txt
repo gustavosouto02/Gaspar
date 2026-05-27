@@ -1,0 +1,6 @@
+Rodar servidor : 
+php artisan serve
+
+criar entidade: 
+php artisan make:filament-resource User
+php artisan make:filament-user

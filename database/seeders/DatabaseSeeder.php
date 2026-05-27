@@ -15,11 +15,32 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        User::factory()->create([
+            'name' => 'Gaspar Admin',
+            'email' => 'admin@gaspar.com',
+            'user_role' => \App\Enums\UserRoleEnum::ADMIN,
+            'password' => \Illuminate\Support\Facades\Hash::make('admin'),
+        ]);
 
         User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
+            'name' => 'Gaspar Gestor',
+            'email' => 'gestor@gaspar.com',
+            'user_role' => \App\Enums\UserRoleEnum::GESTOR,
+            'password' => \Illuminate\Support\Facades\Hash::make('password'),
+        ]);
+
+        User::factory()->create([
+            'name' => 'Gaspar Executor',
+            'email' => 'executor@gaspar.com',
+            'user_role' => \App\Enums\UserRoleEnum::EXECUTOR,
+            'password' => \Illuminate\Support\Facades\Hash::make('password'),
+        ]);
+
+        User::factory()->create([
+            'name' => 'Gaspar Viewer',
+            'email' => 'viewer@gaspar.com',
+            'user_role' => \App\Enums\UserRoleEnum::VIEWER,
+            'password' => \Illuminate\Support\Facades\Hash::make('password'),
         ]);
     }
 }
