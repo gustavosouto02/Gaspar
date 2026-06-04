@@ -17,21 +17,30 @@ class CustomEntityResource extends Resource
 {
     protected static ?string $model = CustomEntity::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
+
+    protected static ?string $navigationLabel = 'Cadastros Adicionais';
+
+    protected static ?string $modelLabel = 'Cadastro Adicional';
+
+    protected static ?string $pluralModelLabel = 'Cadastros Adicionais';
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
                 Forms\Components\TextInput::make('name')
+                    ->label('Nome do Cadastro')
                     ->required()
                     ->maxLength(255),
 
                 Forms\Components\Toggle::make('is_active')
+                    ->label('Ativo')
                     ->required()
                     ->default(true),
 
                 Forms\Components\Textarea::make('description')
+                    ->label('Descrição')
                     ->maxLength(65535)
                     ->columnSpanFull(),
 
@@ -45,14 +54,17 @@ class CustomEntityResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
+                    ->label('Nome do Cadastro')
                     ->searchable()
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('description')
+                    ->label('Descrição')
                     ->limit(50)
                     ->searchable(),
 
                 Tables\Columns\IconColumn::make('is_active')
+                    ->label('Ativo')
                     ->boolean()
                     ->sortable(),
 
@@ -61,6 +73,7 @@ class CustomEntityResource extends Resource
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('created_at')
+                    ->label('Criado em')
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),

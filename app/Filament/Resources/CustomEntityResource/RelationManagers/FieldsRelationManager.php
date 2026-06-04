@@ -14,11 +14,18 @@ class FieldsRelationManager extends RelationManager
 {
     protected static string $relationship = 'fields';
 
+    protected static ?string $title = 'Campos Customizados';
+
+    protected static ?string $modelLabel = 'Campo';
+
+    protected static ?string $pluralModelLabel = 'Campos';
+
     public function form(Form $form): Form
     {
         return $form
             ->schema([
                 Forms\Components\TextInput::make('name')
+                    ->label('Nome do Campo')
                     ->required()
                     ->maxLength(255)
                     ->live(onBlur: true)

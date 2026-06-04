@@ -17,7 +17,13 @@ class CustomRecordResource extends Resource
 {
     protected static ?string $model = CustomRecord::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
+
+    protected static ?string $navigationLabel = 'Registros de Dados';
+
+    protected static ?string $modelLabel = 'Registro de Dado';
+
+    protected static ?string $pluralModelLabel = 'Registros de Dados';
 
     public static function form(Form $form): Form
     {
@@ -27,8 +33,8 @@ class CustomRecordResource extends Resource
                     ->relationship('entity', 'name')
                     ->required()
                     ->live()
-                    ->label('Tipo de Entidade/Processo')
-                    ->placeholder('Selecione a entidade...'),
+                    ->label('Selecionar Cadastro')
+                    ->placeholder('Selecione o cadastro para preenchimento...'),
 
                 Forms\Components\Hidden::make('created_by')
                     ->default(fn () => auth()->id()),
@@ -81,12 +87,12 @@ class CustomRecordResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('entity.name')
-                    ->label('Entidade/Processo')
+                    ->label('Cadastro')
                     ->searchable()
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('data_json')
-                    ->label('Dados Dinâmicos')
+                    ->label('Dados Registrados')
                     ->formatStateUsing(fn ($state) => collect($state)->map(fn ($val, $key) => "{$key}: {$val}")->implode(' | '))
                     ->limit(100),
 
@@ -95,6 +101,7 @@ class CustomRecordResource extends Resource
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('created_at')
+                    ->label('Data de Registro')
                     ->dateTime('d/m/Y H:i')
                     ->sortable(),
             ])

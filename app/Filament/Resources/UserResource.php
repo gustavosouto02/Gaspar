@@ -20,32 +20,43 @@ class UserResource extends Resource
 {
     protected static ?string $model = User::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+    protected static ?string $navigationIcon = 'heroicon-o-users';
+
+    protected static ?string $navigationLabel = 'Usuários';
+
+    protected static ?string $modelLabel = 'Usuário';
+
+    protected static ?string $pluralModelLabel = 'Usuários';
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
                 TextInput::make('name')
+                    ->label('Nome')
                     ->required()
                     ->maxLength(255),
 
                 TextInput::make('email')
+                    ->label('E-mail')
                     ->email()
                     ->required()
                     ->unique(ignoreRecord: true),
 
                 TextInput::make('password')
+                    ->label('Senha')
                     ->password()
                     ->required(fn ($livewire) => $livewire instanceof CreateRecord)
                     ->dehydrateStateUsing(fn ($state) => filled($state) ? bcrypt($state) : null)
                     ->dehydrated(fn ($state) => filled($state)),
 
                 Select::make('user_role')
+                    ->label('Perfil')
                     ->options(UserRoleEnum::options())
                     ->required(),
 
                 Toggle::make('is_active')
+                    ->label('Ativo')
                     ->default(true),
             ]);
     }
@@ -55,18 +66,23 @@ class UserResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('name')
+                    ->label('Nome')
                     ->searchable(),
 
                 TextColumn::make('email')
+                    ->label('E-mail')
                     ->searchable(),
 
                 TextColumn::make('user_role')
+                    ->label('Perfil')
                     ->badge(),
 
                 IconColumn::make('is_active')
+                    ->label('Ativo')
                     ->boolean(),
 
                 TextColumn::make('created_at')
+                    ->label('Criado em')
                     ->dateTime('d/m/Y H:i'),
             ])
             ->actions([
