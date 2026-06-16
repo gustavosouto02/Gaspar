@@ -10,6 +10,7 @@ enum FieldTypeEnum: string
     case DATE = 'DATE';
     case SELECT = 'SELECT';
     case CHECKBOX = 'CHECKBOX';
+    case RADIO = 'RADIO';
     case EMAIL = 'EMAIL';
 
     public static function options(): array
@@ -21,6 +22,7 @@ enum FieldTypeEnum: string
             self::DATE->value => 'Data',
             self::SELECT->value => 'Caixa de Seleção',
             self::CHECKBOX->value => 'Checkbox',
+            self::RADIO->value => 'Botão de Rádio',
             self::EMAIL->value => 'E-mail',
         ];
     }

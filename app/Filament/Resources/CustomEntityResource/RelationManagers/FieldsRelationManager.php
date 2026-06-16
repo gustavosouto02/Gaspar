@@ -60,8 +60,11 @@ class FieldsRelationManager extends RelationManager
                 Forms\Components\TagsInput::make('options_json')
                     ->label('Opções')
                     ->placeholder('Escreva uma opção e aperte Enter')
-                    ->helperText('Apenas para campos do tipo Caixa de Seleção.')
-                    ->visible(fn (Forms\Get $get) => $get('field_type') === \App\Enums\FieldTypeEnum::SELECT->value)
+                    ->helperText('Apenas para campos do tipo Caixa de Seleção ou Botão de Rádio.')
+                    ->visible(fn (Forms\Get $get) => in_array($get('field_type'), [
+                        \App\Enums\FieldTypeEnum::SELECT->value,
+                        \App\Enums\FieldTypeEnum::RADIO->value,
+                    ]))
                     ->columnSpanFull(),
 
                 Forms\Components\TextInput::make('field_order')

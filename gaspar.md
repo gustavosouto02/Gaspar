@@ -63,6 +63,7 @@ NUMBER
 DATE
 SELECT
 CHECKBOX
+RADIO
 EMAIL
 
 user_role_enum
@@ -293,15 +294,3 @@ demand_attachments
 - file_size: Integer
 - created_at: Timestamp
 - updated_at: Timestamp
-
-TEM
-
-ORIGINA
-
-AGRUPA
-
-TEM
-
-SUBDEMANDS
-
-TEM

@@ -19,18 +19,18 @@ class CustomEntityResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
 
-    protected static ?string $navigationLabel = 'Cadastros Adicionais';
+    protected static ?string $navigationLabel = 'Processos';
 
-    protected static ?string $modelLabel = 'Cadastro Adicional';
+    protected static ?string $modelLabel = 'Processo';
 
-    protected static ?string $pluralModelLabel = 'Cadastros Adicionais';
+    protected static ?string $pluralModelLabel = 'Processos';
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
                 Forms\Components\TextInput::make('name')
-                    ->label('Nome do Cadastro')
+                    ->label('Nome do Processo')
                     ->required()
                     ->maxLength(255),
 
@@ -54,7 +54,7 @@ class CustomEntityResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Nome do Cadastro')
+                    ->label('Nome do Processo')
                     ->searchable()
                     ->sortable(),
 

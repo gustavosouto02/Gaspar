@@ -19,11 +19,11 @@ class CustomRecordResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
 
-    protected static ?string $navigationLabel = 'Registros de Dados';
+    protected static ?string $navigationLabel = 'Cadastramentos';
 
-    protected static ?string $modelLabel = 'Registro de Dado';
+    protected static ?string $modelLabel = 'Cadastramento';
 
-    protected static ?string $pluralModelLabel = 'Registros de Dados';
+    protected static ?string $pluralModelLabel = 'Cadastramentos';
 
     public static function form(Form $form): Form
     {
@@ -33,8 +33,8 @@ class CustomRecordResource extends Resource
                     ->relationship('entity', 'name')
                     ->required()
                     ->live()
-                    ->label('Selecionar Cadastro')
-                    ->placeholder('Selecione o cadastro para preenchimento...'),
+                    ->label('Selecionar Processo')
+                    ->placeholder('Selecione o processo para preenchimento...'),
 
                 Forms\Components\Hidden::make('created_by')
                     ->default(fn () => auth()->id()),
@@ -59,14 +59,19 @@ class CustomRecordResource extends Resource
                                 \App\Enums\FieldTypeEnum::DATE => Forms\Components\DatePicker::make("data_json.{$field->key}"),
                                 \App\Enums\FieldTypeEnum::SELECT => Forms\Components\Select::make("data_json.{$field->key}")
                                     ->options($field->options_json ? array_combine($field->options_json, $field->options_json) : []),
+                                \App\Enums\FieldTypeEnum::RADIO => Forms\Components\Radio::make("data_json.{$field->key}")
+                                    ->options($field->options_json ? array_combine($field->options_json, $field->options_json) : []),
                                 \App\Enums\FieldTypeEnum::CHECKBOX => Forms\Components\Toggle::make("data_json.{$field->key}"),
                                 \App\Enums\FieldTypeEnum::EMAIL => Forms\Components\TextInput::make("data_json.{$field->key}")->email(),
                                 default => Forms\Components\TextInput::make("data_json.{$field->key}"),
                             };
 
                             $component->label($field->name)
-                                ->placeholder($field->placeholder)
                                 ->required($field->is_required);
+
+                            if (method_exists($component, 'placeholder')) {
+                                $component->placeholder($field->placeholder);
+                            }
 
                             if ($field->default_value) {
                                 $component->default($field->default_value);
@@ -87,7 +92,7 @@ class CustomRecordResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('entity.name')
-                    ->label('Cadastro')
+                    ->label('Processo')
                     ->searchable()
                     ->sortable(),
 
