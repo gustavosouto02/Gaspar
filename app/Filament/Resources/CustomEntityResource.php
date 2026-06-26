@@ -25,6 +25,10 @@ class CustomEntityResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Processos';
 
+    protected static ?string $navigationGroup = 'Processos';
+
+    protected static ?int $navigationSort = 1;
+
     public static function form(Form $form): Form
     {
         return $form
@@ -97,6 +101,9 @@ class CustomEntityResource extends Resource
     {
         return [
             RelationManagers\FieldsRelationManager::class,
+            RelationManagers\MembersRelationManager::class,
+            RelationManagers\ProcessStatusesRelationManager::class,
+            RelationManagers\StatusTransitionsRelationManager::class,
         ];
     }
 

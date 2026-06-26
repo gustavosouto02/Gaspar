@@ -29,18 +29,54 @@ Validar a engine dinâmica do sistema (*Metadata-Driven Architecture*), provando
 - [x] Implementação da renderização dinâmica de formulários no Filament
 - [x] Salvamento em `custom_records` (Leitura/escrita estruturada do `data_json`)
 
-### 🟥 Etapa 3 — Workflow [A INICIAR]
-- [ ] Modelagem física de `processes`, `process_stages` e `process_transitions`
-- [ ] Definição de membros e escopos por projeto (`process_members`)
-- [ ] Abertura de `demands` vinculadas a `clients` e `projects`
-- [ ] Histórico de movimentação de fases (`workflow_history`)
+### 🟩 Etapa 3 — Workflow [CONCLUÍDO]
+- [x] Configuração de Papéis de Processo (`process_roles`) e Situações (`process_statuses`)
+- [x] Vinculação de Membros ao processo (`process_members`) com múltiplos papéis por usuário
+- [x] Vinculação de Situações por processo (`entity_process_status`) reutilizáveis globalmente
+- [x] Cadastro de Clientes (`clients`) e Projetos (`projects`)
+- [x] Abertura de `demands` vinculadas a processo, situação, cliente, projeto, responsável
+- [x] Relatos de Tratamento (`demand_comments`) com histórico por demanda
+- [x] Suporte a Subdemandas via `parent_demand_id`
 
-### 🟥 Etapa 4 — Dashboard [A INICIAR]
-- [ ] Listagem de "Minhas demandas" e pendências por usuário autenticado
-- [ ] Indicadores quantitativos simples para o INCT
+### 🟩 Etapa 4 — Dashboard [CONCLUÍDO]
+- [x] Widget `DemandStatsWidget`: cards de indicadores (filtrados por perfil — ADMIN/GESTOR veem tudo, demais veem só as suas)
+- [x] Widget `MyDemandsWidget`: tabela "Minhas Demandas" com SLA vencido em vermelho, link direto para edição, filtros por processo e prioridade
 
-### 🟥 Etapa 5 — Auditoria [A INICIAR]
-- [ ] Implementação de `audit_logs` para rastreabilidade total de alterações
+### 🟩 Etapa 5 — Auditoria [CONCLUÍDO]
+- [x] Migration `activity_logs` com UUID7, FK users, evento, tipo/id auditado, old/new values JSON, IP e user_agent
+- [x] Model `ActivityLog` com labels amigáveis e cores por evento
+- [x] Trait `LogsActivity` em `app/Concerns/` — auditoria automática via boot events (created/updated/deleted), silenciosa em caso de erro
+- [x] Trait aplicada em: `Demand`, `CustomEntity`, `Client`, `Project`, `ProcessStatus`, `ProcessRole`
+- [x] `ActivityLogResource` somente-leitura (só ADMIN) com infolist detalhado, filtros por evento/usuário/entidade/período e auto-refresh 30s
+
+### 🟩 Etapa 6 — Campos Customizados nas Demandas [CONCLUÍDO]
+- [x] Migration `demand_field_values` (demand_id + custom_field_id + value, UNIQUE por par)
+- [x] Model `DemandFieldValue` com relacionamentos
+- [x] `Demand::fieldValues()` hasMany adicionado
+- [x] `DemandResource::buildDynamicFieldSchema()` — renderiza campos do processo usando `field_data.{key}` como namespace no form (mesmo padrão do CustomRecordResource)
+- [x] `CreateDemand` — extrai `field_data` antes do insert e persiste em `demand_field_values` após criar
+- [x] `EditDemand` — carrega valores de volta no form ao abrir; atualiza/limpa demand_field_values ao salvar
+
+### 🟩 Etapa 7 — Transições de Situação [CONCLUÍDO]
+- [x] Migration `status_transitions` (entity_id + from_status → to_status + label + allowed_role_ids JSON, UNIQUE por tripla)
+- [x] Model `StatusTransition` com método `canBeTriggeredBy(User, entityId)` centralizado
+- [x] `StatusTransitionsRelationManager` na aba "Fluxo de Situações" do Processo — form com from/to/label/papéis, tabela reordenável
+- [x] Registro da nova aba no `CustomEntityResource`
+- [x] `EditDemand::getHeaderActions()` — botões dinâmicos por transição disponível: filtra por status atual + papel do usuário, exige confirmação, executa transição e grava audit log com contexto
+
+### 🟥 Etapa 8 — Anexos [A INICIAR]
+- [ ] `demand_attachments`: upload de arquivos vinculados à demanda
+- [ ] Storage local (configurável para S3)
+- [ ] Listagem e download dos anexos na demanda
+
+---
+
+### 🔮 Pós-MVP (após Etapa 8)
+- Notificações por e-mail ao responsável (Laravel Mail + Queue)
+- Dashboard com gráficos de SLA e desempenho (Charts)
+- API REST pública para integração com outros sistemas
+- Pesquisa de satisfação
+- Modelagem gráfica de processos (BPMN)
 
 ---
 

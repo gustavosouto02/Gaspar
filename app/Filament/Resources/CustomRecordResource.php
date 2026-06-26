@@ -25,6 +25,10 @@ class CustomRecordResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Cadastramentos';
 
+    protected static ?string $navigationGroup = 'Processos';
+
+    protected static ?int $navigationSort = 2;
+
     public static function form(Form $form): Form
     {
         return $form
