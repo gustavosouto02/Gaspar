@@ -13,18 +13,9 @@ echo ""
 
 # Verifica se o PHP está instalado
 if ! command -v php &> /dev/null; then
-    echo -e "${RED}Erro: PHP não encontrado! Por favor, instale o PHP antes de continuar.${NC}"
+    echo -e "${RED}Erro: PHP não encontrado! O Gaspar precisa do PHP para rodar.${NC}"
     exit 1
 fi
-
-# Verifica se o Composer está instalado
-if ! command -v composer &> /dev/null; then
-    echo -e "${RED}Erro: Composer não encontrado! Por favor, instale o Composer antes de continuar.${NC}"
-    exit 1
-fi
-
-echo -e "${GREEN}Instalando as dependências do projeto (isso pode demorar um pouco)...${NC}"
-composer install --no-interaction --quiet
 
 # Copia o .env se não existir
 if [ ! -f .env ]; then
@@ -32,7 +23,7 @@ if [ ! -f .env ]; then
     cp .env.example .env
 fi
 
-# Gera a chave da aplicação se estiver vazia
+# Gera a chave da aplicação silenciosamente
 php artisan key:generate --no-interaction --quiet
 
 echo ""
@@ -41,3 +32,4 @@ echo ""
 
 # Chama o comando interativo do Laravel
 php artisan gaspar:install
+

@@ -17,3 +17,17 @@ if %errorlevel% neq 0 (
 call php artisan gaspar:uninstall
 
 pause
+
+call php artisan gaspar:uninstall
+
+echo Limpando arquivos de instalacao...
+:: Apaga o .env gerado
+if exist .env del /q .env
+:: Apaga a pasta vendor (se quiser limpar as dependencias do composer)
+if exist vendor rmdir /s /q vendor
+:: Se o banco for SQLite, apague o arquivo para limpar totalmente:
+:: if exist database\database.sqlite del /q database\database.sqlite
+
+echo.
+echo Desinstalacao concluida e arquivos limpos!
+pause

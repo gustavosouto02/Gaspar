@@ -9,21 +9,10 @@ echo.
 :: Verifica se o PHP esta instalado
 php -v >nul 2>&1
 if %errorlevel% neq 0 (
-    echo Erro: PHP nao encontrado! Por favor, instale o PHP antes de continuar.
+    echo Erro: PHP nao encontrado! O Gaspar precisa do PHP para rodar.
     pause
     exit /b 1
 )
-
-:: Verifica se o Composer esta instalado
-composer -v >nul 2>&1
-if %errorlevel% neq 0 (
-    echo Erro: Composer nao encontrado! Por favor, instale o Composer antes de continuar.
-    pause
-    exit /b 1
-)
-
-echo Instalando as dependencias do projeto (isso pode demorar um pouco)...
-call composer install --no-interaction --quiet
 
 :: Copia o .env se nao existir
 if not exist .env (
@@ -42,3 +31,12 @@ echo.
 call php artisan gaspar:install
 
 pause
+
+echo.
+echo Tudo pronto! O sistema vai abrir no seu navegador.
+echo Mantenha esta janela preta aberta enquanto estiver usando o Gaspar.
+echo.
+:: Abre o navegador padrao no localhost
+start http://localhost:8000
+:: Inicia o servidor do Laravel
+call php artisan serve
