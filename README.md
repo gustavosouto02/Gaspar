@@ -1,6 +1,6 @@
 # GASPAR — Plataforma Institucional de Gestão por Processos
 
-> Sistema institucional de BPM (Business Process Management) desenvolvido para o INCT CO₂ Zero com foco em automação, padronização, rastreabilidade e gerenciamento dinâmico de processos baseado em uma arquitetura orientada a metadados (*metadata-driven architecture*).
+> Sistema institucional de BPM (Business Process Management) com foco em automação, padronização, rastreabilidade e gerenciamento dinâmico de processos baseado em uma arquitetura orientada a metadados (*metadata-driven architecture*).
 
 ---
 
