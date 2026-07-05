@@ -27,7 +27,7 @@ git archive --format tar HEAD | tar -x -C $BUILD_DIR
 # 3. Instala as dependências do Composer para produção (sem pacotes de dev)
 echo -e "\n${BLUE}[3/5] Instalando dependências de produção (vendor)...${NC}"
 cd $BUILD_DIR
-composer install --no-dev --optimize-autoloader --quiet
+composer install --no-dev --optimize-autoloader
 
 # 4. Garante que os diretórios essenciais existam e estejam limpos
 echo -e "\n${BLUE}[4/5] Limpando caches e configurando estrutura...${NC}"
