@@ -5,14 +5,14 @@ use App\Http\Controllers\InstaladorController;
 
 Route::get('/', function () {
     if (! file_exists(storage_path('app/installed.txt'))) {
-        return redirect('/instalar');
+        return redirect()->route('instalar');
     }
 
-    return redirect('/admin');
+    return redirect(url('admin'));
 });
 
-Route::get('/instalar', [InstaladorController::class, 'instalar']);
-Route::post('/instalar', [InstaladorController::class, 'executarInstalacao']);
+Route::get('/instalar', [InstaladorController::class, 'instalar'])->name('instalar');
+Route::post('/instalar', [InstaladorController::class, 'executarInstalacao'])->name('instalar.post');
 
-Route::get('/desinstalar', [InstaladorController::class, 'desinstalar']);
-Route::post('/desinstalar', [InstaladorController::class, 'executarDesinstalacao']);
+Route::get('/desinstalar', [InstaladorController::class, 'desinstalar'])->name('desinstalar');
+Route::post('/desinstalar', [InstaladorController::class, 'executarDesinstalacao'])->name('desinstalar.post');

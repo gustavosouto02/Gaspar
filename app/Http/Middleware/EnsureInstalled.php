@@ -29,12 +29,12 @@ class EnsureInstalled
         if (! $isInstalled) {
             // Se NÃO está numa rota do instalador, redireciona
             if (! $this->isInstallerRoute($currentPath)) {
-                return redirect('/instalar');
+                return redirect()->route('instalar');
             }
         } else {
             // Sistema instalado: bloqueia acesso à rota de instalação
             if ($currentPath === 'instalar') {
-                return redirect('/admin');
+                return redirect(url('admin'));
             }
         }
 

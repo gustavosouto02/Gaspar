@@ -19,7 +19,7 @@ class InstaladorController extends Controller
     public function instalar()
     {
         if ($this->isInstalled()) {
-            return redirect('/admin');
+            return redirect(url('admin'));
         }
 
         return view('instalar');
@@ -34,7 +34,7 @@ class InstaladorController extends Controller
     public function executarInstalacao(Request $request)
     {
         if ($this->isInstalled()) {
-            return redirect('/admin');
+            return redirect(url('admin'));
         }
 
         $request->validate([
@@ -136,7 +136,7 @@ class InstaladorController extends Controller
     public function desinstalar()
     {
         if (! $this->isInstalled()) {
-            return redirect('/instalar');
+            return redirect()->route('instalar');
         }
 
         return view('desinstalar');
@@ -151,11 +151,21 @@ class InstaladorController extends Controller
     public function executarDesinstalacao(Request $request)
     {
         if (! $this->isInstalled()) {
-            return redirect('/instalar');
+            return redirect()->route('instalar');
         }
 
         try {
-            // 1. Apaga todas as tabelas do banco
+            // 1. HACK MESTRE: O Laravel tenta salvar a sessão no banco durante
+            // o encerramento do script (mesmo usando exit). 
+            // Para evitar o erro "Table users/sessions doesn't exist",
+            // limpamos a sessão e trocamos o driver ativo para um array em memória.
+            if (auth()->check()) {
+                auth()->logout();
+            }
+            $request->session()->flush();
+            $request->session()->setHandler(app('session')->driver('array')->getHandler());
+
+            // 2. Apaga todas as tabelas do banco
             Artisan::call('db:wipe', ['--force' => true]);
         } catch (Exception $e) {
             // Se falhar ao apagar o banco, ainda prossegue com a limpeza local
@@ -180,8 +190,11 @@ class InstaladorController extends Controller
             // Ignora erros de cache (o sistema está sendo limpo)
         }
 
-        // Redireciona com flag via query string (pois a sessão será destruída)
-        return redirect('/instalar?desinstalado=1');
+        // Redireciona manualmente via header nativo do PHP e mata a execução (exit).
+        // Isso impede que o Laravel continue seu ciclo de vida (terminate), onde ele
+        // tentaria salvar a sessão ativa no banco de dados que acabou de ser apagado.
+        header('Location: ' . route('instalar') . '?desinstalado=1');
+        exit;
     }
 
     /**
