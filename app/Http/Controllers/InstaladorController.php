@@ -83,7 +83,7 @@ class InstaladorController extends Controller
         ]);
 
         // 3. Limpa o cache de configuração
-        Artisan::call('config:clear');
+        Artisan::call("config:clear"); \Log::info("Session Driver After config:clear: " . config("session.driver"));
 
         // 4. Gera a APP_KEY se ainda não existir
         if (empty(config('app.key')) || config('app.key') === '') {
@@ -155,19 +155,15 @@ class InstaladorController extends Controller
         }
 
         try {
-            // 1. HACK MESTRE: O Laravel tenta salvar a sessão no banco durante
-            // o encerramento do script (mesmo usando exit). 
-            // Para evitar o erro "Table users/sessions doesn't exist",
-            // limpamos a sessão e trocamos o driver ativo para um array em memória.
-            if (auth()->check()) {
-                auth()->logout();
-            }
-            $request->session()->flush();
-            $request->session()->setHandler(app('session')->driver('array')->getHandler());
+            // HACK DEFINITIVO: O Laravel tenta salvar a sessão no banco no final do request.
+            // Para evitar o erro "Table sessions/users doesn't exist", mudamos a config
+            // em runtime e forçamos o SessionManager a esquecer o driver do banco e usar memória.
+            config(['session.driver' => 'array']);
+            app('session')->forgetDrivers();
 
-            // 2. Apaga todas as tabelas do banco
+            // 1. Apaga todas as tabelas do banco
             Artisan::call('db:wipe', ['--force' => true]);
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             // Se falhar ao apagar o banco, ainda prossegue com a limpeza local
         }
 
@@ -185,16 +181,13 @@ class InstaladorController extends Controller
 
         // 4. Limpa caches do framework
         try {
-            Artisan::call('config:clear');
+            Artisan::call("config:clear"); \Log::info("Session Driver After config:clear: " . config("session.driver"));
         } catch (Exception $e) {
             // Ignora erros de cache (o sistema está sendo limpo)
         }
 
-        // Redireciona manualmente via header nativo do PHP e mata a execução (exit).
-        // Isso impede que o Laravel continue seu ciclo de vida (terminate), onde ele
-        // tentaria salvar a sessão ativa no banco de dados que acabou de ser apagado.
-        header('Location: ' . route('instalar') . '?desinstalado=1');
-        exit;
+        // Redireciona de volta para a tela de instalação
+        return redirect()->route('instalar', ['desinstalado' => 1]);
     }
 
     /**
