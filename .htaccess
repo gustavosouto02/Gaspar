@@ -1,0 +1,17 @@
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+
+    # 1. Proteção extrema de arquivos críticos na raiz
+    RewriteRule ^(\.env|composer\.(json|lock)|package\.json|\.git|build\.sh|readme\.md|leiame\.md) - [F,L,NC]
+
+    # 2. Ignora a reescrita se o usuário já estiver na pasta public (evita loops como public/public/)
+    RewriteRule ^public/ - [L]
+
+    # 3. Redirecionamento interno transparente para a pasta public
+    # A flag [L] garante que é a última regra, e a falta de [R] garante que a URL no navegador não mude!
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>

@@ -11,7 +11,7 @@ echo -e "${BLUE}=== Iniciando o Build do Gaspar ===${NC}"
 # Define variáveis
 ORIGINAL_DIR=$(pwd)
 BUILD_DIR="/tmp/gaspar-build"
-ZIP_NAME="gaspar-release.zip"
+ZIP_NAME="gaspar.zip"
 
 # 1. Limpa o diretório de build anterior e o zip antigo
 echo -e "\n${BLUE}[1/5] Preparando diretório de build...${NC}"
@@ -23,6 +23,7 @@ mkdir -p $BUILD_DIR
 # Isso ignora automaticamente o seu .env atual, a pasta vendor, e arquivos ignorados
 echo -e "\n${BLUE}[2/5] Exportando código limpo...${NC}"
 git archive --format tar HEAD | tar -x -C $BUILD_DIR
+rm -f $BUILD_DIR/$ZIP_NAME
 
 # 3. Instala as dependências do Composer para produção (sem pacotes de dev)
 echo -e "\n${BLUE}[3/5] Instalando dependências de produção (vendor)...${NC}"
