@@ -26,8 +26,7 @@ Garanta que a pasta raiz do Gaspar tenha permissões de leitura/escrita apropria
 
 ### Passo 3: Acesso e Assistente Web
 1. Abra o seu navegador e acesse a URL correspondente à pasta onde você extraiu o sistema. 
-   - *Exemplo:* `http://inct.org.br/gaspar` (se houver o arquivo `.htaccess` na raiz direcionando para a `/public`).
-   - *Alternativa:* `http://inct.org.br/gaspar/public` (caso o servidor não use o `.htaccess` raiz).
+   - *Exemplo:* `http://inct.org.br/gaspar` 
 2. O sistema detectará automaticamente que é o primeiro acesso e redirecionará você para o **Assistente de Instalação**.
 
 ### Passo 4: Configuração
