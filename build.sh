@@ -17,17 +17,17 @@ ZIP_NAME="gaspar.zip"
 echo -e "\n${BLUE}[1/5] Preparando diretório de build...${NC}"
 rm -rf $BUILD_DIR
 rm -f $ZIP_NAME
-mkdir -p $BUILD_DIR
+mkdir -p $BUILD_DIR/gaspar
 
 # 2. Usa o git archive para copiar apenas os arquivos trackeados pelo Git
 # Isso ignora automaticamente o seu .env atual, a pasta vendor, e arquivos ignorados
 echo -e "\n${BLUE}[2/5] Exportando código limpo...${NC}"
-git archive --format tar HEAD | tar -x -C $BUILD_DIR
-rm -f $BUILD_DIR/$ZIP_NAME
+git archive --format tar HEAD | tar -x -C $BUILD_DIR/gaspar
+rm -f $BUILD_DIR/gaspar/$ZIP_NAME
 
 # 3. Instala as dependências do Composer para produção (sem pacotes de dev)
 echo -e "\n${BLUE}[3/5] Instalando dependências de produção (vendor)...${NC}"
-cd $BUILD_DIR
+cd $BUILD_DIR/gaspar
 composer install --no-dev --optimize-autoloader
 
 # 4. Garante que os diretórios essenciais existam e estejam limpos
@@ -44,7 +44,7 @@ cd - > /dev/null
 # 5. Cria o arquivo zip final
 echo -e "\n${BLUE}[5/5] Gerando o arquivo ${ZIP_NAME}...${NC}"
 cd $BUILD_DIR
-zip -r "$ORIGINAL_DIR/$ZIP_NAME" . -q
+zip -r "$ORIGINAL_DIR/$ZIP_NAME" gaspar -q
 cd - > /dev/null
 
 # Limpeza

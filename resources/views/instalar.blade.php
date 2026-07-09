@@ -451,32 +451,6 @@
                     </div>
                 </div>
 
-                <div class="form-divider"></div>
-
-                {{-- Seção: Administrador --}}
-                <div class="form-section">
-                    <div class="section-title">
-                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
-                        </svg>
-                        Criar Administrador
-                    </div>
-                    <div class="form-grid">
-                        <div class="form-group">
-                            <label for="admin_name">Nome completo</label>
-                            <input type="text" id="admin_name" name="admin_name" value="{{ old('admin_name') }}" placeholder="João da Silva" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="admin_email">E-mail</label>
-                            <input type="email" id="admin_email" name="admin_email" value="{{ old('admin_email') }}" placeholder="admin@empresa.com" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="admin_password">Senha</label>
-                            <input type="password" id="admin_password" name="admin_password" placeholder="Mínimo 8 caracteres" minlength="8" required>
-                            <span class="input-hint">Escolha uma senha forte com pelo menos 8 caracteres</span>
-                        </div>
-                    </div>
-                </div>
 
                 <button type="submit" class="btn-install" id="btnInstall">
                     <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

@@ -42,9 +42,6 @@ class InstaladorController extends Controller
             'db_port'        => 'required|integer|min:1|max:65535',
             'db_database'    => 'required|string|max:64',
             'db_username'    => 'required|string',
-            'admin_name'     => 'required|string|max:255',
-            'admin_email'    => 'required|email|max:255',
-            'admin_password' => 'required|string|min:8|max:255',
         ]);
 
         // 1. Testa conexão MySQL e cria o banco se não existir
@@ -105,15 +102,22 @@ class InstaladorController extends Controller
             // 6. Roda as migrações (cria todas as tabelas)
             Artisan::call('migrate:fresh', ['--force' => true]);
 
-            // 7. Cria o usuário Administrador
+            // 7. Cria o usuário Administrador (Automático)
             $admin = User::create([
-                'name'      => $request->admin_name,
-                'email'     => $request->admin_email,
-                'password'  => Hash::make($request->admin_password),
+                'name'      => 'Administrador Gaspar',
+                'email'     => 'admin@gaspar.com',
+                'password'  => Hash::make('admin'),
                 'user_role' => UserRoleEnum::ADMIN,
             ]);
 
-            // 8. Cria a trava de instalação
+            // 8. Cria o link simbólico do storage para uploads funcionarem (essencial para hospedagens como HostGator)
+            try {
+                Artisan::call('storage:link');
+            } catch (\Exception $e) {
+                // Silencioso se o link já existir ou se houver restrição do SO
+            }
+
+            // 9. Cria a trava de instalação
             file_put_contents(storage_path('app/installed.txt'), now()->toIso8601String());
 
         } catch (Exception $e) {
@@ -124,9 +128,9 @@ class InstaladorController extends Controller
 
         // 9. Exibe a tela de sucesso com os dados do admin
         return view('instalado', [
-            'admin_name'     => $request->admin_name,
-            'admin_email'    => $request->admin_email,
-            'admin_password' => $request->admin_password,
+            'admin_name'     => 'Administrador Gaspar',
+            'admin_email'    => 'admin@gaspar.com',
+            'admin_password' => 'admin',
         ]);
     }
 
