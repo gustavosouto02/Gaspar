@@ -35,5 +35,8 @@ class AppServiceProvider extends ServiceProvider
         if (request()->header('x-https') == '1' || isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
             \Illuminate\Support\Facades\URL::forceScheme('https');
         }
+
+        // Override do LivewireManager para corrigir o getUpdateUri em subpastas
+        $this->app->singleton('livewire', \App\Livewire\CustomLivewireManager::class);
     }
 }
