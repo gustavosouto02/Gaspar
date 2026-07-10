@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual de Instalação e Desinstalação - Gaspar</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --danger: #dc2626;
+            --bg-color: #f8fafc;
+            --card-bg: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 2rem 1rem;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background-color: var(--primary);
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .content {
+            padding: 2rem;
+        }
+
+        h2 {
+            color: var(--primary-dark);
+            font-size: 1.5rem;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        h2:first-child {
+            margin-top: 0;
+        }
+
+        h3 {
+            color: var(--text-main);
+            font-size: 1.2rem;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+        }
+
+        ul, ol {
+            padding-left: 1.5rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-muted);
+        }
+
+        li {
+            margin-bottom: 0.5rem;
+        }
+
+        code {
+            background-color: var(--bg-color);
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9em;
+            color: var(--primary-dark);
+            border: 1px solid var(--border-color);
+        }
+
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid;
+        }
+
+        .alert-info {
+            background-color: #eff6ff;
+            border-left-color: var(--primary);
+            color: #1e40af;
+        }
+
+        .alert-danger {
+            background-color: #fef2f2;
+            border-left-color: var(--danger);
+            color: #991b1b;
+        }
+
+        .highlight {
+            font-weight: 600;
+            color: var(--text-main);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Gaspar</h1>
+            <p>Manual de Instalação e Desinstalação (Drop-In)</p>
+        </div>
+
+        <div class="content">
+            <div class="alert alert-info">
+                <strong>Bem-vindo ao Gaspar.</strong> Este sistema foi desenhado para ter uma instalação "Drop-In", o que significa que <strong>não é necessário utilizar o terminal (SSH)</strong> ou rodar comandos complexos no servidor. Siga o passo a passo abaixo para colocar o sistema no ar.
+            </div>
+
+            <h2>🚀 Requisitos do Servidor</h2>
+            <ul>
+                <li>Servidor Web (Apache, Nginx, LiteSpeed, etc.)</li>
+                <li>PHP 8.2 ou superior</li>
+                <li>Banco de Dados MySQL</li>
+                <li>Extensões PHP padrão do Laravel (BCMath, Ctype, Fileinfo, JSON, Mbstring, OpenSSL, PDO, Tokenizer, XML)</li>
+            </ul>
+
+            <h2>📥 1. Instalação do Sistema (Primeiro Uso)</h2>
+            
+            <h3>Passo 1: Upload e Extração</h3>
+            <ol>
+                <li>Faça o upload do arquivo <code>gaspar.zip</code> para o seu servidor web (ex: dentro da pasta <code>public_html</code>, <code>www</code> ou em um subdomínio).</li>
+                <li>Descompacte o arquivo <code>.zip</code>. Ele irá extrair todos os arquivos do projeto.</li>
+            </ol>
+
+            <h3>Passo 2: Permissões de Escrita</h3>
+            <p class="alert alert-info" style="margin-top: 1rem;">
+                O servidor web precisará de permissão para escrever e criar arquivos. Garanta que as pastas <code>storage</code> e <code>bootstrap/cache</code> possuam permissão <strong>775</strong>.
+            </p>
+
+            <h3>Passo 3: Acesso e Assistente Web</h3>
+            <ol>
+                <li>Abra o seu navegador e acesse a URL correspondente à pasta onde você extraiu o sistema. <br>
+                    <span class="highlight">Exemplo:</span> <code>http://seusite.com.br/gaspar/public</code>
+                </li>
+                <li>O sistema detectará automaticamente que é o primeiro acesso e redirecionará você para o <strong>Assistente de Instalação</strong>.</li>
+            </ol>
+
+            <h3>Passo 4: Configuração</h3>
+            <ol>
+                <li><strong>Banco de Dados MySQL:</strong> Insira os dados de conexão (Host, Porta, Usuário, Senha e Nome do Banco). Se o banco não existir e seu usuário tiver privilégios, o sistema tentará criá-lo automaticamente.</li>
+                <li><strong>Administrador:</strong> Defina o Nome, E-mail e Senha do primeiro usuário Administrador do sistema.</li>
+                <li>Clique em <strong>Instalar Gaspar</strong>.</li>
+            </ol>
+            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: -0.5rem; margin-bottom: 1.5rem; margin-left: 1.5rem;">
+                <em>O que acontece por baixo dos panos:</em> O sistema gera as chaves, cria o arquivo <code>.env</code>, constrói todas as tabelas do banco de dados e cria a trava de segurança (<code>installed.txt</code>).
+            </p>
+
+            <h2>🗑️ 2. Como Desinstalar o Sistema (Wipe Completo)</h2>
+            <p style="margin-bottom: 1rem; color: var(--text-muted);">Se você precisar formatar o sistema, limpar todos os dados de testes ou refazer a instalação do zero, use o módulo de desinstalação seguro.</p>
+            
+            <ol>
+                <li>Navegue até a URL de desinstalação: <code>http://seusite.com.br/gaspar/public/desinstalar</code> (ajuste a URL conforme o seu domínio).</li>
+                <li>Confirme a ação na tela.</li>
+                <li>Você será redirecionado de volta para o Assistente de Instalação com o sistema zerado e limpo.</li>
+            </ol>
+
+            <div class="alert alert-danger" style="margin-top: 2rem;">
+                <strong>⚠️ Dica Importante sobre Segurança:</strong><br><br>
+                Nunca deixe arquivos <code>.zip</code> de backup largados na pasta pública do servidor. Após realizar a extração e verificar que o sistema funciona, apague o arquivo <code>gaspar.zip</code> original do servidor para poupar espaço e manter a segurança.
+            </div>
+        </div>
+    </div>
+</body>
+</html>
