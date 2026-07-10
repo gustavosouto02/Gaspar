@@ -28,6 +28,12 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // A HostGator usa o cabeçalho 'x-https' ou 'HTTPS'='on' para indicar SSL.
+        // Como o Laravel não confia em proxies desconhecidos por padrão, ele acaba
+        // gerando URLs com http://. Isso causa erro de "Mixed Content" no Chrome,
+        // bloqueando o JS do Livewire e quebrando a tela de login.
+        if (request()->header('x-https') == '1' || isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
     }
 }
