@@ -184,16 +184,4 @@ return [
 
     'release_token' => 'a',
 
-    /*
-    |---------------------------------------------------------------------------
-    | Asset URL
-    |---------------------------------------------------------------------------
-    |
-    | When running Laravel in a subdirectory, Livewire needs to know the base URL
-    | to load its JS and set the update endpoint correctly.
-    |
-    */
-
-    'asset_url' => env('APP_URL'),
-
 ];
