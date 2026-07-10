@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -9,7 +10,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        *, *::before, *::after {
+        *,
+        *::before,
+        *::after {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
@@ -76,6 +79,7 @@
                 opacity: 0;
                 transform: translateY(20px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -277,7 +281,9 @@
         }
 
         @keyframes spin {
-            to { transform: rotate(360deg); }
+            to {
+                transform: rotate(360deg);
+            }
         }
 
         .btn-install.loading .spinner {
@@ -303,8 +309,13 @@
         }
 
         @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
         }
 
         .alert svg {
@@ -363,13 +374,15 @@
         }
     </style>
 </head>
+
 <body>
     <div class="installer-container">
         <div class="installer-header">
             <div class="installer-logo">
                 {{-- Ícone de engrenagem/setup --}}
                 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/>
+                    <path
+                        d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.49.49 0 0 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z" />
                 </svg>
             </div>
             <h1>Instalar Gaspar</h1>
@@ -381,7 +394,8 @@
             @if (request()->query('desinstalado'))
                 <div class="alert alert-success">
                     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                        <path
+                            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                     </svg>
                     <span>Sistema desinstalado com sucesso. Configure novamente para reinstalar.</span>
                 </div>
@@ -391,7 +405,8 @@
             @if (session('error'))
                 <div class="alert alert-error">
                     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                        <path
+                            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
                     </svg>
                     <span>{{ session('error') }}</span>
                 </div>
@@ -401,7 +416,8 @@
             @if ($errors->any())
                 <div class="alert alert-error">
                     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/>
+                        <path
+                            d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" />
                     </svg>
                     <ul class="validation-errors">
                         @foreach ($errors->all() as $error)
@@ -411,14 +427,15 @@
                 </div>
             @endif
 
-            <form method="POST" action="/instalar" id="installForm">
+            <form method="POST" action="{{ route('instalar.post') }}" id="installForm">
                 @csrf
 
                 {{-- Seção: Banco de Dados --}}
                 <div class="form-section">
                     <div class="section-title">
                         <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M12 3C7.58 3 4 4.79 4 7v10c0 2.21 3.58 4 8 4s8-1.79 8-4V7c0-2.21-3.58-4-8-4zm0 2c3.87 0 6 1.5 6 2s-2.13 2-6 2-6-1.5-6-2 2.13-2 6-2zM4 17v-2.34c1.37 1.07 3.6 1.74 6 1.84v2.44c-3.42-.24-6-1.64-6-2.94zm14 0c0 1.3-2.58 2.7-6 2.94v-2.44c2.4-.1 4.63-.77 6-1.84V17z"/>
+                            <path
+                                d="M12 3C7.58 3 4 4.79 4 7v10c0 2.21 3.58 4 8 4s8-1.79 8-4V7c0-2.21-3.58-4-8-4zm0 2c3.87 0 6 1.5 6 2s-2.13 2-6 2-6-1.5-6-2 2.13-2 6-2zM4 17v-2.34c1.37 1.07 3.6 1.74 6 1.84v2.44c-3.42-.24-6-1.64-6-2.94zm14 0c0 1.3-2.58 2.7-6 2.94v-2.44c2.4-.1 4.63-.77 6-1.84V17z" />
                         </svg>
                         Banco de Dados MySQL
                     </div>
@@ -426,35 +443,39 @@
                         <div class="form-grid-row">
                             <div class="form-group">
                                 <label for="db_host">Host</label>
-                                <input type="text" id="db_host" name="db_host" value="{{ old('db_host', 'localhost') }}" placeholder="localhost" required>
+                                <input type="text" id="db_host" name="db_host" value="{{ old('db_host', 'localhost') }}"
+                                    placeholder="localhost" required>
                             </div>
                             <div class="form-group">
                                 <label for="db_port">Porta</label>
-                                <input type="number" id="db_port" name="db_port" value="{{ old('db_port', '3306') }}" placeholder="3306" required>
+                                <input type="number" id="db_port" name="db_port" value="{{ old('db_port', '3306') }}"
+                                    placeholder="3306" required>
                             </div>
                         </div>
                         <div class="form-group">
                             <label for="db_database">Nome do Banco</label>
-                            <input type="text" id="db_database" name="db_database" value="{{ old('db_database', 'gaspar') }}" placeholder="gaspar" required>
+                            <input type="text" id="db_database" name="db_database"
+                                value="{{ old('db_database', 'gaspar') }}" placeholder="gaspar" required>
                             <span class="input-hint">Será criado automaticamente se não existir</span>
                         </div>
                         <div class="form-grid-row">
                             <div class="form-group">
                                 <label for="db_username">Usuário MySQL</label>
-                                <input type="text" id="db_username" name="db_username" value="{{ old('db_username', 'root') }}" placeholder="root" required>
+                                <input type="text" id="db_username" name="db_username"
+                                    value="{{ old('db_username', 'root') }}" placeholder="root" required>
                             </div>
                             <div class="form-group">
                                 <label for="db_password">Senha MySQL</label>
-                                <input type="password" id="db_password" name="db_password" value="{{ old('db_password') }}" placeholder="••••••••">
+                                <input type="password" id="db_password" name="db_password"
+                                    value="{{ old('db_password') }}" placeholder="••••••••">
                             </div>
                         </div>
                     </div>
                 </div>
 
-
                 <button type="submit" class="btn-install" id="btnInstall">
                     <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                        <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
                     </svg>
                     <span class="btn-text">Instalar Gaspar</span>
                     <div class="spinner"></div>
@@ -475,4 +496,5 @@
         });
     </script>
 </body>
+
 </html>

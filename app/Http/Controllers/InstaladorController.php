@@ -29,19 +29,23 @@ class InstaladorController extends Controller
      * Processa a instalação do sistema.
      *
      * Fluxo: validação → teste de conexão → criação do banco →
-     * escrita do .env → migrações → criação do admin → trava.
+     * migrações → criação do admin → trava → resposta HTTP →
+     * DEPOIS grava o .env (evita reinício do servidor antes da resposta).
      */
     public function executarInstalacao(Request $request)
     {
+        // Evita timeout durante as migrações em servidores lentos (HostGator, etc.)
+        @set_time_limit(300);
+
         if ($this->isInstalled()) {
             return redirect(url('admin'));
         }
 
         $request->validate([
-            'db_host'        => 'required|string',
-            'db_port'        => 'required|integer|min:1|max:65535',
-            'db_database'    => 'required|string|max:64',
-            'db_username'    => 'required|string',
+            'db_host'     => 'required|string',
+            'db_port'     => 'required|integer|min:1|max:65535',
+            'db_database' => 'required|string|max:64',
+            'db_username' => 'required|string',
         ]);
 
         // 1. Testa conexão MySQL e cria o banco se não existir
@@ -50,7 +54,6 @@ class InstaladorController extends Controller
             $pdo = new PDO($dsn, $request->db_username, $request->db_password);
             $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-            // Verifica se o banco já existe
             $dbName = $request->db_database;
             $stmt = $pdo->prepare(
                 'SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?'
@@ -58,36 +61,14 @@ class InstaladorController extends Controller
             $stmt->execute([$dbName]);
 
             if (! $stmt->fetch()) {
-                // Sanitiza o nome do banco para evitar injeção SQL
                 $safeName = '`' . str_replace('`', '``', $dbName) . '`';
                 $pdo->exec("CREATE DATABASE {$safeName} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
             }
-        } catch (Exception $e) {
-            return back()
-                ->withInput()
-                ->with('error', 'Falha ao conectar no MySQL. Verifique as credenciais. Erro: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            return response('<h1>Erro de Conexão com Banco</h1><p>' . $e->getMessage() . '</p><pre>' . $e->getTraceAsString() . '</pre>', 500);
         }
 
-        // 2. Atualiza o .env com as credenciais do banco
-        $this->updateEnv([
-            'APP_NAME'      => 'Gaspar',
-            'DB_CONNECTION'  => 'mysql',
-            'DB_HOST'        => $request->db_host,
-            'DB_PORT'        => $request->db_port,
-            'DB_DATABASE'    => $request->db_database,
-            'DB_USERNAME'    => $request->db_username,
-            'DB_PASSWORD'    => $request->db_password ?? '',
-        ]);
-
-        // 3. Limpa o cache de configuração
-        Artisan::call("config:clear"); \Log::info("Session Driver After config:clear: " . config("session.driver"));
-
-        // 4. Gera a APP_KEY se ainda não existir
-        if (empty(config('app.key')) || config('app.key') === '') {
-            Artisan::call('key:generate', ['--force' => true]);
-        }
-
-        // 5. Reconfigura a conexão do banco em runtime
+        // 2. Reconfigura a conexão do banco em runtime (sem tocar no .env ainda!)
         config([
             'database.connections.mysql.host'     => $request->db_host,
             'database.connections.mysql.port'     => $request->db_port,
@@ -99,35 +80,62 @@ class InstaladorController extends Controller
         DB::reconnect('mysql');
 
         try {
-            // 6. Roda as migrações (cria todas as tabelas)
+            // 3. Roda as migrações (cria todas as tabelas)
             Artisan::call('migrate:fresh', ['--force' => true]);
 
-            // 7. Cria o usuário Administrador (Automático)
-            $admin = User::create([
+            // 4. Cria o usuário Administrador (automático)
+            User::create([
                 'name'      => 'Administrador Gaspar',
                 'email'     => 'admin@gaspar.com',
                 'password'  => Hash::make('admin'),
                 'user_role' => UserRoleEnum::ADMIN,
             ]);
 
-            // 8. Cria o link simbólico do storage para uploads funcionarem (essencial para hospedagens como HostGator)
+            // 5. Cria o link simbólico do storage (essencial para hospedagens como HostGator)
             try {
                 Artisan::call('storage:link');
             } catch (\Exception $e) {
-                // Silencioso se o link já existir ou se houver restrição do SO
+                // Silencioso se o link já existir
             }
 
-            // 9. Cria a trava de instalação
+            // 6. Cria a trava de instalação
             file_put_contents(storage_path('app/installed.txt'), now()->toIso8601String());
 
-        } catch (Exception $e) {
-            return back()
-                ->withInput()
-                ->with('error', 'Erro durante a criação das tabelas ou do administrador: ' . $e->getMessage());
+        } catch (\Throwable $e) {
+            // Se falhar na migração/banco, retorna o erro diretamente na tela.
+            // Não usamos back()->with() porque se houver problema de permissão na pasta sessions,
+            // o back()->with() vai causar um Erro 500 (Jacaré) escondendo o erro real.
+            return response('<h1>Erro na Instalação</h1><p>' . $e->getMessage() . '</p><pre>' . $e->getTraceAsString() . '</pre>', 500);
         }
 
-        // 9. Exibe a tela de sucesso com os dados do admin
-        return view('instalado', [
+        // 7. Registra a gravação do .env para DEPOIS de a resposta ser enviada ao navegador.
+        // O callback app()->terminating() roda após o Laravel enviar a resposta HTTP completa.
+        // Isso evita que a escrita do .env mate a conexão antes da página de sucesso aparecer.
+        $envData = [
+            'APP_NAME'         => 'Gaspar',
+            'DB_CONNECTION'    => 'mysql',
+            'DB_HOST'          => $request->db_host,
+            'DB_PORT'          => $request->db_port,
+            'DB_DATABASE'      => $request->db_database,
+            'DB_USERNAME'      => $request->db_username,
+            'DB_PASSWORD'      => $request->db_password ?? '',
+            'SESSION_DRIVER'   => 'database',
+            'CACHE_STORE'      => 'database',
+            'QUEUE_CONNECTION' => 'database',
+        ];
+
+        app()->terminating(function () use ($envData) {
+            $this->updateEnv($envData);
+
+            try {
+                Artisan::call('config:clear');
+            } catch (\Throwable $t) {
+                // Silencioso: se o servidor reiniciar aqui, não importa — a página já foi entregue
+            }
+        });
+
+        // 8. Retorna a resposta de sucesso (o Laravel envia ao navegador normalmente)
+        return response()->view('instalado', [
             'admin_name'     => 'Administrador Gaspar',
             'admin_email'    => 'admin@gaspar.com',
             'admin_password' => 'admin',
@@ -139,7 +147,7 @@ class InstaladorController extends Controller
      */
     public function desinstalar()
     {
-        if (! $this->isInstalled()) {
+        if (!$this->isInstalled()) {
             return redirect()->route('instalar');
         }
 
@@ -154,7 +162,7 @@ class InstaladorController extends Controller
      */
     public function executarDesinstalacao(Request $request)
     {
-        if (! $this->isInstalled()) {
+        if (!$this->isInstalled()) {
             return redirect()->route('instalar');
         }
 
@@ -185,7 +193,7 @@ class InstaladorController extends Controller
 
         // 4. Limpa caches do framework
         try {
-            Artisan::call("config:clear"); \Log::info("Session Driver After config:clear: " . config("session.driver"));
+            Artisan::call("config:clear");
         } catch (Exception $e) {
             // Ignora erros de cache (o sistema está sendo limpo)
         }
@@ -212,7 +220,7 @@ class InstaladorController extends Controller
     {
         $path = base_path('.env');
 
-        if (! file_exists($path)) {
+        if (!file_exists($path)) {
             $examplePath = base_path('.env.example');
             if (file_exists($examplePath)) {
                 copy($examplePath, $path);
