@@ -9,3 +9,10 @@
 /.github export-ignore
 CHANGELOG.md export-ignore
 .styleci.yml export-ignore
+
+# Arquivos locais que não devem ir no ZIP de produção (.zip do build.sh)
+build.sh export-ignore
+tests/ export-ignore
+phpunit.xml export-ignore
+README.md export-ignore
+gaspar.md export-ignore

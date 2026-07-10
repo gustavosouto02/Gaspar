@@ -19,7 +19,7 @@ class DatabaseSeeder extends Seeder
             'name' => 'Gaspar Admin',
             'email' => 'admin@gaspar.com',
             'user_role' => \App\Enums\UserRoleEnum::ADMIN,
-            'password' => \Illuminate\Support\Facades\Hash::make('admin'),
+            'password' => \Illuminate\Support\Facades\Hash::make('password'),
         ]);
 
         User::factory()->create([
