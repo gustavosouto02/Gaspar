@@ -113,6 +113,7 @@ class InstaladorController extends Controller
         // Isso evita que a escrita do .env mate a conexão antes da página de sucesso aparecer.
         $envData = [
             'APP_NAME'         => 'Gaspar',
+            'APP_URL'          => url('/'),
             'DB_CONNECTION'    => 'mysql',
             'DB_HOST'          => $request->db_host,
             'DB_PORT'          => $request->db_port,
