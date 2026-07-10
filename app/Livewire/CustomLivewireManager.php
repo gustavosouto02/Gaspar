@@ -13,7 +13,6 @@ class CustomLivewireManager extends LivewireManager
      */
     public function getUpdateUri()
     {
-        $route = $this->updateRoute ?? $this->findUpdateRoute();
-        return app('url')->toRoute($route, [], true); // TRUE makes it absolute with base URL
+        return app('url')->to('/livewire/update');
     }
 }
