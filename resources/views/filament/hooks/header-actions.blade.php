@@ -8,7 +8,8 @@
     <form action="{{ \App\Filament\Pages\DemandReports::getUrl() }}" method="GET" 
           class="inline-flex items-center justify-center gap-2 rounded-lg px-3 h-8 shadow-sm ring-1 ring-inset ring-gray-950/10 bg-white dark:bg-white/5 transition duration-75 focus-within:ring-2 focus-within:ring-primary-600">
         <x-heroicon-m-magnifying-glass class="h-4 w-4 text-gray-500 dark:text-gray-400" />
-        <input type="search" name="tableSearchQuery" placeholder="Pesquisar demanda..." 
-               class="block w-48 h-full border-none bg-transparent p-0 text-sm text-center placeholder:text-gray-400 focus:ring-0 dark:text-white dark:placeholder:text-gray-500">
+        <input type="search" name="tableSearch" placeholder="Pesquisar demanda..." 
+               value="{{ request('tableSearch') }}"
+               class="block w-48 h-full border-none bg-transparent p-0 text-sm text-left placeholder:text-gray-400 focus:ring-0 dark:text-white dark:placeholder:text-gray-500">
     </form>
 </div>

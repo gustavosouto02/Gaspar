@@ -20,6 +20,9 @@ class DemandReports extends Page implements HasForms, HasTable
     use InteractsWithForms;
     use InteractsWithTable;
 
+    #[\Livewire\Attributes\Url]
+    public $tableSearch = '';
+
     protected static ?string $navigationIcon = 'heroicon-o-document-chart-bar';
     
     protected static ?string $navigationLabel = 'Relatório de Demandas';
