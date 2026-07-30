@@ -21,6 +21,8 @@ class EditDemand extends EditRecord
 
     protected static string $resource = DemandResource::class;
 
+    protected static string $view = 'filament.resources.demand-resource.pages.edit-demand';
+
     /**
      * Ao carregar o form para edição, injeta os valores salvos em
      * demand_field_values de volta no namespace field_data.{key}.
@@ -77,6 +79,19 @@ class EditDemand extends EditRecord
                 ->success()
                 ->send();
         }
+    }
+
+    protected function getFormActions(): array
+    {
+        $actions = parent::getFormActions();
+        
+        foreach ($actions as $action) {
+            $action->extraAttributes(
+                array_merge($action->getExtraAttributes(), ['form' => 'form'])
+            );
+        }
+
+        return $actions;
     }
 
     private array $fieldData = [];

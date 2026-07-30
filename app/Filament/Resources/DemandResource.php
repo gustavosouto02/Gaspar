@@ -398,8 +398,10 @@ class DemandResource extends Resource
     public static function getRelations(): array
     {
         return [
-            RelationManagers\CommentsRelationManager::class,
-            RelationManagers\SubDemandsRelationManager::class,
+            \Filament\Resources\RelationManagers\RelationGroup::make('Relacionamentos', [
+                RelationManagers\CommentsRelationManager::class,
+                RelationManagers\SubDemandsRelationManager::class,
+            ]),
         ];
     }
 
