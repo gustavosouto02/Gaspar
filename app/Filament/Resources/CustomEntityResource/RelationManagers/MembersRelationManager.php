@@ -13,11 +13,11 @@ class MembersRelationManager extends RelationManager
 {
     protected static string $relationship = 'members';
 
-    protected static ?string $title = 'Membros do Processo';
+    protected static ?string $title = 'Papéis no Processo';
 
-    protected static ?string $modelLabel = 'Membro';
+    protected static ?string $modelLabel = 'Papel';
 
-    protected static ?string $pluralModelLabel = 'Membros';
+    protected static ?string $pluralModelLabel = 'Papéis';
 
     public function form(Form $form): Form
     {

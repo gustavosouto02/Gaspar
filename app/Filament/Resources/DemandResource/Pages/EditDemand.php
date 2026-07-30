@@ -52,7 +52,7 @@ class EditDemand extends EditRecord
     }
 
     /**
-     * Após salvar, atualiza demand_field_values.
+     * Após salvar, atualiza demand_field_values e verifica pesquisa de satisfação.
      */
     protected function afterSave(): void
     {
@@ -60,6 +60,23 @@ class EditDemand extends EditRecord
             $this->getRecord()->id,
             $this->getRecord()->entity_id
         );
+
+        // Se a pesquisa de satisfação foi respondida e a demanda está encerrada, avalia automaticamente
+        $record = $this->getRecord()->fresh();
+        if (
+            $record->satisfaction_rating
+            && $record->status === \App\Enums\DemandStatusEnum::CLOSED
+        ) {
+            $record->updateQuietly([
+                'status' => \App\Enums\DemandStatusEnum::EVALUATED,
+            ]);
+
+            \Filament\Notifications\Notification::make()
+                ->title('Obrigado pela sua avaliação!')
+                ->body('A demanda foi marcada como Avaliada.')
+                ->success()
+                ->send();
+        }
     }
 
     private array $fieldData = [];
@@ -70,7 +87,9 @@ class EditDemand extends EditRecord
             return;
         }
 
-        $fields = CustomField::where('entity_id', $entityId)->get()->keyBy('key');
+        $entity = \App\Models\CustomEntity::find($entityId);
+        if (! $entity) return;
+        $fields = $entity->fields()->get()->keyBy('key');
 
         foreach ($this->fieldData as $key => $value) {
             $field = $fields->get($key);

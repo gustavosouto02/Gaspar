@@ -59,6 +59,13 @@ class StatusTransition extends Model
             return true;
         }
 
+        if ($demand->parent_demand_id) {
+            $parent = $demand->parent;
+            if ($parent && $parent->assigned_to === $user->id) {
+                return true; // Responsável pela demanda mãe pode tudo na subdemanda
+            }
+        }
+
         $allowedRoles = $this->allowed_role_ids ?? [];
 
         // Sem restrição: qualquer membro do processo ou envolvido na demanda pode

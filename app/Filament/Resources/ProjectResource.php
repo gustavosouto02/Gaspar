@@ -22,7 +22,7 @@ class ProjectResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Projetos';
 
-    protected static ?string $navigationGroup = 'Configurações';
+    protected static ?string $navigationGroup = 'Cadastros';
 
     protected static ?int $navigationSort = 4;
 
@@ -99,6 +99,13 @@ class ProjectResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            \App\Filament\Resources\ProjectResource\RelationManagers\MembersRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

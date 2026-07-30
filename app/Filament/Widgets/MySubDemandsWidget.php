@@ -11,22 +11,22 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
 
-class MyDemandsWidget extends BaseWidget
+class MySubDemandsWidget extends BaseWidget
 {
-    protected static ?int $sort = 2;
+    protected static ?int $sort = 3;
 
     protected int | string | array $columnSpan = 'full';
 
-    protected static ?string $heading = 'Minhas Demandas';
+    protected static ?string $heading = 'Minhas Subdemandas';
 
     public function table(Table $table): Table
     {
         return $table
             ->query(
                 Demand::query()
-                    ->with(['entity', 'processStatus', 'assignee', 'requester'])
+                    ->with(['entity', 'processStatus', 'assignee', 'requester', 'parent'])
                     ->where('status', DemandStatusEnum::ACTIVE->value)
-                    ->whereNull('parent_demand_id')
+                    ->whereNotNull('parent_demand_id')
                     ->pendingForUser(auth()->user())
                     ->orderByRaw('CASE WHEN sla_due_at IS NULL THEN 1 ELSE 0 END ASC')
                     ->orderBy('sla_due_at', 'asc')
@@ -36,8 +36,16 @@ class MyDemandsWidget extends BaseWidget
                 Tables\Columns\TextColumn::make('title')
                     ->label('Título')
                     ->searchable()
-                    ->limit(60)
+                    ->limit(50)
                     ->url(fn (Demand $record) => DemandResource::getUrl('edit', ['record' => $record])),
+
+                Tables\Columns\TextColumn::make('parent.title')
+                    ->label('Demanda Pai')
+                    ->limit(40)
+                    ->url(fn (Demand $record) => $record->parent
+                        ? DemandResource::getUrl('edit', ['record' => $record->parent])
+                        : null)
+                    ->placeholder('—'),
 
                 Tables\Columns\TextColumn::make('entity.name')
                     ->label('Processo')
@@ -57,11 +65,6 @@ class MyDemandsWidget extends BaseWidget
                     ->badge()
                     ->formatStateUsing(fn ($state) => $state instanceof DemandPriorityEnum ? $state->label() : $state)
                     ->color(fn ($state) => $state instanceof DemandPriorityEnum ? $state->filamentColor() : 'gray'),
-
-                Tables\Columns\TextColumn::make('current_responsibles')
-                    ->label('Responsável')
-                    ->limit(40)
-                    ->placeholder('—'),
 
                 Tables\Columns\TextColumn::make('sla_due_at')
                     ->label('Prazo SLA')
@@ -84,8 +87,8 @@ class MyDemandsWidget extends BaseWidget
                     ->label('Prioridade')
                     ->options(DemandPriorityEnum::options()),
             ])
-            ->emptyStateHeading('Nenhuma demanda pendente')
-            ->emptyStateDescription('Você não tem demandas ativas atribuídas a você.')
+            ->emptyStateHeading('Nenhuma subdemanda pendente')
+            ->emptyStateDescription('Você não tem subdemandas ativas atribuídas a você.')
             ->emptyStateIcon('heroicon-o-check-circle')
             ->paginated([10, 25, 50]);
     }

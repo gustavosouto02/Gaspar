@@ -15,49 +15,76 @@ class DemandStatsWidget extends BaseWidget
     protected function getStats(): array
     {
         $user = auth()->user();
+        $userId = $user->id;
 
-        // Minhas demandas pendentes (usando a query inteligente)
-        $minhasPendentes = Demand::where('status', DemandStatusEnum::ACTIVE->value)
+        // Minhas demandas (demandas pai onde sou participante)
+        $minhasDemandas = Demand::where('status', DemandStatusEnum::ACTIVE->value)
+            ->whereNull('parent_demand_id')
             ->pendingForUser($user)
             ->count();
 
-        $stats = [
-            Stat::make('Minhas Demandas Pendentes', $minhasPendentes)
-                ->description('Demandas ativas aguardando sua ação')
-                ->icon('heroicon-o-user-circle')
-                ->color($minhasPendentes > 0 ? 'warning' : 'success'),
-        ];
-
-        // Estatísticas globais (visíveis para todos)
-        $totalAtivas = Demand::where('status', DemandStatusEnum::ACTIVE->value)->count();
-
-        $vencidas = Demand::where('status', DemandStatusEnum::ACTIVE->value)
+        // Demandas atrasadas (SLA vencido, minhas)
+        $demandasAtrasadas = Demand::where('status', DemandStatusEnum::ACTIVE->value)
+            ->whereNull('parent_demand_id')
             ->whereNotNull('sla_due_at')
             ->where('sla_due_at', '<', now())
+            ->pendingForUser($user)
             ->count();
 
-        $concluidasMes = Demand::where('status', DemandStatusEnum::COMPLETED->value)
-            ->whereMonth('updated_at', now()->month)
-            ->whereYear('updated_at', now()->year)
+        // Minhas subdemandas
+        $minhasSubdemandas = Demand::where('status', DemandStatusEnum::ACTIVE->value)
+            ->whereNotNull('parent_demand_id')
+            ->pendingForUser($user)
             ->count();
 
-        array_unshift($stats,
-            Stat::make('Total de Demandas Ativas', $totalAtivas)
-                ->description('Todas as demandas em andamento no sistema')
+        // Subdemandas atrasadas
+        $subdemandasAtrasadas = Demand::where('status', DemandStatusEnum::ACTIVE->value)
+            ->whereNotNull('parent_demand_id')
+            ->whereNotNull('sla_due_at')
+            ->where('sla_due_at', '<', now())
+            ->pendingForUser($user)
+            ->count();
+
+        // Projetos que sou membro
+        $projetosMembro = \App\Models\Project::whereHas('members', function ($q) use ($userId) {
+            $q->where('users.id', $userId);
+        })->count();
+
+        // Processos que sou membro
+        $processosMembro = \App\Models\CustomEntity::whereHas('members', function ($q) use ($userId) {
+            $q->where('user_id', $userId);
+        })->count();
+
+        return [
+            Stat::make('Qtde de Demandas', $minhasDemandas)
+                ->description('Demandas ativas sob sua responsabilidade')
                 ->icon('heroicon-o-clipboard-document-list')
+                ->color($minhasDemandas > 0 ? 'warning' : 'success'),
+
+            Stat::make('Demandas Atrasadas', $demandasAtrasadas)
+                ->description('Demandas com prazo vencido')
+                ->icon('heroicon-o-exclamation-triangle')
+                ->color($demandasAtrasadas > 0 ? 'danger' : 'success'),
+
+            Stat::make('Qtde de Subdemandas', $minhasSubdemandas)
+                ->description('Subdemandas ativas sob sua responsabilidade')
+                ->icon('heroicon-o-document-duplicate')
+                ->color($minhasSubdemandas > 0 ? 'warning' : 'success'),
+
+            Stat::make('Subdemandas Atrasadas', $subdemandasAtrasadas)
+                ->description('Subdemandas com prazo vencido')
+                ->icon('heroicon-o-exclamation-circle')
+                ->color($subdemandasAtrasadas > 0 ? 'danger' : 'success'),
+
+            Stat::make('Projetos (membro)', $projetosMembro)
+                ->description('Projetos que você participa')
+                ->icon('heroicon-o-briefcase')
                 ->color('info'),
-        );
 
-        $stats[] = Stat::make('Vencidas (SLA)', $vencidas)
-            ->description('Demandas ativas com prazo ultrapassado')
-            ->icon('heroicon-o-exclamation-triangle')
-            ->color($vencidas > 0 ? 'danger' : 'success');
-
-        $stats[] = Stat::make('Concluídas este mês', $concluidasMes)
-            ->description('Demandas finalizadas em ' . now()->format('m/Y'))
-            ->icon('heroicon-o-check-circle')
-            ->color('success');
-
-        return $stats;
+            Stat::make('Processos (membro)', $processosMembro)
+                ->description('Processos que você participa')
+                ->icon('heroicon-o-cog-6-tooth')
+                ->color('info'),
+        ];
     }
 }

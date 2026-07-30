@@ -19,15 +19,15 @@ class CustomRecordResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
 
-    protected static ?string $navigationLabel = 'Cadastramentos';
+    protected static ?string $navigationLabel = 'Customizáveis';
 
     protected static ?string $modelLabel = 'Cadastramento';
 
-    protected static ?string $pluralModelLabel = 'Cadastramentos';
+    protected static ?string $pluralModelLabel = 'Customizáveis';
 
-    protected static ?string $navigationGroup = 'Processos';
+    protected static ?string $navigationGroup = 'Administração';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 5;
 
     public static function form(Form $form): Form
     {

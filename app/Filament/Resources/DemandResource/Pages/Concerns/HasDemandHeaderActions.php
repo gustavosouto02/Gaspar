@@ -59,6 +59,16 @@ trait HasDemandHeaderActions
                 })
                 ->modalSubmitActionLabel('Confirmar')
                 ->action(function () use ($record, $transition, $user) {
+                    // Verifica se a transição vai encerrar a demanda e se pode ser concluída
+                    if ($transition->toStatus?->name === 'Encerrada' && ! $record->canBeCompleted()) {
+                        Notification::make()
+                            ->title('Não é possível encerrar')
+                            ->body('Esta demanda possui subdemandas abertas. Conclua ou cancele-as primeiro.')
+                            ->danger()
+                            ->send();
+                        return;
+                    }
+
                     $oldStatusId   = $record->process_status_id;
                     $oldStatusName = $record->processStatus?->name ?? '—';
 

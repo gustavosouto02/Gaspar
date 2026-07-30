@@ -25,9 +25,9 @@ class CustomEntityResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Processos';
 
-    protected static ?string $navigationGroup = 'Processos';
+    protected static ?string $navigationGroup = 'Administração';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form
     {
@@ -42,6 +42,13 @@ class CustomEntityResource extends Resource
                     ->label('Ativo')
                     ->required()
                     ->default(true),
+
+                Forms\Components\TextInput::make('sla_hours')
+                    ->label('Prazo de atendimento (horas)')
+                    ->numeric()
+                    ->nullable()
+                    ->placeholder('Ex: 48')
+                    ->helperText('Prazo padrão em horas para demandas deste processo. Será calculado automaticamente ao criar a demanda.'),
 
                 Forms\Components\Textarea::make('description')
                     ->label('Descrição')

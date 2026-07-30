@@ -7,6 +7,8 @@ enum DemandStatusEnum: string
     case ACTIVE    = 'ACTIVE';
     case COMPLETED = 'COMPLETED';
     case CANCELED  = 'CANCELED';
+    case CLOSED    = 'CLOSED';
+    case EVALUATED = 'EVALUATED';
 
     public function label(): string
     {
@@ -14,6 +16,8 @@ enum DemandStatusEnum: string
             self::ACTIVE    => 'Ativa',
             self::COMPLETED => 'Concluída',
             self::CANCELED  => 'Cancelada',
+            self::CLOSED    => 'Encerrada',
+            self::EVALUATED => 'Avaliada',
         };
     }
 
@@ -23,6 +27,8 @@ enum DemandStatusEnum: string
             self::ACTIVE    => 'info',
             self::COMPLETED => 'success',
             self::CANCELED  => 'danger',
+            self::CLOSED    => 'warning',
+            self::EVALUATED => 'success',
         };
     }
 
