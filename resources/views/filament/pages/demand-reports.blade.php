@@ -6,5 +6,11 @@
         }
     </style>
 
-    {{ $this->table }}
+    <form wire:submit="render">
+        {{ $this->form }}
+    </form>
+
+    <div class="mt-6">
+        {{ $this->table }}
+    </div>
 </x-filament-panels::page>
