@@ -178,6 +178,49 @@ class DemandResource extends Resource
                     ->visible(fn (Get $get) => filled($get('entity_id')))
                     ->description('Campos específicos configurados para este processo'),
 
+                Forms\Components\Section::make('Tratamento')
+                    ->schema([
+                        Forms\Components\Textarea::make('new_treatment')
+                            ->label('Novo Tratamento / Comentário')
+                            ->placeholder('Escreva aqui seu novo tratamento...')
+                            ->rows(3)
+                            ->dehydrated(false) // Não salva diretamente na model Demand
+                            ->visible(fn ($livewire) => $livewire instanceof \Filament\Resources\Pages\EditRecord),
+
+                        Forms\Components\Actions::make([
+                            Forms\Components\Actions\Action::make('enviar_tratamento')
+                                ->label('Enviar Tratamento')
+                                ->icon('heroicon-m-paper-airplane')
+                                ->color('primary')
+                                ->action(function (\Filament\Forms\Get $get, \Filament\Forms\Set $set, $record) {
+                                    $content = $get('new_treatment');
+                                    if (empty(trim((string)$content))) {
+                                        return;
+                                    }
+
+                                    \App\Models\DemandComment::create([
+                                        'demand_id' => $record->id,
+                                        'user_id' => auth()->id(),
+                                        'comment' => $content,
+                                    ]);
+
+                                    $set('new_treatment', null);
+
+                                    \Filament\Notifications\Notification::make()
+                                        ->title('Tratamento adicionado com sucesso!')
+                                        ->success()
+                                        ->send();
+                                })
+                        ])->visible(fn ($livewire) => $livewire instanceof \Filament\Resources\Pages\EditRecord),
+
+                        Forms\Components\ViewField::make('treatments_timeline')
+                            ->view('filament.forms.components.demand-timeline')
+                            ->visible(fn ($livewire) => $livewire instanceof \Filament\Resources\Pages\EditRecord)
+                            ->columnSpanFull(),
+                    ])
+                    ->visible(fn ($livewire) => $livewire instanceof \Filament\Resources\Pages\EditRecord)
+                    ->collapsible(),
+
                 Forms\Components\Section::make('Pesquisa de Satisfação')
                     ->schema([
                         Forms\Components\Select::make('satisfaction_rating')
@@ -399,7 +442,6 @@ class DemandResource extends Resource
     {
         return [
             \Filament\Resources\RelationManagers\RelationGroup::make('Relacionamentos', [
-                RelationManagers\CommentsRelationManager::class,
                 RelationManagers\SubDemandsRelationManager::class,
             ]),
         ];

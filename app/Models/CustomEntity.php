@@ -33,11 +33,18 @@ class CustomEntity extends Model
 
     protected $fillable = [
         'name',
+        'macroprocess_id',
         'description',
         'is_active',
+        'purpose',
         'sla_hours',
         'created_by',
     ];
+
+    public function macroprocess(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Macroprocess::class);
+    }
 
     /**
      * Gerar UUID7 para a chave primária

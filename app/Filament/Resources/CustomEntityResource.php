@@ -33,15 +33,37 @@ class CustomEntityResource extends Resource
     {
         return $form
             ->schema([
+                Forms\Components\Placeholder::make('id_placeholder')
+                    ->label('Processo número')
+                    ->content(fn ($record) => $record?->id ?? '-'),
+                
+                Forms\Components\Placeholder::make('created_at_placeholder')
+                    ->label('Data de criação')
+                    ->content(fn ($record) => $record?->created_at ? $record->created_at->format('d/m/Y') : '-'),
+
                 Forms\Components\TextInput::make('name')
                     ->label('Nome do Processo')
                     ->required()
                     ->maxLength(255),
 
+                Forms\Components\Select::make('macroprocess_id')
+                    ->label('Macroprocesso do qual faz parte')
+                    ->relationship('macroprocess', 'name')
+                    ->searchable()
+                    ->preload(),
+
                 Forms\Components\Toggle::make('is_active')
-                    ->label('Ativo')
+                    ->label('Situação (Ativo)')
                     ->required()
                     ->default(true),
+
+                Forms\Components\Select::make('purpose')
+                    ->label('Finalidade')
+                    ->options([
+                        'Apoio' => 'Apoio',
+                        'Finalístico' => 'Finalístico',
+                        'Gerencial' => 'Gerencial',
+                    ]),
 
                 Forms\Components\TextInput::make('sla_hours')
                     ->label('Prazo de atendimento (horas)')

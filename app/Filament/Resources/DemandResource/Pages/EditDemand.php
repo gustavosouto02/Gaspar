@@ -44,12 +44,16 @@ class EditDemand extends EditRecord
     }
 
     /**
-     * Antes de salvar, extrai field_data (não é coluna real em demands).
+     * Antes de salvar, extrai field_data e new_treatment (não são colunas reais em demands).
      */
     protected function mutateFormDataBeforeSave(array $data): array
     {
         $this->fieldData = $data['field_data'] ?? [];
         unset($data['field_data']);
+
+        $this->newTreatment = $data['new_treatment'] ?? null;
+        unset($data['new_treatment']);
+
         return $data;
     }
 
@@ -62,6 +66,17 @@ class EditDemand extends EditRecord
             $this->getRecord()->id,
             $this->getRecord()->entity_id
         );
+
+        if ($this->newTreatment) {
+            \App\Models\DemandComment::create([
+                'demand_id' => $this->getRecord()->id,
+                'user_id' => auth()->id(),
+                'content' => $this->newTreatment,
+            ]);
+            
+            // Clear the form field so it doesn't stay populated on next render
+            $this->form->fill(['new_treatment' => null] + $this->form->getState());
+        }
 
         // Se a pesquisa de satisfação foi respondida e a demanda está encerrada, avalia automaticamente
         $record = $this->getRecord()->fresh();
@@ -95,6 +110,7 @@ class EditDemand extends EditRecord
     }
 
     private array $fieldData = [];
+    private ?string $newTreatment = null;
 
     private function saveFieldValues(string $demandId, string $entityId): void
     {

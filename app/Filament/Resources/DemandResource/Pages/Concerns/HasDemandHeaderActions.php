@@ -46,12 +46,14 @@ trait HasDemandHeaderActions
                 ? (ProcessStatusColorEnum::tryFrom($transition->toStatus->color)?->filamentColor() ?? 'primary')
                 : 'primary';
 
+            $label = $transition->toStatus?->name === 'Encerrada' ? 'Encerrar demanda' : $transition->label;
+
             $actions[] = Actions\Action::make('transition_' . Str::slug($transition->id))
-                ->label($transition->label)
+                ->label($label)
                 ->color($color)
                 ->icon('heroicon-o-arrow-right-circle')
                 ->requiresConfirmation()
-                ->modalHeading("Confirmar: {$transition->label}")
+                ->modalHeading("Confirmar: {$label}")
                 ->modalDescription(function () use ($transition) {
                     $from = $transition->fromStatus?->name ?? 'Qualquer';
                     $to   = $transition->toStatus?->name ?? '?';
