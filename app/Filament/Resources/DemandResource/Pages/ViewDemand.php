@@ -33,4 +33,11 @@ class ViewDemand extends ViewRecord
 
         return $data;
     }
+
+    protected function getFooterWidgets(): array
+    {
+        return [
+            \App\Filament\Resources\DemandResource\Widgets\DemandEvaluationWidget::class,
+        ];
+    }
 }

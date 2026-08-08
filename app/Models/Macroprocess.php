@@ -27,6 +27,11 @@ class Macroprocess extends Model
 
     public function processes()
     {
-        return $this->hasMany(CustomEntity::class);
+        return $this->hasMany(CustomEntity::class, 'macroprocess_id');
+    }
+
+    public function getFullDisplayNameAttribute(): string
+    {
+        return $this->acronym ? "{$this->acronym} - {$this->name}" : $this->name;
     }
 }

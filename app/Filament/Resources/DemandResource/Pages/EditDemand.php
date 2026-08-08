@@ -140,4 +140,11 @@ class EditDemand extends EditRecord
             ->whereNotIn('custom_field_id', $validFieldIds)
             ->delete();
     }
+
+    protected function getFooterWidgets(): array
+    {
+        return [
+            \App\Filament\Resources\DemandResource\Widgets\DemandEvaluationWidget::class,
+        ];
+    }
 }

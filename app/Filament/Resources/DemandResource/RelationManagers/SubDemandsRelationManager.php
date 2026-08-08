@@ -116,7 +116,6 @@ class SubDemandsRelationManager extends RelationManager
                         $parent = $this->getOwnerRecord();
                         return DemandResource::getUrl('create', [
                             'parent_demand_id' => $parent->id,
-                            'entity_id' => $parent->entity_id,
                             'client_id' => $parent->client_id,
                             'project_id' => $parent->project_id,
                         ]);

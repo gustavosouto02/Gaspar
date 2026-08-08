@@ -34,17 +34,19 @@ class Demand extends Model
         'completed_at',
         'satisfaction_rating',
         'satisfaction_comment',
+        'satisfaction_evaluated_at',
         'attachments',
     ];
 
     protected $casts = [
-        'status'              => DemandStatusEnum::class,
-        'priority'            => DemandPriorityEnum::class,
-        'satisfaction_rating' => \App\Enums\SatisfactionRatingEnum::class,
-        'sla_due_at'          => 'datetime',
-        'started_at'          => 'datetime',
-        'completed_at'        => 'datetime',
-        'attachments'         => 'array',
+        'status'                    => DemandStatusEnum::class,
+        'priority'                  => DemandPriorityEnum::class,
+        'satisfaction_rating'       => \App\Enums\SatisfactionRatingEnum::class,
+        'satisfaction_evaluated_at' => 'datetime',
+        'sla_due_at'                => 'datetime',
+        'started_at'                => 'datetime',
+        'completed_at'              => 'datetime',
+        'attachments'               => 'array',
     ];
 
     public function newUniqueId(): string

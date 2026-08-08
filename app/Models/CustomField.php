@@ -58,6 +58,16 @@ class CustomField extends Model
     }
 
     /**
+     * Relacionamento com Tipos de Registros Customizados
+     */
+    public function customRecordTypes(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(CustomRecordType::class, 'custom_record_type_custom_field', 'custom_field_id', 'custom_record_type_id')
+                    ->withPivot('field_order')
+                    ->withTimestamps();
+    }
+
+    /**
      * Relacionamento com o criador
      */
     public function creator(): BelongsTo

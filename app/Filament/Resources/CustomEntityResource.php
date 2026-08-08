@@ -11,6 +11,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class CustomEntityResource extends Resource
@@ -49,7 +50,8 @@ class CustomEntityResource extends Resource
                 Forms\Components\Select::make('macroprocess_id')
                     ->label('Macroprocesso do qual faz parte')
                     ->relationship('macroprocess', 'name')
-                    ->searchable()
+                    ->getOptionLabelFromRecordUsing(fn (Model $record) => $record->full_display_name)
+                    ->searchable(['name', 'acronym'])
                     ->preload(),
 
                 Forms\Components\Toggle::make('is_active')

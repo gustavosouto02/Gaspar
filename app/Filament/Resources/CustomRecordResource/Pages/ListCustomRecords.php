@@ -13,7 +13,8 @@ class ListCustomRecords extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\CreateAction::make(),
+            Actions\CreateAction::make()
+                ->url(fn () => \App\Filament\Resources\CustomRecordResource::getUrl('create', ['type_id' => request()->query('type_id')])),
         ];
     }
 }

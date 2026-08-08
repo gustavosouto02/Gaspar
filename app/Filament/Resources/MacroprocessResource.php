@@ -12,6 +12,8 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Filament\Infolists;
+use Filament\Infolists\Infolist;
 
 class MacroprocessResource extends Resource
 {
@@ -58,16 +60,59 @@ class MacroprocessResource extends Resource
             ]);
     }
 
+    public static function infolist(Infolist $infolist): Infolist
+    {
+        return $infolist
+            ->schema([
+                Infolists\Components\Section::make('MACROPROCESSO')
+                    ->schema([
+                        Infolists\Components\TextEntry::make('id')
+                            ->label('Macroprocesso número'),
+                        Infolists\Components\TextEntry::make('created_at')
+                            ->label('Data de criação')
+                            ->dateTime('d/m/Y'),
+                        Infolists\Components\TextEntry::make('name')
+                            ->label('Nome do Macroprocesso'),
+                        Infolists\Components\TextEntry::make('acronym')
+                            ->label('Sigla do Macroprocesso'),
+                        Infolists\Components\TextEntry::make('is_active')
+                            ->label('Situação')
+                            ->formatStateUsing(fn ($state) => $state ? 'ATIVO' : 'INATIVO'),
+                        Infolists\Components\TextEntry::make('value_chain_function')
+                            ->label('Função na Cadeia de Valor'),
+                        
+                        Infolists\Components\TextEntry::make('description')
+                            ->label('Descrição')
+                            ->columnSpanFull()
+                            ->default('Macroprocesso compreende todos os processos vinculados.'),
+                    ])
+                    ->columns(1),
+
+                Infolists\Components\Section::make('Processos agrupados neste macroprocesso:')
+                    ->schema([
+                        Infolists\Components\RepeatableEntry::make('processes')
+                            ->label('')
+                            ->schema([
+                                Infolists\Components\TextEntry::make('name')
+                                    ->label('')
+                                    ->formatStateUsing(fn ($record) => $record->id . ' - ' . $record->name)
+                                    ->url(fn ($record) => \App\Filament\Resources\CustomEntityResource::getUrl('edit', ['record' => $record]))
+                                    ->color('primary'),
+                            ])
+                            ->grid(1)
+                            ->columnSpanFull(),
+                    ]),
+            ]);
+    }
+
     public static function table(Table $table): Table
     {
         return $table
             ->columns([
                 \Filament\Tables\Columns\TextColumn::make('name')
-                    ->label('Nome')
-                    ->searchable(),
-                \Filament\Tables\Columns\TextColumn::make('acronym')
-                    ->label('Sigla')
-                    ->searchable(),
+                    ->label('Macroprocesso')
+                    ->formatStateUsing(fn ($record) => $record->full_display_name)
+                    ->searchable(['name', 'acronym']),
                 \Filament\Tables\Columns\TextColumn::make('value_chain_function')
                     ->label('Função na Cadeia de Valor'),
                 \Filament\Tables\Columns\IconColumn::make('is_active')
@@ -82,6 +127,7 @@ class MacroprocessResource extends Resource
                 //
             ])
             ->actions([
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
@@ -89,13 +135,17 @@ class MacroprocessResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->recordUrl(fn (Macroprocess $record): string => Pages\ViewMacroprocess::getUrl(['record' => $record]));
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => Pages\ManageMacroprocesses::route('/'),
+            'index' => Pages\ListMacroprocesses::route('/'),
+            'create' => Pages\CreateMacroprocess::route('/create'),
+            'view' => Pages\ViewMacroprocess::route('/{record}'),
+            'edit' => Pages\EditMacroprocess::route('/{record}/edit'),
         ];
     }
 }

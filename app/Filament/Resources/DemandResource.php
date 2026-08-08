@@ -221,24 +221,6 @@ class DemandResource extends Resource
                     ->visible(fn ($livewire) => $livewire instanceof \Filament\Resources\Pages\EditRecord)
                     ->collapsible(),
 
-                Forms\Components\Section::make('Pesquisa de Satisfação')
-                    ->schema([
-                        Forms\Components\Select::make('satisfaction_rating')
-                            ->label('Avaliação')
-                            ->options(\App\Enums\SatisfactionRatingEnum::options())
-                            ->native(false),
-                        Forms\Components\Textarea::make('satisfaction_comment')
-                            ->label('Comentário')
-                            ->rows(2)
-                            ->nullable(),
-                    ])
-                    ->columns(2)
-                    ->visible(fn ($record) => $record
-                        && $record->status === \App\Enums\DemandStatusEnum::CLOSED
-                        && $record->requested_by === auth()->id()
-                        && ! $record->satisfaction_rating
-                    ),
-
                 Forms\Components\Hidden::make('created_by')
                     ->default(fn () => auth()->id()),
                     

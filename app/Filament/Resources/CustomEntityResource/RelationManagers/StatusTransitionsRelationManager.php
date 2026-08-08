@@ -72,7 +72,6 @@ class StatusTransitionsRelationManager extends RelationManager
                 ->nullable()
                 ->placeholder('Todos os membros/envolvidos')
                 ->helperText('Vazio = qualquer envolvido na demanda ou membro do processo pode; selecione para restringir'),
-
         ])->columns(2);
     }
 
