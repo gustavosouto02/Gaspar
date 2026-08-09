@@ -16,3 +16,9 @@ Route::post('/instalar', [InstaladorController::class, 'executarInstalacao'])->n
 
 Route::get('/desinstalar', [InstaladorController::class, 'desinstalar'])->name('desinstalar');
 Route::post('/desinstalar', [InstaladorController::class, 'executarDesinstalacao'])->name('desinstalar.post');
+
+Route::get('/update-system', function () {
+    \Illuminate\Support\Facades\Artisan::call('optimize:clear');
+    \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
+    return 'Sistema atualizado, cache limpo e banco de dados sincronizado com sucesso!';
+});
