@@ -26,6 +26,7 @@ class MyDemandsWidget extends BaseWidget
                 Demand::query()
                     ->with(['entity', 'processStatus', 'assignee', 'requester'])
                     ->where('status', DemandStatusEnum::ACTIVE->value)
+                    ->whereNull('parent_demand_id')
                     ->pendingForUser(auth()->user())
                     ->orderByRaw('CASE WHEN sla_due_at IS NULL THEN 1 ELSE 0 END ASC')
                     ->orderBy('sla_due_at', 'asc')

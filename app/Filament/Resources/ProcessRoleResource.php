@@ -18,13 +18,13 @@ class ProcessRoleResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-identification';
 
-    protected static ?string $navigationLabel = 'Papéis de Processo';
+    protected static ?string $navigationLabel = 'Papéis';
 
     protected static ?string $modelLabel = 'Papel';
 
-    protected static ?string $pluralModelLabel = 'Papéis de Processo';
+    protected static ?string $pluralModelLabel = 'Papéis';
 
-    protected static ?string $navigationGroup = 'Configurações';
+    protected static ?string $navigationGroup = 'Administração';
 
     protected static ?int $navigationSort = 1;
 

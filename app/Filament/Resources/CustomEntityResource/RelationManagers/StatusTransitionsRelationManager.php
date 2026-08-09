@@ -72,12 +72,6 @@ class StatusTransitionsRelationManager extends RelationManager
                 ->nullable()
                 ->placeholder('Todos os membros/envolvidos')
                 ->helperText('Vazio = qualquer envolvido na demanda ou membro do processo pode; selecione para restringir'),
-
-            Forms\Components\TextInput::make('display_order')
-                ->label('Ordem')
-                ->numeric()
-                ->default(0)
-                ->minValue(0),
         ])->columns(2);
     }
 
@@ -144,10 +138,6 @@ class StatusTransitionsRelationManager extends RelationManager
                         return $labels->implode(' / ');
                     })
                     ->wrap(),
-
-                Tables\Columns\TextColumn::make('display_order')
-                    ->label('Ordem')
-                    ->sortable(),
             ])
             ->defaultSort('display_order')
             ->headerActions([

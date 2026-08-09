@@ -18,13 +18,13 @@ class ActivityLogResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-eye';
 
-    protected static ?string $navigationLabel = 'Auditoria';
+    protected static ?string $navigationLabel = 'Atividades';
 
     protected static ?string $modelLabel = 'Log de Atividade';
 
     protected static ?string $pluralModelLabel = 'Logs de Atividade';
 
-    protected static ?string $navigationGroup = 'Configurações';
+    protected static ?string $navigationGroup = 'Relatórios';
 
     protected static ?int $navigationSort = 99;
 

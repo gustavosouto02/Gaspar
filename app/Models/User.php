@@ -29,6 +29,8 @@ class User extends Authenticatable implements FilamentUser
         'email',
         'password',
         'user_role',
+        'phone',
+        'process_role_id',
         'is_active',
     ];
 
@@ -71,5 +73,22 @@ class User extends Authenticatable implements FilamentUser
             'user_role' => UserRoleEnum::class,
             'is_active' => 'boolean',
         ];
+    }
+
+    public function projects(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(Project::class, 'project_user');
+    }
+
+    public function processRole(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(ProcessRole::class, 'process_role_id');
+    }
+
+    public function processes(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(CustomEntity::class, 'process_members', 'user_id', 'entity_id')
+            ->withPivot('process_role_id')
+            ->withTimestamps();
     }
 }

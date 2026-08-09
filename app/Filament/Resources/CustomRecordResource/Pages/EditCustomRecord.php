@@ -13,7 +13,13 @@ class EditCustomRecord extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            Actions\DeleteAction::make()
+                ->successRedirectUrl(fn () => $this->getResource()::getUrl('index', ['type_id' => $this->record->custom_record_type_id])),
         ];
+    }
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index', ['type_id' => $this->record->custom_record_type_id]);
     }
 }

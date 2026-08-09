@@ -22,60 +22,7 @@ class FieldsRelationManager extends RelationManager
 
     public function form(Form $form): Form
     {
-        return $form
-            ->schema([
-                Forms\Components\TextInput::make('name')
-                    ->label('Nome do Campo')
-                    ->required()
-                    ->maxLength(255)
-                    ->live(onBlur: true)
-                    ->afterStateUpdated(fn (string $operation, $state, Forms\Set $set) => 
-                        $operation === 'create' ? $set('key', str($state)->slug('_')->toString()) : null
-                    ),
-
-                Forms\Components\TextInput::make('key')
-                    ->required()
-                    ->maxLength(255)
-                    ->regex('/^[a-z0-9_]+$/')
-                    ->label('Chave (slug)')
-                    ->helperText('Ex: destino_viagem. Apenas minúsculas e sublinhados.'),
-
-                Forms\Components\Select::make('field_type')
-                    ->options(\App\Enums\FieldTypeEnum::options())
-                    ->required()
-                    ->live()
-                    ->label('Tipo do Campo'),
-
-                Forms\Components\TextInput::make('placeholder')
-                    ->maxLength(255),
-
-                Forms\Components\Toggle::make('is_required')
-                    ->label('Obrigatório')
-                    ->default(false),
-
-                Forms\Components\TextInput::make('default_value')
-                    ->label('Valor Padrão')
-                    ->maxLength(65535),
-
-                Forms\Components\TagsInput::make('options_json')
-                    ->label('Opções')
-                    ->placeholder('Escreva uma opção e aperte Enter')
-                    ->helperText('Apenas para campos do tipo Caixa de Seleção ou Botão de Rádio.')
-                    ->visible(fn (Forms\Get $get) => in_array($get('field_type'), [
-                        \App\Enums\FieldTypeEnum::SELECT->value,
-                        \App\Enums\FieldTypeEnum::RADIO->value,
-                    ]))
-                    ->columnSpanFull(),
-
-                Forms\Components\TextInput::make('field_order')
-                    ->label('Ordem de Exibição')
-                    ->numeric()
-                    ->default(0)
-                    ->required(),
-
-                Forms\Components\Hidden::make('created_by')
-                    ->default(fn () => auth()->id()),
-            ]);
+        return $form->schema([]);
     }
 
     public function table(Table $table): Table
@@ -101,24 +48,21 @@ class FieldsRelationManager extends RelationManager
                     ->sortable()
                     ->label('Obrigatório'),
 
-                Tables\Columns\TextColumn::make('field_order')
-                    ->numeric()
-                    ->sortable()
-                    ->label('Ordem'),
             ])
+            ->defaultSort('field_order')
+            ->reorderable('field_order')
             ->filters([
                 //
             ])
             ->headerActions([
-                Tables\Actions\CreateAction::make(),
+                Tables\Actions\AttachAction::make()->preloadRecordSelect(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DetachAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DetachBulkAction::make(),
                 ]),
             ]);
     }

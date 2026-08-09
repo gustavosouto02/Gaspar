@@ -32,13 +32,6 @@ class ProcessStatusesRelationManager extends RelationManager
                     ->searchable()
                     ->required()
                     ->placeholder('Selecione uma situação já cadastrada...'),
-
-                Forms\Components\TextInput::make('display_order')
-                    ->label('Ordem de Exibição')
-                    ->numeric()
-                    ->default(0)
-                    ->required()
-                    ->helperText('Menor número aparece primeiro'),
             ]);
     }
 
@@ -53,12 +46,17 @@ class ProcessStatusesRelationManager extends RelationManager
                     ->color(fn ($record) => ProcessStatusColorEnum::tryFrom($record->color)?->filamentColor() ?? 'gray')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('pivot.display_order')
-                    ->label('Ordem')
-                    ->numeric()
-                    ->sortable(),
+                Tables\Columns\IconColumn::make('is_system')
+                    ->label('Padrão')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-lock-closed')
+                    ->falseIcon('heroicon-o-minus')
+                    ->trueColor('danger')
+                    ->falseColor('gray'),
             ])
             ->defaultSort('entity_process_status.display_order')
+            ->reorderable('display_order')
+            ->checkIfRecordIsSelectableUsing(fn ($record) => !$record->is_system)
             ->headerActions([
                 Tables\Actions\AttachAction::make()
                     ->preloadRecordSelect()
@@ -67,15 +65,11 @@ class ProcessStatusesRelationManager extends RelationManager
                         $action->getRecordSelect()
                             ->label('Situação')
                             ->placeholder('Selecione uma situação já cadastrada...'),
-                        Forms\Components\TextInput::make('display_order')
-                            ->label('Ordem de Exibição')
-                            ->numeric()
-                            ->default(0)
-                            ->required(),
                     ]),
             ])
             ->actions([
-                Tables\Actions\DetachAction::make(),
+                Tables\Actions\DetachAction::make()
+                    ->hidden(fn ($record) => $record->is_system),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

@@ -16,12 +16,35 @@ class CustomEntity extends Model
 {
     use HasFactory, HasUuids, SoftDeletes, LogsActivity;
 
+    protected static function booted()
+    {
+        parent::booted();
+
+        static::created(function (CustomEntity $entity) {
+            $systemStatuses = \App\Models\ProcessStatus::where('is_system', true)->get();
+            $order = 1;
+            foreach ($systemStatuses as $status) {
+                // "Nova" goes first (order 1), others go later (order 99, 100)
+                $displayOrder = $status->name === 'Nova' ? 1 : 99 + $order++;
+                $entity->processStatuses()->attach($status->id, ['display_order' => $displayOrder]);
+            }
+        });
+    }
+
     protected $fillable = [
         'name',
+        'macroprocess_id',
         'description',
         'is_active',
+        'purpose',
+        'sla_hours',
         'created_by',
     ];
+
+    public function macroprocess(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(Macroprocess::class);
+    }
 
     /**
      * Gerar UUID7 para a chave primária
@@ -52,9 +75,13 @@ class CustomEntity extends Model
     /**
      * Relacionamento com os campos dinâmicos da entidade
      */
-    public function fields(): HasMany
+    public function fields(): BelongsToMany
     {
-        return $this->hasMany(CustomField::class, 'entity_id')->orderBy('field_order');
+        return $this->belongsToMany(CustomField::class, 'custom_entity_custom_field')
+                    ->using(CustomEntityCustomFieldPivot::class)
+                    ->withPivot('field_order')
+                    ->orderByPivot('field_order')
+                    ->withTimestamps();
     }
 
     /**

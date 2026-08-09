@@ -14,7 +14,7 @@ class CustomRecord extends Model
     use HasFactory, HasUuids, SoftDeletes;
 
     protected $fillable = [
-        'entity_id',
+        'custom_record_type_id',
         'created_by',
         'data_json',
     ];
@@ -44,12 +44,9 @@ class CustomRecord extends Model
         ];
     }
 
-    /**
-     * Relacionamento com a CustomEntity
-     */
-    public function entity(): BelongsTo
+    public function recordType(): BelongsTo
     {
-        return $this->belongsTo(CustomEntity::class, 'entity_id');
+        return $this->belongsTo(CustomRecordType::class, 'custom_record_type_id');
     }
 
     /**

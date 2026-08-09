@@ -12,11 +12,11 @@ class CommentsRelationManager extends RelationManager
 {
     protected static string $relationship = 'comments';
 
-    protected static ?string $title = 'Comentários';
+    protected static ?string $title = 'Tratamentos';
 
-    protected static ?string $modelLabel = 'Comentário';
+    protected static ?string $modelLabel = 'Tratamento';
 
-    protected static ?string $pluralModelLabel = 'Comentários';
+    protected static ?string $pluralModelLabel = 'Tratamentos';
 
     public function form(Form $form): Form
     {

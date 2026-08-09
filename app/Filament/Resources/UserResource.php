@@ -28,10 +28,22 @@ class UserResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Usuários';
 
+    protected static ?string $navigationGroup = 'Cadastros';
+
+    protected static ?int $navigationSort = 1;
+
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
+                \Filament\Forms\Components\Placeholder::make('id_placeholder')
+                    ->label('Usuário número')
+                    ->content(fn ($record) => $record?->id ?? '-'),
+
+                \Filament\Forms\Components\Placeholder::make('created_at_placeholder')
+                    ->label('Data de criação')
+                    ->content(fn ($record) => $record?->created_at ? $record->created_at->format('d/m/Y') : '-'),
+
                 TextInput::make('name')
                     ->label('Nome')
                     ->required()
@@ -42,6 +54,11 @@ class UserResource extends Resource
                     ->email()
                     ->required()
                     ->unique(ignoreRecord: true),
+
+                TextInput::make('phone')
+                    ->label('Fone')
+                    ->tel()
+                    ->maxLength(255),
 
                 TextInput::make('password')
                     ->label('Senha')
@@ -54,6 +71,26 @@ class UserResource extends Resource
                     ->label('Perfil')
                     ->options(UserRoleEnum::options())
                     ->required(),
+
+                Select::make('process_role_id')
+                    ->label('Papel')
+                    ->relationship('processRole', 'name')
+                    ->searchable()
+                    ->preload(),
+
+                Select::make('processes')
+                    ->label('Processos que é participante')
+                    ->multiple()
+                    ->relationship('processes', 'name')
+                    ->preload()
+                    ->searchable(),
+
+                Select::make('projects')
+                    ->label('Projetos de que é membro')
+                    ->multiple()
+                    ->relationship('projects', 'name')
+                    ->preload()
+                    ->searchable(),
 
                 Toggle::make('is_active')
                     ->label('Ativo')

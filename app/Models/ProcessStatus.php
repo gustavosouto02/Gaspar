@@ -17,7 +17,12 @@ class ProcessStatus extends Model
     protected $fillable = [
         'name',
         'color',
+        'is_system',
         'created_by',
+    ];
+
+    protected $casts = [
+        'is_system' => 'boolean',
     ];
 
     /**

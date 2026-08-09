@@ -17,110 +17,125 @@ class CustomRecordResource extends Resource
 {
     protected static ?string $model = CustomRecord::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-list';
+    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    protected static ?string $navigationLabel = 'Cadastramentos';
+    public static function getModelLabel(): string
+    {
+        if ($typeId = request()->query('type_id')) {
+            $type = \App\Models\CustomRecordType::find($typeId);
+            if ($type) {
+                return $type->name; // Poderia usar Str::singular($type->name)
+            }
+        }
+        return 'Registro';
+    }
 
-    protected static ?string $modelLabel = 'Cadastramento';
+    public static function getPluralModelLabel(): string
+    {
+        if ($typeId = request()->query('type_id')) {
+            $type = \App\Models\CustomRecordType::find($typeId);
+            if ($type) {
+                return $type->name;
+            }
+        }
+        return 'Registros';
+    }
 
-    protected static ?string $pluralModelLabel = 'Cadastramentos';
+    public static function getNavigationItems(): array
+    {
+        $items = [];
+        try {
+            $types = \App\Models\CustomRecordType::where('is_active', true)->get();
+            foreach ($types as $type) {
+                $items[] = \Filament\Navigation\NavigationItem::make($type->name)
+                    ->group('Cadastros')
+                    ->icon('heroicon-o-document-text')
+                    ->url(static::getUrl('index', ['type_id' => $type->id]))
+                    ->isActiveWhen(fn () => request()->query('type_id') == $type->id);
+            }
+        } catch (\Exception $e) {
+            // Ignora erro caso a tabela não exista ainda (durante migrations)
+        }
+        return $items;
+    }
 
-    protected static ?string $navigationGroup = 'Processos';
-
-    protected static ?int $navigationSort = 2;
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = parent::getEloquentQuery();
+        if ($typeId = request()->query('type_id')) {
+            $query->where('custom_record_type_id', $typeId);
+        }
+        return $query;
+    }
 
     public static function form(Form $form): Form
     {
-        return $form
-            ->schema([
-                Forms\Components\Select::make('entity_id')
-                    ->relationship('entity', 'name')
-                    ->required()
-                    ->live()
-                    ->label('Selecionar Processo')
-                    ->placeholder('Selecione o processo para preenchimento...'),
+        // Pega o type_id da request (query ou livewire state se estiver editando)
+        $typeId = request()->query('type_id');
+        if (! $typeId && $form->getRecord()) {
+            $typeId = $form->getRecord()->custom_record_type_id;
+        }
 
-                Forms\Components\Hidden::make('created_by')
-                    ->default(fn () => auth()->id()),
+        $schema = [];
+        if ($typeId) {
+            $type = \App\Models\CustomRecordType::with('fields')->find($typeId);
+            if ($type) {
+                foreach ($type->fields as $field) {
+                    $component = match ($field->type) {
+                        'text'     => Forms\Components\TextInput::make("data_json.{$field->name}"),
+                        'textarea' => Forms\Components\Textarea::make("data_json.{$field->name}")->rows(3),
+                        'number'   => Forms\Components\TextInput::make("data_json.{$field->name}")->numeric(),
+                        'date'     => Forms\Components\DatePicker::make("data_json.{$field->name}")->native(false),
+                        'datetime' => Forms\Components\DateTimePicker::make("data_json.{$field->name}")->native(false),
+                        'boolean'  => Forms\Components\Toggle::make("data_json.{$field->name}"),
+                        'select'   => Forms\Components\Select::make("data_json.{$field->name}")
+                                        ->options(array_combine($field->options ?? [], $field->options ?? []))
+                                        ->native(false),
+                        default    => Forms\Components\TextInput::make("data_json.{$field->name}"),
+                    };
 
-                Forms\Components\Section::make('Campos Dinâmicos')
-                    ->schema(function (Forms\Get $get) {
-                        $entityId = $get('entity_id');
-                        if (! $entityId) {
-                            return [];
-                        }
+                    $component->label($field->label)
+                              ->required($field->is_required);
 
-                        $fields = \App\Models\CustomField::where('entity_id', $entityId)
-                            ->orderBy('field_order')
-                            ->get();
+                    $schema[] = $component;
+                }
+            }
+        }
 
-                        $schema = [];
-                        foreach ($fields as $field) {
-                            $component = match ($field->field_type) {
-                                \App\Enums\FieldTypeEnum::TEXT => Forms\Components\TextInput::make("data_json.{$field->key}"),
-                                \App\Enums\FieldTypeEnum::TEXTAREA => Forms\Components\Textarea::make("data_json.{$field->key}"),
-                                \App\Enums\FieldTypeEnum::NUMBER => Forms\Components\TextInput::make("data_json.{$field->key}")->numeric(),
-                                \App\Enums\FieldTypeEnum::DATE => Forms\Components\DatePicker::make("data_json.{$field->key}"),
-                                \App\Enums\FieldTypeEnum::SELECT => Forms\Components\Select::make("data_json.{$field->key}")
-                                    ->options($field->options_json ? array_combine($field->options_json, $field->options_json) : []),
-                                \App\Enums\FieldTypeEnum::RADIO => Forms\Components\Radio::make("data_json.{$field->key}")
-                                    ->options($field->options_json ? array_combine($field->options_json, $field->options_json) : []),
-                                \App\Enums\FieldTypeEnum::CHECKBOX => Forms\Components\Toggle::make("data_json.{$field->key}"),
-                                \App\Enums\FieldTypeEnum::EMAIL => Forms\Components\TextInput::make("data_json.{$field->key}")->email(),
-                                default => Forms\Components\TextInput::make("data_json.{$field->key}"),
-                            };
-
-                            $component->label($field->name)
-                                ->required($field->is_required);
-
-                            if (method_exists($component, 'placeholder')) {
-                                $component->placeholder($field->placeholder);
-                            }
-
-                            if ($field->default_value) {
-                                $component->default($field->default_value);
-                            }
-
-                            $schema[] = $component;
-                        }
-
-                        return $schema;
-                    })
-                    ->columns(2)
-                    ->visible(fn (Forms\Get $get) => filled($get('entity_id'))),
-            ]);
+        return $form->schema($schema);
     }
 
     public static function table(Table $table): Table
     {
+        $typeId = request()->query('type_id');
+        $columns = [];
+
+        if ($typeId) {
+            $type = \App\Models\CustomRecordType::with('fields')->find($typeId);
+            if ($type) {
+                foreach ($type->fields->take(4) as $field) { // Mostra só os 4 primeiros campos na tabela
+                    $columns[] = Tables\Columns\TextColumn::make("data_json.{$field->name}")
+                        ->label($field->label)
+                        ->searchable()
+                        ->sortable();
+                }
+            }
+        }
+
+        $columns[] = Tables\Columns\TextColumn::make('created_at')
+            ->label('Criado em')
+            ->dateTime('d/m/Y H:i')
+            ->sortable()
+            ->toggleable(isToggledHiddenByDefault: true);
+
         return $table
-            ->columns([
-                Tables\Columns\TextColumn::make('entity.name')
-                    ->label('Processo')
-                    ->searchable()
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('data_json')
-                    ->label('Dados Registrados')
-                    ->formatStateUsing(fn ($state) => collect($state)->map(fn ($val, $key) => "{$key}: {$val}")->implode(' | '))
-                    ->limit(100),
-
-                Tables\Columns\TextColumn::make('creator.name')
-                    ->label('Preenchido por')
-                    ->sortable(),
-
-                Tables\Columns\TextColumn::make('created_at')
-                    ->label('Data de Registro')
-                    ->dateTime('d/m/Y H:i')
-                    ->sortable(),
-            ])
+            ->columns($columns)
             ->filters([
                 //
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->url(fn (\App\Models\CustomRecord $record) => static::getUrl('edit', ['record' => $record, 'type_id' => $record->custom_record_type_id])),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -141,7 +156,6 @@ class CustomRecordResource extends Resource
         return [
             'index' => Pages\ListCustomRecords::route('/'),
             'create' => Pages\CreateCustomRecord::route('/create'),
-            'view' => Pages\ViewCustomRecord::route('/{record}'),
             'edit' => Pages\EditCustomRecord::route('/{record}/edit'),
         ];
     }

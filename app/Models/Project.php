@@ -39,4 +39,9 @@ class Project extends Model
     {
         return $this->hasMany(Demand::class);
     }
+
+    public function members(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'project_user');
+    }
 }

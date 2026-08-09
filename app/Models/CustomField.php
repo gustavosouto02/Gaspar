@@ -15,7 +15,6 @@ class CustomField extends Model
     use HasFactory, HasUuids, SoftDeletes;
 
     protected $fillable = [
-        'entity_id',
         'name',
         'key',
         'field_type',
@@ -23,7 +22,6 @@ class CustomField extends Model
         'is_required',
         'default_value',
         'options_json',
-        'field_order',
         'created_by',
     ];
 
@@ -49,11 +47,24 @@ class CustomField extends Model
     }
 
     /**
-     * Relacionamento com a CustomEntity
+     * Relacionamento com CustomEntities
      */
-    public function entity(): BelongsTo
+    public function customEntities(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        return $this->belongsTo(CustomEntity::class, 'entity_id');
+        return $this->belongsToMany(CustomEntity::class, 'custom_entity_custom_field')
+                    ->using(CustomEntityCustomFieldPivot::class)
+                    ->withPivot('field_order')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Relacionamento com Tipos de Registros Customizados
+     */
+    public function customRecordTypes(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(CustomRecordType::class, 'custom_record_type_custom_field', 'custom_field_id', 'custom_record_type_id')
+                    ->withPivot('field_order')
+                    ->withTimestamps();
     }
 
     /**

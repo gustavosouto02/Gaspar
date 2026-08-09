@@ -18,6 +18,7 @@ class StatusTransition extends Model
         'from_status_id',
         'to_status_id',
         'label',
+        'allow_return',
         'allowed_role_ids',
         'display_order',
     ];
@@ -57,6 +58,13 @@ class StatusTransition extends Model
     {
         if ($user->user_role?->value === 'ADMIN') {
             return true;
+        }
+
+        if ($demand->parent_demand_id) {
+            $parent = $demand->parent;
+            if ($parent && $parent->assigned_to === $user->id) {
+                return true; // Responsável pela demanda mãe pode tudo na subdemanda
+            }
         }
 
         $allowedRoles = $this->allowed_role_ids ?? [];

@@ -32,14 +32,21 @@ class Demand extends Model
         'sla_due_at',
         'started_at',
         'completed_at',
+        'satisfaction_rating',
+        'satisfaction_comment',
+        'satisfaction_evaluated_at',
+        'attachments',
     ];
 
     protected $casts = [
-        'status'       => DemandStatusEnum::class,
-        'priority'     => DemandPriorityEnum::class,
-        'sla_due_at'   => 'datetime',
-        'started_at'   => 'datetime',
-        'completed_at' => 'datetime',
+        'status'                    => DemandStatusEnum::class,
+        'priority'                  => DemandPriorityEnum::class,
+        'satisfaction_rating'       => \App\Enums\SatisfactionRatingEnum::class,
+        'satisfaction_evaluated_at' => 'datetime',
+        'sla_due_at'                => 'datetime',
+        'started_at'                => 'datetime',
+        'completed_at'              => 'datetime',
+        'attachments'               => 'array',
     ];
 
     public function newUniqueId(): string
@@ -137,6 +144,7 @@ class Demand extends Model
                 $q->whereNull('from_status_id')
                   ->orWhere('from_status_id', $this->process_status_id);
             })
+            ->where('to_status_id', '!=', $this->process_status_id)
             ->get();
 
         $updates = [];

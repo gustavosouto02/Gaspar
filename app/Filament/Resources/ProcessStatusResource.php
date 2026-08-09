@@ -24,9 +24,9 @@ class ProcessStatusResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Situações';
 
-    protected static ?string $navigationGroup = 'Configurações';
+    protected static ?string $navigationGroup = 'Administração';
 
-    protected static ?int $navigationSort = 2;
+    protected static ?int $navigationSort = 4;
 
     public static function canAccess(): bool
     {
@@ -74,6 +74,15 @@ class ProcessStatusResource extends Resource
                     ->label('Criado por')
                     ->sortable(),
 
+                Tables\Columns\IconColumn::make('is_system')
+                    ->label('Padrão do Sistema')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-lock-closed')
+                    ->falseIcon('heroicon-o-pencil')
+                    ->trueColor('danger')
+                    ->falseColor('success')
+                    ->tooltip(fn ($state) => $state ? 'Situação obrigatória e fixa' : 'Situação customizada'),
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Criado em')
                     ->dateTime('d/m/Y H:i')
@@ -84,8 +93,10 @@ class ProcessStatusResource extends Resource
                 //
             ])
             ->actions([
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->hidden(fn (ProcessStatus $record) => $record->is_system),
+                Tables\Actions\DeleteAction::make()
+                    ->hidden(fn (ProcessStatus $record) => $record->is_system),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

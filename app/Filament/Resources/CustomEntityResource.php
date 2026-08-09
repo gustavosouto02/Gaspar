@@ -11,6 +11,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class CustomEntityResource extends Resource
@@ -25,23 +26,53 @@ class CustomEntityResource extends Resource
 
     protected static ?string $pluralModelLabel = 'Processos';
 
-    protected static ?string $navigationGroup = 'Processos';
+    protected static ?string $navigationGroup = 'Administração';
 
-    protected static ?int $navigationSort = 1;
+    protected static ?int $navigationSort = 3;
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
+                Forms\Components\Placeholder::make('id_placeholder')
+                    ->label('Processo número')
+                    ->content(fn ($record) => $record?->id ?? '-'),
+                
+                Forms\Components\Placeholder::make('created_at_placeholder')
+                    ->label('Data de criação')
+                    ->content(fn ($record) => $record?->created_at ? $record->created_at->format('d/m/Y') : '-'),
+
                 Forms\Components\TextInput::make('name')
                     ->label('Nome do Processo')
                     ->required()
                     ->maxLength(255),
 
+                Forms\Components\Select::make('macroprocess_id')
+                    ->label('Macroprocesso do qual faz parte')
+                    ->relationship('macroprocess', 'name')
+                    ->getOptionLabelFromRecordUsing(fn (Model $record) => $record->full_display_name)
+                    ->searchable(['name', 'acronym'])
+                    ->preload(),
+
                 Forms\Components\Toggle::make('is_active')
-                    ->label('Ativo')
+                    ->label('Situação (Ativo)')
                     ->required()
                     ->default(true),
+
+                Forms\Components\Select::make('purpose')
+                    ->label('Finalidade')
+                    ->options([
+                        'Apoio' => 'Apoio',
+                        'Finalístico' => 'Finalístico',
+                        'Gerencial' => 'Gerencial',
+                    ]),
+
+                Forms\Components\TextInput::make('sla_hours')
+                    ->label('Prazo de atendimento (horas)')
+                    ->numeric()
+                    ->nullable()
+                    ->placeholder('Ex: 48')
+                    ->helperText('Prazo padrão em horas para demandas deste processo. Será calculado automaticamente ao criar a demanda.'),
 
                 Forms\Components\Textarea::make('description')
                     ->label('Descrição')
