@@ -178,47 +178,30 @@ class DemandResource extends Resource
                     ->visible(fn (Get $get) => filled($get('entity_id')))
                     ->description('Campos específicos configurados para este processo'),
 
-                Forms\Components\Section::make('Tratamento')
+                Forms\Components\Section::make('Subdemandas')
+                    ->headerActions([
+                        Forms\Components\Actions\Action::make('registrar_subdemanda')
+                            ->label('Registrar Subdemanda')
+                            ->icon('heroicon-m-plus')
+                            ->color('warning')
+                            ->url(fn ($record) => $record ? \App\Filament\Resources\DemandResource::getUrl('create', ['parent_demand_id' => $record->id]) : null)
+                    ])
                     ->schema([
-                        Forms\Components\Textarea::make('new_treatment')
-                            ->label('Novo Tratamento / Comentário')
-                            ->placeholder('Escreva aqui seu novo tratamento...')
-                            ->rows(3)
-                            ->dehydrated(false) // Não salva diretamente na model Demand
-                            ->visible(fn ($livewire) => $livewire instanceof \Filament\Resources\Pages\EditRecord),
-
-                        Forms\Components\Actions::make([
-                            Forms\Components\Actions\Action::make('enviar_tratamento')
-                                ->label('Enviar Tratamento')
-                                ->icon('heroicon-m-paper-airplane')
-                                ->color('primary')
-                                ->action(function (\Filament\Forms\Get $get, \Filament\Forms\Set $set, $record) {
-                                    $content = $get('new_treatment');
-                                    if (empty(trim((string)$content))) {
-                                        return;
-                                    }
-
-                                    \App\Models\DemandComment::create([
-                                        'demand_id' => $record->id,
-                                        'user_id' => auth()->id(),
-                                        'comment' => $content,
-                                    ]);
-
-                                    $set('new_treatment', null);
-
-                                    \Filament\Notifications\Notification::make()
-                                        ->title('Tratamento adicionado com sucesso!')
-                                        ->success()
-                                        ->send();
-                                })
-                        ])->visible(fn ($livewire) => $livewire instanceof \Filament\Resources\Pages\EditRecord),
-
-                        Forms\Components\ViewField::make('treatments_timeline')
-                            ->view('filament.forms.components.demand-timeline')
-                            ->visible(fn ($livewire) => $livewire instanceof \Filament\Resources\Pages\EditRecord)
+                        Forms\Components\ViewField::make('demand_subdemands')
+                            ->view('filament.forms.components.demand-subdemands')
                             ->columnSpanFull(),
                     ])
-                    ->visible(fn ($livewire) => $livewire instanceof \Filament\Resources\Pages\EditRecord)
+                    ->visible(fn ($record) => $record !== null)
+                    ->collapsible(),
+
+                Forms\Components\Section::make('Tratamento')
+                    ->schema([
+                        Forms\Components\ViewField::make('treatments_timeline')
+                            ->view('filament.forms.components.demand-timeline')
+                            ->visible(fn ($record) => $record !== null)
+                            ->columnSpanFull(),
+                    ])
+                    ->visible(fn ($record) => $record !== null)
                     ->collapsible(),
 
                 Forms\Components\Hidden::make('created_by')
@@ -410,12 +393,36 @@ class DemandResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn (Demand $record) => 
+                        auth()->user()->user_role === \App\Enums\UserRoleEnum::ADMIN
+                        || $record->created_by === auth()->id()
+                        || $record->requested_by === auth()->id()
+                        || $record->assigned_to === auth()->id()
+                        || $record->canBeTransitionedBy(auth()->user())
+                    ),
+                Tables\Actions\Action::make('cancelar')
+                    ->label('Cancelar')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('Cancelar Demanda')
+                    ->modalDescription('Tem certeza que deseja cancelar esta demanda? Ela continuará salva, mas seu status será alterado para Cancelada.')
+                    ->action(fn (Demand $record) => $record->update(['status' => \App\Enums\DemandStatusEnum::CANCELED->value, 'completed_at' => now()]))
+                    ->visible(fn (Demand $record) => 
+                        auth()->user()->user_role === \App\Enums\UserRoleEnum::ADMIN
+                        || $record->requested_by === auth()->id()
+                    ),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\BulkAction::make('cancelar_selecionadas')
+                        ->label('Cancelar Selecionadas')
+                        ->icon('heroicon-o-x-circle')
+                        ->color('danger')
+                        ->requiresConfirmation()
+                        ->action(fn (\Illuminate\Database\Eloquent\Collection $records) => $records->each(fn ($record) => $record->update(['status' => \App\Enums\DemandStatusEnum::CANCELED->value, 'completed_at' => now()])))
+                        ->visible(fn () => auth()->user()->user_role === \App\Enums\UserRoleEnum::ADMIN),
                 ]),
             ]);
     }
@@ -423,9 +430,7 @@ class DemandResource extends Resource
     public static function getRelations(): array
     {
         return [
-            \Filament\Resources\RelationManagers\RelationGroup::make('Relacionamentos', [
-                RelationManagers\SubDemandsRelationManager::class,
-            ]),
+            // Relacionamentos movidos para o form
         ];
     }
 

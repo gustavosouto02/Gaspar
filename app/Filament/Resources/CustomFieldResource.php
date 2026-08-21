@@ -16,11 +16,11 @@ class CustomFieldResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-queue-list';
 
-    protected static ?string $navigationLabel = 'Campos Customizados';
+    protected static ?string $navigationLabel = 'Criar Campos';
 
-    protected static ?string $modelLabel = 'Campo Customizado';
+    protected static ?string $modelLabel = 'Campo';
 
-    protected static ?string $pluralModelLabel = 'Campos Customizados';
+    protected static ?string $pluralModelLabel = 'Campos';
 
     protected static ?string $navigationGroup = 'Administração';
 

@@ -21,6 +21,26 @@ class EditDemand extends EditRecord
 
     protected static string $resource = DemandResource::class;
 
+    public string $new_treatment = '';
+
+    public function addTreatment()
+    {
+        if (empty(trim($this->new_treatment))) return;
+
+        \App\Models\DemandComment::create([
+            'demand_id' => $this->record->id,
+            'user_id' => auth()->id(),
+            'comment' => $this->new_treatment,
+        ]);
+
+        $this->new_treatment = '';
+
+        \Filament\Notifications\Notification::make()
+            ->title('Tratamento adicionado com sucesso!')
+            ->success()
+            ->send();
+    }
+
     protected static string $view = 'filament.resources.demand-resource.pages.edit-demand';
 
     /**
@@ -43,8 +63,13 @@ class EditDemand extends EditRecord
         return $data;
     }
 
+    private array $fieldData = [];
+    private ?string $newTreatment = null;
+    public bool $isSubmittingDraft = false;
+
     /**
-     * Antes de salvar, extrai field_data e new_treatment (não são colunas reais em demands).
+     * Antes de salvar, extrai field_data e new_treatment.
+     * Se estiver enviando um rascunho para atendimento, atualiza status e SLA.
      */
     protected function mutateFormDataBeforeSave(array $data): array
     {
@@ -54,11 +79,22 @@ class EditDemand extends EditRecord
         $this->newTreatment = $data['new_treatment'] ?? null;
         unset($data['new_treatment']);
 
+        if ($this->isSubmittingDraft) {
+            $data['status'] = \App\Enums\DemandStatusEnum::ACTIVE->value;
+
+            if (! empty($data['entity_id']) && empty($this->record->sla_due_at)) {
+                $entity = \App\Models\CustomEntity::find($data['entity_id']);
+                if ($entity && $entity->sla_hours) {
+                    $data['sla_due_at'] = now()->addHours($entity->sla_hours);
+                }
+            }
+        }
+
         return $data;
     }
 
     /**
-     * Após salvar, atualiza demand_field_values e verifica pesquisa de satisfação.
+     * Após salvar, atualiza demand_field_values, comentários, autoAssign, etc.
      */
     protected function afterSave(): void
     {
@@ -74,8 +110,11 @@ class EditDemand extends EditRecord
                 'content' => $this->newTreatment,
             ]);
             
-            // Clear the form field so it doesn't stay populated on next render
             $this->form->fill(['new_treatment' => null] + $this->form->getState());
+        }
+
+        if ($this->isSubmittingDraft) {
+            $this->getRecord()->autoAssign();
         }
 
         // Se a pesquisa de satisfação foi respondida e a demanda está encerrada, avalia automaticamente
@@ -98,19 +137,34 @@ class EditDemand extends EditRecord
 
     protected function getFormActions(): array
     {
-        $actions = parent::getFormActions();
-        
-        foreach ($actions as $action) {
-            $action->extraAttributes(
-                array_merge($action->getExtraAttributes(), ['form' => 'form'])
-            );
+        $actions = [];
+
+        // Se for um rascunho, adiciona o botão principal "Enviar para atendimento"
+        if ($this->record->status === \App\Enums\DemandStatusEnum::DRAFT) {
+            $actions[] = \Filament\Actions\Action::make('enviar_para_atendimento')
+                ->label('Enviar para atendimento')
+                ->color('primary')
+                ->action(function () {
+                    $this->isSubmittingDraft = true;
+                    $this->save();
+                    
+                    \Filament\Notifications\Notification::make()
+                        ->title('Demanda enviada para atendimento!')
+                        ->success()
+                        ->send();
+                        
+                    // Redireciona para atualizar a tela e botões
+                    return redirect($this->getResource()::getUrl('edit', ['record' => $this->record]));
+                });
         }
+
+        // Botão padrão de salvar alterações
+        $actions[] = $this->getSaveFormAction()->label('Salvar Alterações');
+
+        $actions[] = $this->getCancelFormAction();
 
         return $actions;
     }
-
-    private array $fieldData = [];
-    private ?string $newTreatment = null;
 
     private function saveFieldValues(string $demandId, string $entityId): void
     {

@@ -43,8 +43,8 @@ cd - > /dev/null
 
 # 5. Cria o arquivo zip final
 echo -e "\n${BLUE}[5/5] Gerando o arquivo ${ZIP_NAME}...${NC}"
-cd $BUILD_DIR/gaspar
-zip -r "$ORIGINAL_DIR/$ZIP_NAME" . -q
+cd $BUILD_DIR
+zip -r "$ORIGINAL_DIR/$ZIP_NAME" gaspar -q
 cd - > /dev/null
 
 # Limpeza

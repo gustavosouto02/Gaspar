@@ -4,6 +4,7 @@ namespace App\Enums;
 
 enum DemandStatusEnum: string
 {
+    case DRAFT     = 'DRAFT';
     case ACTIVE    = 'ACTIVE';
     case COMPLETED = 'COMPLETED';
     case CANCELED  = 'CANCELED';
@@ -13,6 +14,7 @@ enum DemandStatusEnum: string
     public function label(): string
     {
         return match($this) {
+            self::DRAFT     => 'Rascunho',
             self::ACTIVE    => 'Ativa',
             self::COMPLETED => 'Concluída',
             self::CANCELED  => 'Cancelada',
@@ -24,6 +26,7 @@ enum DemandStatusEnum: string
     public function filamentColor(): string
     {
         return match($this) {
+            self::DRAFT     => 'gray',
             self::ACTIVE    => 'info',
             self::COMPLETED => 'success',
             self::CANCELED  => 'danger',

@@ -17,6 +17,8 @@ class ProcessRole extends Model
     protected $fillable = [
         'name',
         'color',
+        'description',
+        'is_active',
         'created_by',
     ];
 

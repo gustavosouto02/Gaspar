@@ -111,7 +111,7 @@ class SubDemandsRelationManager extends RelationManager
                 Tables\Actions\Action::make('createSubDemand')
                     ->label('Registrar Subdemanda')
                     ->icon('heroicon-o-plus-circle')
-                    ->color('success')
+                    ->color('warning')
                     ->url(function () {
                         $parent = $this->getOwnerRecord();
                         return DemandResource::getUrl('create', [
