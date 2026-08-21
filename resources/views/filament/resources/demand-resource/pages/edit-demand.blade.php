@@ -12,6 +12,11 @@
             wire:submit="save"
         >
             {{ $this->form }}
+
+            <x-filament-panels::form.actions
+                :actions="$this->getCachedFormActions()"
+                :full-width="$this->hasFullWidthFormActions()"
+            />
         </x-filament-panels::form>
     @endcapture
 
@@ -42,13 +47,6 @@
             @endif
         </x-filament-panels::resources.relation-managers>
     @endif
-
-    <div class="mt-6">
-        <x-filament-panels::form.actions
-            :actions="$this->getCachedFormActions()"
-            :full-width="$this->hasFullWidthFormActions()"
-        />
-    </div>
 
     <x-filament-panels::page.unsaved-data-changes-alert />
 </x-filament-panels::page>

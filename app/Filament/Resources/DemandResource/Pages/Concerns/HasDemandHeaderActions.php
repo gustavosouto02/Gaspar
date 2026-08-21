@@ -200,8 +200,22 @@ trait HasDemandHeaderActions
                 });
         }
 
-        $actions[] = Actions\DeleteAction::make();
-
+        $actions[] = Actions\Action::make('cancelar')
+            ->label('Cancelar Demanda')
+            ->icon('heroicon-o-x-circle')
+            ->color('danger')
+            ->requiresConfirmation()
+            ->modalHeading('Cancelar Demanda')
+            ->modalDescription('Tem certeza que deseja cancelar esta demanda? Ela continuará salva, mas seu status será alterado para Cancelada.')
+            ->action(function () use ($record) {
+                $record->update(['status' => \App\Enums\DemandStatusEnum::CANCELED->value, 'completed_at' => now()]);
+                Notification::make()->title('Demanda cancelada com sucesso!')->success()->send();
+                $this->redirect(static::getResource()::getUrl('index'));
+            })
+            ->visible(fn () => 
+                auth()->user()->user_role === \App\Enums\UserRoleEnum::ADMIN
+                || $record->requested_by === auth()->id()
+            );
         return array_merge($actions, $parentActions);
     }
 }

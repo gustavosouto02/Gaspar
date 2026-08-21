@@ -12,13 +12,10 @@ class CreateDemand extends CreateRecord
 {
     protected static string $resource = DemandResource::class;
 
-    protected function getRedirectUrl(): string
-    {
-        return $this->getResource()::getUrl('edit', ['record' => $this->getRecord()]);
-    }
+    private bool $isDraft = false;
 
     /**
-     * Botão de submit: "Enviar para atendimento"
+     * Botão principal: "Enviar para atendimento" — submissão oficial.
      */
     protected function getCreateFormAction(): \Filament\Actions\Action
     {
@@ -27,19 +24,57 @@ class CreateDemand extends CreateRecord
     }
 
     /**
-     * Antes de criar, extrai field_data do array de dados
-     * e calcula o prazo de atendimento (SLA) baseado no processo.
+     * Esconde o "Criar e criar outro" padrão do Filament.
+     */
+    protected function getCreateAnotherFormAction(): \Filament\Actions\Action
+    {
+        return parent::getCreateAnotherFormAction()->hidden();
+    }
+
+    /**
+     * Botões do rodapé: Enviar, Salvar (rascunho) e Cancelar.
+     */
+    protected function getFormActions(): array
+    {
+        return [
+            $this->getCreateFormAction(),
+            \Filament\Actions\Action::make('salvar')
+                ->label('Salvar')
+                ->color('gray')
+                ->action(function () {
+                    $this->isDraft = true;
+                    $this->create();
+                }),
+            $this->getCancelFormAction(),
+        ];
+    }
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('edit', ['record' => $this->getRecord()]);
+    }
+
+    /**
+     * Antes de criar, extrai field_data e configura o status:
+     * - Rascunho (Salvar): status = DRAFT, sem SLA
+     * - Envio (Enviar): status = ACTIVE, calcula SLA
      */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         $this->fieldData = $data['field_data'] ?? [];
         unset($data['field_data']);
 
-        // Calcula SLA automaticamente a partir das horas configuradas no processo
-        if (! empty($data['entity_id']) && empty($data['sla_due_at'])) {
-            $entity = CustomEntity::find($data['entity_id']);
-            if ($entity && $entity->sla_hours) {
-                $data['sla_due_at'] = now()->addHours($entity->sla_hours);
+        if ($this->isDraft) {
+            $data['status'] = \App\Enums\DemandStatusEnum::DRAFT->value;
+        } else {
+            $data['status'] = \App\Enums\DemandStatusEnum::ACTIVE->value;
+
+            // Calcula SLA somente ao enviar para atendimento
+            if (! empty($data['entity_id']) && empty($data['sla_due_at'])) {
+                $entity = CustomEntity::find($data['entity_id']);
+                if ($entity && $entity->sla_hours) {
+                    $data['sla_due_at'] = now()->addHours($entity->sla_hours);
+                }
             }
         }
 
@@ -47,12 +82,16 @@ class CreateDemand extends CreateRecord
     }
 
     /**
-     * Após criar a demanda, salva os valores dos campos customizados e auto-atribui.
+     * Após criar: salva campos customizados sempre.
+     * AutoAssign só roda ao enviar para atendimento (não no rascunho).
      */
     protected function afterCreate(): void
     {
         $this->saveFieldValues($this->getRecord()->id, $this->getRecord()->entity_id);
-        $this->getRecord()->autoAssign();
+
+        if (! $this->isDraft) {
+            $this->getRecord()->autoAssign();
+        }
     }
 
     private array $fieldData = [];

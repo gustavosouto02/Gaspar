@@ -18,11 +18,11 @@ class CustomRecordTypeResource extends Resource
     protected static ?string $model = CustomRecordType::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
-    protected static ?string $navigationGroup = 'Customizáveis';
-    protected static ?string $navigationLabel = 'Tipos de Cadastros';
-    protected static ?string $modelLabel = 'Tipo de Cadastro';
-    protected static ?string $pluralModelLabel = 'Tipos de Cadastros';
-    protected static ?int $navigationSort = 3;
+    protected static ?string $navigationGroup = 'Administração';
+    protected static ?string $navigationLabel = 'Criar Cadastros';
+    protected static ?string $modelLabel = 'Cadastro';
+    protected static ?string $pluralModelLabel = 'Cadastros';
+    protected static ?int $navigationSort = 5;
 
     public static function form(Form $form): Form
     {

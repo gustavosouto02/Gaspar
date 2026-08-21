@@ -9,4 +9,11 @@ use Filament\Resources\Pages\ListRecords;
 class ListMacroprocesses extends ListRecords
 {
     protected static string $resource = MacroprocessResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\CreateAction::make(),
+        ];
+    }
 }

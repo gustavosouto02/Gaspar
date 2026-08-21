@@ -15,6 +15,7 @@ class Macroprocess extends Model
     protected $fillable = [
         'name',
         'acronym',
+        'description',
         'is_active',
         'value_chain_function',
         'created_by',

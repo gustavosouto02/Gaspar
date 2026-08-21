@@ -14,6 +14,26 @@ class ViewDemand extends ViewRecord
 
     protected static string $resource = DemandResource::class;
 
+    public string $new_treatment = '';
+
+    public function addTreatment()
+    {
+        if (empty(trim($this->new_treatment))) return;
+
+        \App\Models\DemandComment::create([
+            'demand_id' => $this->record->id,
+            'user_id' => auth()->id(),
+            'comment' => $this->new_treatment,
+        ]);
+
+        $this->new_treatment = '';
+
+        \Filament\Notifications\Notification::make()
+            ->title('Tratamento adicionado com sucesso!')
+            ->success()
+            ->send();
+    }
+
     /**
      * Ao carregar o form para visualização, injeta os valores salvos em
      * demand_field_values de volta no namespace field_data.{key}.

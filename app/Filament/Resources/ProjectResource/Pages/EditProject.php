@@ -10,8 +10,30 @@ class EditProject extends EditRecord
 {
     protected static string $resource = ProjectResource::class;
 
+    public string $new_treatment = '';
+
+    public function addTreatment()
+    {
+        if (empty(trim($this->new_treatment))) return;
+
+        \App\Models\ProjectProgress::create([
+            'project_id' => $this->record->id,
+            'user_id' => auth()->id(),
+            'content' => $this->new_treatment,
+        ]);
+
+        $this->new_treatment = '';
+
+        \Filament\Notifications\Notification::make()
+            ->title('Tratamento adicionado com sucesso!')
+            ->success()
+            ->send();
+    }
+
     protected function getHeaderActions(): array
     {
-        return [Actions\DeleteAction::make()];
+        return [
+            Actions\DeleteAction::make(),
+        ];
     }
 }

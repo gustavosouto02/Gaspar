@@ -50,8 +50,52 @@ class ProcessRoleResource extends Resource
                     ->default('gray')
                     ->native(false),
 
+                Forms\Components\Textarea::make('description')
+                    ->label('Descrição')
+                    ->columnSpanFull(),
+
+                Forms\Components\Toggle::make('is_active')
+                    ->label('Ativo')
+                    ->default(true),
+
                 Forms\Components\Hidden::make('created_by')
                     ->default(fn () => auth()->id()),
+            ]);
+    }
+
+    public static function infolist(\Filament\Infolists\Infolist $infolist): \Filament\Infolists\Infolist
+    {
+        return $infolist
+            ->schema([
+                \Filament\Infolists\Components\Section::make('PAPEL')
+                    ->schema([
+                        \Filament\Infolists\Components\TextEntry::make('id')
+                            ->label('Papel número'),
+                        \Filament\Infolists\Components\TextEntry::make('created_at')
+                            ->label('Data de criação')
+                            ->dateTime('d/m/Y'),
+                        \Filament\Infolists\Components\TextEntry::make('name')
+                            ->label('Nome do Papel'),
+                        \Filament\Infolists\Components\TextEntry::make('is_active')
+                            ->label('Situação')
+                            ->formatStateUsing(fn ($state) => $state ? 'ATIVO' : 'INATIVO'),
+                        \Filament\Infolists\Components\TextEntry::make('description')
+                            ->label('Descrição')
+                            ->columnSpanFull(),
+                    ])->columns(2),
+
+                \Filament\Infolists\Components\Section::make('Processos que utilizam este papel:')
+                    ->schema([
+                        \Filament\Infolists\Components\TextEntry::make('members')
+                            ->label('')
+                            ->formatStateUsing(function ($record) {
+                                $entities = $record->members->map(fn($m) => $m->entity)->filter()->unique('id');
+                                if ($entities->isEmpty()) return 'Nenhum processo utiliza este papel.';
+                                return $entities->map(fn($e) => "<a href='" . \App\Filament\Resources\CustomEntityResource::getUrl('edit', ['record' => $e]) . "' class='text-primary-600 underline'>{$e->id} - {$e->name}</a>")->implode('<br>');
+                            })
+                            ->html()
+                            ->columnSpanFull(),
+                    ]),
             ]);
     }
 
@@ -69,6 +113,10 @@ class ProcessRoleResource extends Resource
                     ->badge()
                     ->formatStateUsing(fn (string $state) => ProcessStatusColorEnum::options()[$state] ?? $state)
                     ->color(fn (string $state) => ProcessStatusColorEnum::from($state)->filamentColor()),
+                
+                Tables\Columns\IconColumn::make('is_active')
+                    ->label('Ativo')
+                    ->boolean(),
 
                 Tables\Columns\TextColumn::make('creator.name')
                     ->label('Criado por')
@@ -84,6 +132,7 @@ class ProcessRoleResource extends Resource
                 //
             ])
             ->actions([
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
@@ -91,7 +140,8 @@ class ProcessRoleResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->recordUrl(fn (ProcessRole $record): string => Pages\ViewProcessRole::getUrl(['record' => $record]));
     }
 
     public static function getPages(): array
@@ -99,6 +149,7 @@ class ProcessRoleResource extends Resource
         return [
             'index'  => Pages\ListProcessRoles::route('/'),
             'create' => Pages\CreateProcessRole::route('/create'),
+            'view'   => Pages\ViewProcessRole::route('/{record}'),
             'edit'   => Pages\EditProcessRole::route('/{record}/edit'),
         ];
     }

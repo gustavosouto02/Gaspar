@@ -19,9 +19,25 @@ class CustomRecordResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    public static function getModelLabel(): string
+    public static function getTypeId(): ?string
     {
         if ($typeId = request()->query('type_id')) {
+            return $typeId;
+        }
+
+        if (request()->header('referer')) {
+            parse_str(parse_url(request()->header('referer'), PHP_URL_QUERY) ?? '', $query);
+            if (isset($query['type_id'])) {
+                return $query['type_id'];
+            }
+        }
+
+        return null;
+    }
+
+    public static function getModelLabel(): string
+    {
+        if ($typeId = static::getTypeId()) {
             $type = \App\Models\CustomRecordType::find($typeId);
             if ($type) {
                 return $type->name; // Poderia usar Str::singular($type->name)
@@ -32,7 +48,7 @@ class CustomRecordResource extends Resource
 
     public static function getPluralModelLabel(): string
     {
-        if ($typeId = request()->query('type_id')) {
+        if ($typeId = static::getTypeId()) {
             $type = \App\Models\CustomRecordType::find($typeId);
             if ($type) {
                 return $type->name;
@@ -62,7 +78,7 @@ class CustomRecordResource extends Resource
     public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
     {
         $query = parent::getEloquentQuery();
-        if ($typeId = request()->query('type_id')) {
+        if ($typeId = static::getTypeId()) {
             $query->where('custom_record_type_id', $typeId);
         }
         return $query;
@@ -70,8 +86,9 @@ class CustomRecordResource extends Resource
 
     public static function form(Form $form): Form
     {
-        // Pega o type_id da request (query ou livewire state se estiver editando)
-        $typeId = request()->query('type_id');
+        $livewire = $form->getLivewire();
+        $typeId = property_exists($livewire, 'type_id') ? $livewire->type_id : static::getTypeId();
+        
         if (! $typeId && $form->getRecord()) {
             $typeId = $form->getRecord()->custom_record_type_id;
         }
@@ -81,21 +98,35 @@ class CustomRecordResource extends Resource
             $type = \App\Models\CustomRecordType::with('fields')->find($typeId);
             if ($type) {
                 foreach ($type->fields as $field) {
-                    $component = match ($field->type) {
-                        'text'     => Forms\Components\TextInput::make("data_json.{$field->name}"),
-                        'textarea' => Forms\Components\Textarea::make("data_json.{$field->name}")->rows(3),
-                        'number'   => Forms\Components\TextInput::make("data_json.{$field->name}")->numeric(),
-                        'date'     => Forms\Components\DatePicker::make("data_json.{$field->name}")->native(false),
-                        'datetime' => Forms\Components\DateTimePicker::make("data_json.{$field->name}")->native(false),
-                        'boolean'  => Forms\Components\Toggle::make("data_json.{$field->name}"),
-                        'select'   => Forms\Components\Select::make("data_json.{$field->name}")
-                                        ->options(array_combine($field->options ?? [], $field->options ?? []))
-                                        ->native(false),
-                        default    => Forms\Components\TextInput::make("data_json.{$field->name}"),
+                    $key = "data_json.{$field->key}";
+                    $component = match ($field->field_type) {
+                        \App\Enums\FieldTypeEnum::TEXT     => Forms\Components\TextInput::make($key),
+                        \App\Enums\FieldTypeEnum::TEXTAREA => Forms\Components\Textarea::make($key)->rows(3),
+                        \App\Enums\FieldTypeEnum::NUMBER   => Forms\Components\TextInput::make($key)->numeric(),
+                        \App\Enums\FieldTypeEnum::DATE     => Forms\Components\DatePicker::make($key),
+                        \App\Enums\FieldTypeEnum::SELECT   => Forms\Components\Select::make($key)
+                            ->options($field->options_json
+                                ? array_combine($field->options_json, $field->options_json)
+                                : []),
+                        \App\Enums\FieldTypeEnum::RADIO    => Forms\Components\Radio::make($key)
+                            ->options($field->options_json
+                                ? array_combine($field->options_json, $field->options_json)
+                                : []),
+                        \App\Enums\FieldTypeEnum::CHECKBOX => Forms\Components\Toggle::make($key),
+                        \App\Enums\FieldTypeEnum::EMAIL    => Forms\Components\TextInput::make($key)->email(),
+                        default                            => Forms\Components\TextInput::make($key),
                     };
 
-                    $component->label($field->label)
+                    $component->label($field->name)
                               ->required($field->is_required);
+
+                    if (method_exists($component, 'placeholder') && $field->placeholder) {
+                        $component->placeholder($field->placeholder);
+                    }
+
+                    if ($field->default_value) {
+                        $component->default($field->default_value);
+                    }
 
                     $schema[] = $component;
                 }
@@ -107,15 +138,17 @@ class CustomRecordResource extends Resource
 
     public static function table(Table $table): Table
     {
-        $typeId = request()->query('type_id');
+        $livewire = $table->getLivewire();
+        $typeId = property_exists($livewire, 'type_id') ? $livewire->type_id : static::getTypeId();
+        
         $columns = [];
 
         if ($typeId) {
             $type = \App\Models\CustomRecordType::with('fields')->find($typeId);
             if ($type) {
-                foreach ($type->fields->take(4) as $field) { // Mostra só os 4 primeiros campos na tabela
-                    $columns[] = Tables\Columns\TextColumn::make("data_json.{$field->name}")
-                        ->label($field->label)
+                foreach ($type->fields->take(4) as $field) {
+                    $columns[] = Tables\Columns\TextColumn::make("data_json.{$field->key}")
+                        ->label($field->name)
                         ->searchable()
                         ->sortable();
                 }
@@ -134,6 +167,8 @@ class CustomRecordResource extends Resource
                 //
             ])
             ->actions([
+                Tables\Actions\ViewAction::make()
+                    ->url(fn (\App\Models\CustomRecord $record) => static::getUrl('view', ['record' => $record, 'type_id' => $record->custom_record_type_id])),
                 Tables\Actions\EditAction::make()
                     ->url(fn (\App\Models\CustomRecord $record) => static::getUrl('edit', ['record' => $record, 'type_id' => $record->custom_record_type_id])),
             ])
@@ -156,7 +191,17 @@ class CustomRecordResource extends Resource
         return [
             'index' => Pages\ListCustomRecords::route('/'),
             'create' => Pages\CreateCustomRecord::route('/create'),
+            'view' => Pages\ViewCustomRecord::route('/{record}'),
             'edit' => Pages\EditCustomRecord::route('/{record}/edit'),
         ];
+    }
+
+    public static function getUrl(string $name = 'index', array $parameters = [], bool $isAbsolute = true, ?string $panel = null, ?\Illuminate\Database\Eloquent\Model $tenant = null): string
+    {
+        if (! isset($parameters['type_id']) && ($typeId = static::getTypeId())) {
+            $parameters['type_id'] = $typeId;
+        }
+
+        return parent::getUrl($name, $parameters, $isAbsolute, $panel, $tenant);
     }
 }

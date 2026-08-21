@@ -25,11 +25,18 @@ class DemandReports extends Page implements HasForms, HasTable
 
     public ?array $data = [];
 
+    #[\Livewire\Attributes\Url]
+    public ?string $saved_report_id = null;
+
     public function mount(): void
     {
-        $this->form->fill([
-            'selected_fixed_fields' => ['id', 'title', 'processStatus.name', 'priority', 'status', 'current_responsibles', 'sla_due_at', 'created_at'],
-        ]);
+        if ($this->saved_report_id) {
+            $report = \App\Models\SavedReport::where('user_id', auth()->id())
+                ->find($this->saved_report_id);
+            if ($report && is_array($report->filters_json)) {
+                $this->tableFilters = $report->filters_json;
+            }
+        }
     }
 
     protected static ?string $navigationIcon = 'heroicon-o-document-chart-bar';
@@ -41,54 +48,6 @@ class DemandReports extends Page implements HasForms, HasTable
 
     protected static string $view = 'filament.pages.demand-reports';
 
-    public function form(\Filament\Forms\Form $form): \Filament\Forms\Form
-    {
-        return $form
-            ->schema([
-                Forms\Components\Section::make('Filtros do Relatório')
-                    ->schema([
-                        Forms\Components\Select::make('entity_id')
-                            ->label('Processo (Selecione para exibir as demandas e campos)')
-                            ->options(\App\Models\CustomEntity::pluck('name', 'id'))
-                            ->searchable()
-                            ->live()
-                            ->afterStateUpdated(function (Forms\Set $set) {
-                                $set('selected_custom_fields', []);
-                            }),
-
-                        Forms\Components\CheckboxList::make('selected_fixed_fields')
-                            ->label('Campos Fixos')
-                            ->options([
-                                'id' => 'Demanda',
-                                'title' => 'Título',
-                                'processStatus.name' => 'Situação',
-                                'priority' => 'Prioridade',
-                                'status' => 'Status',
-                                'current_responsibles' => 'Responsável',
-                                'sla_due_at' => 'Prazo',
-                                'created_at' => 'Aberta em',
-                            ])
-                            ->columns(4),
-
-                        Forms\Components\CheckboxList::make('selected_custom_fields')
-                            ->label('Campos Customizáveis')
-                            ->options(function (Forms\Get $get) {
-                                $entityId = $get('entity_id');
-                                if (! $entityId) return [];
-                                
-                                $entity = \App\Models\CustomEntity::with('fields')->find($entityId);
-                                if (! $entity) return [];
-
-                                return $entity->fields->pluck('name', 'id')->toArray();
-                            })
-                            ->columns(4)
-                            ->visible(fn (Forms\Get $get) => filled($get('entity_id'))),
-                            
-                    ]),
-            ])
-            ->statePath('data');
-    }
-
     private function getTableColumns(): array
     {
         $columns = [
@@ -97,14 +56,14 @@ class DemandReports extends Page implements HasForms, HasTable
                 ->formatStateUsing(fn ($state) => '#' . strtoupper(substr($state, 0, 8)))
                 ->searchable()
                 ->sortable()
-                ->visible(fn () => in_array('id', $this->data['selected_fixed_fields'] ?? [])),
+                ->toggleable(),
 
             Tables\Columns\TextColumn::make('title')
                 ->label('Título')
                 ->searchable()
                 ->sortable()
                 ->limit(50)
-                ->visible(fn () => in_array('title', $this->data['selected_fixed_fields'] ?? [])),
+                ->toggleable(),
 
             Tables\Columns\TextColumn::make('processStatus.name')
                 ->label('Situação')
@@ -113,7 +72,7 @@ class DemandReports extends Page implements HasForms, HasTable
                     ? ProcessStatusColorEnum::tryFrom($record->processStatus->color)?->filamentColor() ?? 'gray'
                     : 'gray')
                 ->placeholder('—')
-                ->visible(fn () => in_array('processStatus.name', $this->data['selected_fixed_fields'] ?? [])),
+                ->toggleable(),
 
             Tables\Columns\TextColumn::make('priority')
                 ->label('Prioridade')
@@ -121,7 +80,7 @@ class DemandReports extends Page implements HasForms, HasTable
                 ->formatStateUsing(fn ($state) => $state instanceof DemandPriorityEnum ? $state->label() : $state)
                 ->color(fn ($state) => $state instanceof DemandPriorityEnum ? $state->filamentColor() : 'gray')
                 ->sortable()
-                ->visible(fn () => in_array('priority', $this->data['selected_fixed_fields'] ?? [])),
+                ->toggleable(),
 
             Tables\Columns\TextColumn::make('status')
                 ->label('Status')
@@ -129,29 +88,29 @@ class DemandReports extends Page implements HasForms, HasTable
                 ->formatStateUsing(fn ($state) => $state instanceof DemandStatusEnum ? $state->label() : $state)
                 ->color(fn ($state) => $state instanceof DemandStatusEnum ? $state->filamentColor() : 'gray')
                 ->sortable()
-                ->visible(fn () => in_array('status', $this->data['selected_fixed_fields'] ?? [])),
+                ->toggleable(),
 
             Tables\Columns\TextColumn::make('current_responsibles')
                 ->label('Responsável')
                 ->placeholder('—')
                 ->limit(40)
-                ->visible(fn () => in_array('current_responsibles', $this->data['selected_fixed_fields'] ?? [])),
+                ->toggleable(),
 
             Tables\Columns\TextColumn::make('sla_due_at')
                 ->label('Prazo')
                 ->dateTime('d/m/Y')
                 ->sortable()
-                ->visible(fn () => in_array('sla_due_at', $this->data['selected_fixed_fields'] ?? [])),
+                ->toggleable(),
 
             Tables\Columns\TextColumn::make('created_at')
                 ->label('Aberta em')
                 ->dateTime('d/m/Y H:i')
                 ->sortable()
-                ->visible(fn () => in_array('created_at', $this->data['selected_fixed_fields'] ?? [])),
+                ->toggleable(),
         ];
 
-        // Custom fields based on selected entity_id
-        $entityId = $this->data['entity_id'] ?? null;
+        // Se houver um processo selecionado no filtro, adiciona as colunas dele
+        $entityId = $this->tableFilters['entity_id']['value'] ?? null;
         if (!empty($entityId)) {
             $customFields = \App\Models\CustomField::whereHas('customEntities', function ($q) use ($entityId) {
                 $q->where('custom_entities.id', $entityId);
@@ -164,7 +123,7 @@ class DemandReports extends Page implements HasForms, HasTable
                         $values = $record->demand_field_values ?? [];
                         return $values[$field->key] ?? '—';
                     })
-                    ->visible(fn () => in_array($field->id, $this->data['selected_custom_fields'] ?? []));
+                    ->toggleable(isToggledHiddenByDefault: true); // Campos customizados vêm ocultos por padrão
             }
         }
 
@@ -176,48 +135,109 @@ class DemandReports extends Page implements HasForms, HasTable
         return $table
             ->query(fn () => Demand::query()
                 ->when(
-                    !empty($this->data['entity_id']),
-                    fn ($q) => $q->where('entity_id', $this->data['entity_id'])
+                    !empty($this->tableFilters['entity_id']['value']),
+                    fn ($q) => $q->where('entity_id', $this->tableFilters['entity_id']['value'])
                 )
             )
             ->columns($this->getTableColumns())
             ->defaultSort('created_at', 'desc')
+            ->headerActions([
+                Tables\Actions\Action::make('save_filter')
+                    ->label('Salvar Consulta')
+                    ->icon('heroicon-o-bookmark')
+                    ->form([
+                        Forms\Components\TextInput::make('name')
+                            ->label('Nome da Consulta')
+                            ->required(),
+                    ])
+                    ->action(function (array $data) {
+                        \App\Models\SavedReport::create([
+                            'user_id' => auth()->id(),
+                            'name' => $data['name'],
+                            'filters_json' => $this->tableFilters ?? [],
+                        ]);
+                        \Filament\Notifications\Notification::make()->title('Consulta salva com sucesso!')->success()->send();
+                    }),
+                Tables\Actions\Action::make('export_csv')
+                    ->label('Exportar CSV')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->action(function ($livewire) {
+                        $csv = fopen('php://temp', 'w');
+                        // UTF-8 BOM para o Excel abrir corretamente
+                        fputs($csv, $bom =(chr(0xEF) . chr(0xBB) . chr(0xBF)));
+                        
+                        fputcsv($csv, ['ID', 'Título', 'Situação', 'Status', 'Prioridade', 'Responsável', 'Prazo', 'Aberta Em'], ';');
+
+                        $livewire->getFilteredTableQuery()->each(function ($demand) use ($csv) {
+                            fputcsv($csv, [
+                                '#' . strtoupper(substr($demand->id, 0, 8)),
+                                $demand->title,
+                                $demand->processStatus?->name ?? '—',
+                                $demand->status instanceof \App\Enums\DemandStatusEnum ? $demand->status->label() : $demand->status,
+                                $demand->priority instanceof \App\Enums\DemandPriorityEnum ? $demand->priority->label() : $demand->priority,
+                                $demand->current_responsibles ?? '—',
+                                $demand->sla_due_at ? $demand->sla_due_at->format('d/m/Y') : '—',
+                                $demand->created_at ? $demand->created_at->format('d/m/Y H:i') : '—',
+                            ], ';');
+                        });
+
+                        rewind($csv);
+                        $content = stream_get_contents($csv);
+                        fclose($csv);
+
+                        return response()->streamDownload(function () use ($content) {
+                            echo $content;
+                        }, 'relatorio_demandas.csv');
+                    })
+            ])
             ->filters([
+                Tables\Filters\SelectFilter::make('entity_id')
+                    ->label('Processo')
+                    ->options(\App\Models\CustomEntity::pluck('name', 'id'))
+                    ->searchable()
+                    ->placeholder('Todos'),
 
                 Tables\Filters\SelectFilter::make('process_status_id')
                     ->label('Situação')
                     ->relationship('processStatus', 'name')
-                    ->multiple(),
+                    ->multiple()
+                    ->placeholder('Todos'),
 
                 Tables\Filters\SelectFilter::make('status')
                     ->label('Status')
                     ->options(DemandStatusEnum::options())
-                    ->multiple(),
+                    ->multiple()
+                    ->placeholder('Todos'),
 
                 Tables\Filters\SelectFilter::make('priority')
                     ->label('Prioridade')
                     ->options(DemandPriorityEnum::options())
-                    ->multiple(),
+                    ->multiple()
+                    ->placeholder('Todos'),
 
                 Tables\Filters\SelectFilter::make('client_id')
                     ->label('Cliente')
                     ->relationship('client', 'name')
-                    ->multiple(),
+                    ->multiple()
+                    ->placeholder('Todos'),
 
                 Tables\Filters\SelectFilter::make('project_id')
                     ->label('Projeto')
                     ->relationship('project', 'name')
-                    ->multiple(),
+                    ->multiple()
+                    ->placeholder('Todos'),
 
                 Tables\Filters\SelectFilter::make('requested_by')
                     ->label('Demandante')
                     ->relationship('requester', 'name')
-                    ->multiple(),
+                    ->multiple()
+                    ->placeholder('Todos'),
 
                 Tables\Filters\SelectFilter::make('assigned_to')
                     ->label('Responsável')
                     ->relationship('assignee', 'name')
-                    ->multiple(),
+                    ->multiple()
+                    ->placeholder('Todos'),
 
                 Tables\Filters\Filter::make('periodo')
                     ->form([
@@ -239,6 +259,18 @@ class DemandReports extends Page implements HasForms, HasTable
                     ->label('Abrir')
                     ->icon('heroicon-o-eye')
                     ->url(fn (Demand $record) => \App\Filament\Resources\DemandResource::getUrl('view', ['record' => $record])),
+                Tables\Actions\Action::make('edit')
+                    ->label('Editar')
+                    ->icon('heroicon-o-pencil-square')
+                    ->color('warning')
+                    ->url(fn (Demand $record) => \App\Filament\Resources\DemandResource::getUrl('edit', ['record' => $record]))
+                    ->visible(fn (Demand $record) => 
+                        auth()->user()->user_role === \App\Enums\UserRoleEnum::ADMIN
+                        || $record->created_by === auth()->id()
+                        || $record->requested_by === auth()->id()
+                        || $record->assigned_to === auth()->id()
+                        || $record->canBeTransitionedBy(auth()->user())
+                    ),
             ])
             ->bulkActions([
                 // Vazio

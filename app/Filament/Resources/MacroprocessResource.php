@@ -54,6 +54,10 @@ class MacroprocessResource extends Resource
                         'Manter Relacionamentos' => 'Manter Relacionamentos',
                     ]),
 
+                \Filament\Forms\Components\Textarea::make('description')
+                    ->label('Descrição')
+                    ->columnSpanFull(),
+
                 \Filament\Forms\Components\Toggle::make('is_active')
                     ->label('Ativo')
                     ->default(true),

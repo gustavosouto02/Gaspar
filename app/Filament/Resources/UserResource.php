@@ -72,26 +72,6 @@ class UserResource extends Resource
                     ->options(UserRoleEnum::options())
                     ->required(),
 
-                Select::make('process_role_id')
-                    ->label('Papel')
-                    ->relationship('processRole', 'name')
-                    ->searchable()
-                    ->preload(),
-
-                Select::make('processes')
-                    ->label('Processos que é participante')
-                    ->multiple()
-                    ->relationship('processes', 'name')
-                    ->preload()
-                    ->searchable(),
-
-                Select::make('projects')
-                    ->label('Projetos de que é membro')
-                    ->multiple()
-                    ->relationship('projects', 'name')
-                    ->preload()
-                    ->searchable(),
-
                 Toggle::make('is_active')
                     ->label('Ativo')
                     ->default(true),
