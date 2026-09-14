@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\UserResource\Pages;
+use App\Filament\Resources\Concerns\CustomFieldsRelationManager;
 use App\Models\User;
 use Filament\Forms\Form;
 use Filament\Forms\Components\TextInput;
@@ -75,6 +76,8 @@ class UserResource extends Resource
                 Toggle::make('is_active')
                     ->label('Ativo')
                     ->default(true),
+
+                ...array_filter([User::buildCustomFieldComponents()]),
             ]);
     }
 
@@ -111,7 +114,7 @@ class UserResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            CustomFieldsRelationManager::class,
         ];
     }
 

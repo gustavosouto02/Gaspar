@@ -17,6 +17,13 @@ class CustomRecordType extends Model
         'name',
         'slug',
         'is_active',
+        'model_class',
+        'is_system',
+    ];
+
+    protected $casts = [
+        'is_active' => 'boolean',
+        'is_system' => 'boolean',
     ];
 
     public function newUniqueId(): string

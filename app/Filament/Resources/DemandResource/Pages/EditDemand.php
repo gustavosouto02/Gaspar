@@ -107,14 +107,24 @@ class EditDemand extends EditRecord
             \App\Models\DemandComment::create([
                 'demand_id' => $this->getRecord()->id,
                 'user_id' => auth()->id(),
-                'content' => $this->newTreatment,
+                'comment' => $this->newTreatment,
             ]);
             
             $this->form->fill(['new_treatment' => null] + $this->form->getState());
         }
 
         if ($this->isSubmittingDraft) {
-            $this->getRecord()->autoAssign();
+            $record = $this->getRecord();
+            $record->autoAssign();
+            $record->refresh();
+
+            if ($record->assignedTo && $record->assignedTo->id !== auth()->id()) {
+                $record->assignedTo->notify(new \App\Notifications\DemandActivityNotification($record, 'Uma nova demanda foi enviada e atribuída a você.'));
+            }
+
+            if ($record->requestedBy) {
+                $record->requestedBy->notify(new \App\Notifications\DemandActivityNotification($record, 'Sua demanda foi enviada para atendimento com sucesso.'));
+            }
         }
 
         // Se a pesquisa de satisfação foi respondida e a demanda está encerrada, avalia automaticamente

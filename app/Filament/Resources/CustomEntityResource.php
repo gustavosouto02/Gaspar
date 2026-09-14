@@ -90,6 +90,7 @@ class CustomEntityResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome do Processo')
+                    ->formatStateUsing(fn (CustomEntity $record) => $record->full_display_name)
                     ->searchable()
                     ->sortable(),
 

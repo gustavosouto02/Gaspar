@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\ClientResource\Pages;
+use App\Filament\Resources\Concerns\CustomFieldsRelationManager;
 use App\Models\Client;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -52,6 +53,8 @@ class ClientResource extends Resource
                             ->label('Ativo')
                             ->default(true),
                     ])->columns(2),
+
+                ...array_filter([Client::buildCustomFieldComponents()]),
             ]);
     }
 
@@ -99,6 +102,13 @@ class ClientResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            CustomFieldsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

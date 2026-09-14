@@ -46,6 +46,12 @@ class CustomEntity extends Model
         return $this->belongsTo(Macroprocess::class);
     }
 
+    public function getFullDisplayNameAttribute(): string
+    {
+        $acronym = $this->macroprocess?->acronym;
+        return $acronym ? "{$acronym} - {$this->name}" : $this->name;
+    }
+
     /**
      * Gerar UUID7 para a chave primária
      */

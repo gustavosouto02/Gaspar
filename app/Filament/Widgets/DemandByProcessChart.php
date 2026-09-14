@@ -19,7 +19,7 @@ class DemandByProcessChart extends ChartWidget
             ->pluck('total', 'entity_id')
             ->toArray();
 
-        $entities = CustomEntity::whereIn('id', array_keys($data))->pluck('name', 'id');
+        $entities = CustomEntity::with('macroprocess')->whereIn('id', array_keys($data))->get()->pluck('full_display_name', 'id');
 
         $labels = [];
         $values = [];

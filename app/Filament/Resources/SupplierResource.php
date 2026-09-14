@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\SupplierResource\Pages;
 use App\Filament\Resources\SupplierResource\RelationManagers;
+use App\Filament\Resources\Concerns\CustomFieldsRelationManager;
 use App\Models\Supplier;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -49,6 +50,8 @@ class SupplierResource extends Resource
                 Forms\Components\Textarea::make('description')
                     ->label('Descrição')
                     ->columnSpanFull(),
+
+                ...array_filter([Supplier::buildCustomFieldComponents()]),
             ]);
     }
 
@@ -94,7 +97,7 @@ class SupplierResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            CustomFieldsRelationManager::class,
         ];
     }
 

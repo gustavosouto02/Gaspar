@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\MacroprocessResource\Pages;
 use App\Filament\Resources\MacroprocessResource\RelationManagers;
+use App\Filament\Resources\Concerns\CustomFieldsRelationManager;
 use App\Models\Macroprocess;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -61,6 +62,8 @@ class MacroprocessResource extends Resource
                 \Filament\Forms\Components\Toggle::make('is_active')
                     ->label('Ativo')
                     ->default(true),
+
+                ...array_filter([Macroprocess::buildCustomFieldComponents()]),
             ]);
     }
 
@@ -99,7 +102,7 @@ class MacroprocessResource extends Resource
                             ->schema([
                                 Infolists\Components\TextEntry::make('name')
                                     ->label('')
-                                    ->formatStateUsing(fn ($record) => $record->id . ' - ' . $record->name)
+                                    ->formatStateUsing(fn ($record) => $record->full_display_name)
                                     ->url(fn ($record) => \App\Filament\Resources\CustomEntityResource::getUrl('edit', ['record' => $record]))
                                     ->color('primary'),
                             ])
@@ -141,6 +144,13 @@ class MacroprocessResource extends Resource
                 ]),
             ])
             ->recordUrl(fn (Macroprocess $record): string => Pages\ViewMacroprocess::getUrl(['record' => $record]));
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            CustomFieldsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

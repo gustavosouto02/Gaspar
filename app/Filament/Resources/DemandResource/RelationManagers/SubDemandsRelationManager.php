@@ -67,7 +67,15 @@ class SubDemandsRelationManager extends RelationManager
             ->columns([
                 Tables\Columns\TextColumn::make('title')
                     ->label('Título')
-                    ->searchable()
+                    ->searchable(query: function ($query, string $search) {
+                        $clean = ltrim(trim($search), '#');
+                        return $query->where(function ($q) use ($search, $clean) {
+                            $q->where('title', 'like', "%{$search}%");
+                            if ($clean !== '') {
+                                $q->orWhere('id', 'like', "{$clean}%");
+                            }
+                        });
+                    })
                     ->limit(50)
                     ->url(fn (Demand $record) => DemandResource::getUrl('edit', ['record' => $record])),
 

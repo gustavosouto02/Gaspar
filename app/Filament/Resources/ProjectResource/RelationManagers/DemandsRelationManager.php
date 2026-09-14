@@ -29,7 +29,17 @@ class DemandsRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('title')
             ->columns([
-                Tables\Columns\TextColumn::make('title')->label('Título')->searchable(),
+                Tables\Columns\TextColumn::make('title')
+                    ->label('Título')
+                    ->searchable(query: function ($query, string $search) {
+                        $clean = ltrim(trim($search), '#');
+                        return $query->where(function ($q) use ($search, $clean) {
+                            $q->where('title', 'like', "%{$search}%");
+                            if ($clean !== '') {
+                                $q->orWhere('id', 'like', "{$clean}%");
+                            }
+                        });
+                    }),
                 Tables\Columns\TextColumn::make('status')->label('Situação')->badge(),
                 Tables\Columns\TextColumn::make('assignee.name')->label('Responsável'),
                 Tables\Columns\TextColumn::make('created_at')->label('Data de Criação')->dateTime('d/m/Y'),

@@ -13,7 +13,8 @@ class EditCustomRecordType extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            Actions\DeleteAction::make()
+                ->visible(fn () => ! $this->record->is_system),
         ];
     }
 }

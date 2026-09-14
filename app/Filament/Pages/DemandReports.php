@@ -54,7 +54,10 @@ class DemandReports extends Page implements HasForms, HasTable
             Tables\Columns\TextColumn::make('id')
                 ->label('Demanda')
                 ->formatStateUsing(fn ($state) => '#' . strtoupper(substr($state, 0, 8)))
-                ->searchable()
+                ->searchable(query: function ($query, string $search) {
+                    $clean = ltrim(trim($search), '#');
+                    return $clean !== '' ? $query->where('id', 'like', "{$clean}%") : $query;
+                })
                 ->sortable()
                 ->toggleable(),
 
@@ -63,6 +66,12 @@ class DemandReports extends Page implements HasForms, HasTable
                 ->searchable()
                 ->sortable()
                 ->limit(50)
+                ->toggleable(),
+
+            Tables\Columns\TextColumn::make('entity.name')
+                ->label('Processo')
+                ->formatStateUsing(fn ($record) => $record->entity?->full_display_name ?? '—')
+                ->sortable()
                 ->toggleable(),
 
             Tables\Columns\TextColumn::make('processStatus.name')
@@ -193,7 +202,7 @@ class DemandReports extends Page implements HasForms, HasTable
             ->filters([
                 Tables\Filters\SelectFilter::make('entity_id')
                     ->label('Processo')
-                    ->options(\App\Models\CustomEntity::pluck('name', 'id'))
+                    ->options(fn () => \App\Models\CustomEntity::with('macroprocess')->get()->pluck('full_display_name', 'id'))
                     ->searchable()
                     ->placeholder('Todos'),
 
@@ -253,6 +262,13 @@ class DemandReports extends Page implements HasForms, HasTable
                             ->when($data['until'], fn ($q, $v) => $q->whereDate('created_at', '<=', $v));
                     }),
             ], layout: Tables\Enums\FiltersLayout::AboveContent)
+            ->deferFilters()
+            ->filtersApplyAction(
+                fn (Tables\Actions\Action $action) => $action
+                    ->label('Consultar')
+                    ->icon('heroicon-m-magnifying-glass')
+                    ->color('primary')
+            )
             ->filtersFormColumns(3)
             ->actions([
                 Tables\Actions\Action::make('view')
