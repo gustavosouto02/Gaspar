@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\ClientResource\Pages;
+use App\Filament\Resources\Concerns\CustomFieldsRelationManager;
 use App\Models\Client;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -52,6 +53,8 @@ class ClientResource extends Resource
                             ->label('Ativo')
                             ->default(true),
                     ])->columns(2),
+
+                ...array_filter([Client::buildCustomFieldComponents()]),
             ]);
     }
 
@@ -61,12 +64,16 @@ class ClientResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome')
-                    ->searchable()
+                    ->searchable(query: fn ($query, string $search) => $query->where(fn ($q) => 
+                        $q->where('name', 'like', "%{$search}%")
+                          ->orWhere('email', 'like', "%{$search}%")
+                          ->orWhere('phone', 'like', "%{$search}%")
+                          ->orWhere('custom_data', 'like', "%{$search}%")
+                    ))
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('email')
                     ->label('E-mail')
-                    ->searchable()
                     ->toggleable(),
 
                 Tables\Columns\TextColumn::make('phone')
@@ -99,6 +106,13 @@ class ClientResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ]);
+    }
+
+    public static function getRelations(): array
+    {
+        return [
+            CustomFieldsRelationManager::class,
+        ];
     }
 
     public static function getPages(): array

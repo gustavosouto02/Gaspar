@@ -30,6 +30,7 @@ class Demand extends Model
         'status',
         'priority',
         'sla_due_at',
+        'last_deadline_alert_date',
         'started_at',
         'completed_at',
         'satisfaction_rating',
@@ -44,6 +45,7 @@ class Demand extends Model
         'satisfaction_rating'       => \App\Enums\SatisfactionRatingEnum::class,
         'satisfaction_evaluated_at' => 'datetime',
         'sla_due_at'                => 'datetime',
+        'last_deadline_alert_date'  => 'date',
         'started_at'                => 'datetime',
         'completed_at'              => 'datetime',
         'attachments'               => 'array',
@@ -331,4 +333,88 @@ class Demand extends Model
               });
         });
     }
+
+    /**
+     * Escopo para pesquisa global em múltiplos parâmetros da demanda:
+     * - Título e descrição
+     * - Código ID (com ou sem hashtag)
+     * - Nome do Processo ou Sigla do Macroprocesso
+     * - Nome da Situação
+     * - Nome do Cliente e campos customizados do Cliente
+     * - Nome do Projeto e campos customizados do Projeto
+     * - Nome e e-mail do Solicitante e do Responsável
+     * - Valores dos Campos Customizados do Processo (ex: "São Paulo")
+     * - Nomes e Chaves dos Campos Customizados (ex: "Destino")
+     * - Comentários e relatos de tratamento
+     */
+    public function scopeGlobalSearch($query, string $search)
+    {
+        $search = trim($search);
+        if ($search === '') {
+            return $query;
+        }
+
+        $clean = ltrim($search, '#');
+
+        return $query->where(function ($q) use ($search, $clean) {
+            // 1. Título e Descrição
+            $q->where('demands.title', 'like', "%{$search}%")
+              ->orWhere('demands.description', 'like', "%{$search}%");
+
+            // 2. ID da Demanda
+            if ($clean !== '') {
+                $q->orWhere('demands.id', 'like', "%{$clean}%");
+            }
+
+            // 3. Processo e Macroprocesso (Nome e Sigla)
+            $q->orWhereHas('entity', function ($eq) use ($search) {
+                $eq->where('name', 'like', "%{$search}%")
+                   ->orWhereHas('macroprocess', function ($mq) use ($search) {
+                       $mq->where('acronym', 'like', "%{$search}%")
+                          ->orWhere('name', 'like', "%{$search}%");
+                   });
+            });
+
+            // 4. Situação
+            $q->orWhereHas('processStatus', function ($sq) use ($search) {
+                $sq->where('name', 'like', "%{$search}%");
+            });
+
+            // 5. Cliente (Nome e campos adicionais custom_data)
+            $q->orWhereHas('client', function ($cq) use ($search) {
+                $cq->where('name', 'like', "%{$search}%")
+                   ->orWhere('custom_data', 'like', "%{$search}%");
+            });
+
+            // 6. Projeto (Nome e campos adicionais custom_data)
+            $q->orWhereHas('project', function ($pq) use ($search) {
+                $pq->where('name', 'like', "%{$search}%")
+                   ->orWhere('custom_data', 'like', "%{$search}%");
+            });
+
+            // 7. Solicitante ou Responsável
+            $q->orWhereHas('requester', function ($rq) use ($search) {
+                $rq->where('name', 'like', "%{$search}%")
+                   ->orWhere('email', 'like', "%{$search}%");
+            })->orWhereHas('assignee', function ($aq) use ($search) {
+                $aq->where('name', 'like', "%{$search}%")
+                   ->orWhere('email', 'like', "%{$search}%");
+            });
+
+            // 8. Campos Customizados da Demanda (Valores e Nomes dos Campos)
+            $q->orWhereHas('fieldValues', function ($fvq) use ($search) {
+                $fvq->where('value', 'like', "%{$search}%")
+                    ->orWhereHas('customField', function ($cfq) use ($search) {
+                        $cfq->where('name', 'like', "%{$search}%")
+                            ->orWhere('key', 'like', "%{$search}%");
+                    });
+            });
+
+            // 9. Relatos e comentários de tratamento
+            $q->orWhereHas('comments', function ($cmq) use ($search) {
+                $cmq->where('comment', 'like', "%{$search}%");
+            });
+        });
+    }
 }
+

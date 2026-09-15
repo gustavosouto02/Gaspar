@@ -63,7 +63,7 @@ class DemandResource extends Resource
                                         Forms\Components\Select::make('entity_id')
                                             ->label('Processo:')
                                             ->default(request()->query('entity_id'))
-                                            ->options(\App\Models\CustomEntity::where('is_active', true)->pluck('name', 'id'))
+                                            ->options(fn () => \App\Models\CustomEntity::with('macroprocess')->where('is_active', true)->get()->pluck('full_display_name', 'id'))
                                             ->searchable()
                                             ->required()
                                             ->live()
@@ -288,12 +288,13 @@ class DemandResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('title')
                     ->label('Título')
-                    ->searchable()
+                    ->searchable(query: fn ($query, string $search) => $query->globalSearch($search))
                     ->sortable()
                     ->limit(50),
 
                 Tables\Columns\TextColumn::make('entity.name')
                     ->label('Processo')
+                    ->formatStateUsing(fn ($record) => $record->entity?->full_display_name ?? '—')
                     ->searchable()
                     ->sortable(),
 
@@ -341,7 +342,8 @@ class DemandResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('entity_id')
                     ->label('Processo')
-                    ->relationship('entity', 'name'),
+                    ->options(fn () => \App\Models\CustomEntity::with('macroprocess')->get()->pluck('full_display_name', 'id'))
+                    ->searchable(),
 
                 Tables\Filters\SelectFilter::make('process_status_id')
                     ->label('Situação')
@@ -401,6 +403,12 @@ class DemandResource extends Resource
                         || $record->assigned_to === auth()->id()
                         || $record->canBeTransitionedBy(auth()->user())
                     ),
+                Tables\Actions\Action::make('pdf')
+                    ->label('PDF')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->color('gray')
+                    ->url(fn (Demand $record) => route('demands.pdf', ['record' => $record->id]))
+                    ->openUrlInNewTab(),
                 Tables\Actions\Action::make('cancelar')
                     ->label('Cancelar')
                     ->icon('heroicon-o-x-circle')

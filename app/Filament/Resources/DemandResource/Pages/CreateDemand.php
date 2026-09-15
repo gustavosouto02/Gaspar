@@ -90,7 +90,17 @@ class CreateDemand extends CreateRecord
         $this->saveFieldValues($this->getRecord()->id, $this->getRecord()->entity_id);
 
         if (! $this->isDraft) {
-            $this->getRecord()->autoAssign();
+            $record = $this->getRecord();
+            $record->autoAssign();
+            $record->refresh();
+
+            if ($record->assignedTo && $record->assignedTo->id !== auth()->id()) {
+                $record->assignedTo->notify(new \App\Notifications\DemandActivityNotification($record, 'Uma nova demanda foi atribuída a você para atendimento.'));
+            }
+
+            if ($record->requestedBy) {
+                $record->requestedBy->notify(new \App\Notifications\DemandActivityNotification($record, 'Sua demanda foi cadastrada com sucesso e enviada para atendimento.'));
+            }
         }
     }
 

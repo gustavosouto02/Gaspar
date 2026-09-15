@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\ProjectResource\Pages;
 use App\Filament\Resources\ProjectResource\RelationManagers;
+use App\Filament\Resources\Concerns\CustomFieldsRelationManager;
 use App\Models\Project;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -43,7 +44,7 @@ class ProjectResource extends Resource
 
                                         Forms\Components\Select::make('entity_id')
                                             ->label('Processo:')
-                                            ->options(\App\Models\CustomEntity::where('is_active', true)->pluck('name', 'id'))
+                                            ->options(fn () => \App\Models\CustomEntity::with('macroprocess')->where('is_active', true)->get()->pluck('full_display_name', 'id'))
                                             ->searchable()
                                             ->required()
                                             ->live()
@@ -198,6 +199,8 @@ class ProjectResource extends Resource
                     ])
                     ->visible(fn ($record) => $record !== null)
                     ->collapsible(),
+
+                ...array_filter([Project::buildCustomFieldComponents()]),
             ]);
     }
 
@@ -210,7 +213,11 @@ class ProjectResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Título')
-                    ->searchable(),
+                    ->searchable(query: fn ($query, string $search) => $query->where(fn ($q) => 
+                        $q->where('name', 'like', "%{$search}%")
+                          ->orWhere('description', 'like', "%{$search}%")
+                          ->orWhere('custom_data', 'like', "%{$search}%")
+                    )),
                 Tables\Columns\TextColumn::make('client.name')
                     ->label('Cliente')
                     ->sortable(),
@@ -243,7 +250,7 @@ class ProjectResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            CustomFieldsRelationManager::class,
         ];
     }
 

@@ -30,8 +30,8 @@
                             </span>
                         @endif
                     </div>
-                    <time class="mb-1 text-xs font-normal text-gray-400">{{ $comment->created_at->format('d/m/Y \à\s H:i') }}</time>
-                    <div class="mt-2 text-sm font-normal text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg border border-gray-100 dark:border-gray-800">
+                    <time class="mb-1 text-xs font-normal text-gray-400 block">{{ $comment->created_at->format('d/m/Y \à\s H:i') }}</time>
+                    <div class="mt-1 text-sm font-normal text-gray-900 dark:text-white">
                         {!! nl2br(e($comment->comment)) !!}
                     </div>
                 </div>

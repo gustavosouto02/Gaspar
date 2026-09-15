@@ -91,7 +91,7 @@ class ProcessRoleResource extends Resource
                             ->formatStateUsing(function ($record) {
                                 $entities = $record->members->map(fn($m) => $m->entity)->filter()->unique('id');
                                 if ($entities->isEmpty()) return 'Nenhum processo utiliza este papel.';
-                                return $entities->map(fn($e) => "<a href='" . \App\Filament\Resources\CustomEntityResource::getUrl('edit', ['record' => $e]) . "' class='text-primary-600 underline'>{$e->id} - {$e->name}</a>")->implode('<br>');
+                                return $entities->map(fn($e) => "<a href='" . \App\Filament\Resources\CustomEntityResource::getUrl('edit', ['record' => $e]) . "' class='text-primary-600 underline'>{$e->full_display_name}</a>")->implode('<br>');
                             })
                             ->html()
                             ->columnSpanFull(),

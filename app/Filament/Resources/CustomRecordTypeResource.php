@@ -33,15 +33,18 @@ class CustomRecordTypeResource extends Resource
                     ->required()
                     ->maxLength(255)
                     ->live(onBlur: true)
-                    ->afterStateUpdated(fn (Forms\Set $set, ?string $state) => $set('slug', \Illuminate\Support\Str::slug($state))),
+                    ->afterStateUpdated(fn (Forms\Set $set, ?string $state) => $set('slug', \Illuminate\Support\Str::slug($state)))
+                    ->disabled(fn ($record) => $record?->is_system),
                 Forms\Components\TextInput::make('slug')
                     ->label('Slug')
                     ->required()
                     ->maxLength(255)
-                    ->unique(ignoreRecord: true),
+                    ->unique(ignoreRecord: true)
+                    ->disabled(fn ($record) => $record?->is_system),
                 Forms\Components\Toggle::make('is_active')
                     ->label('Ativo')
-                    ->default(true),
+                    ->default(true)
+                    ->disabled(fn ($record) => $record?->is_system),
             ]);
     }
 
@@ -57,6 +60,11 @@ class CustomRecordTypeResource extends Resource
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Ativo')
                     ->boolean(),
+                Tables\Columns\TextColumn::make('model_class')
+                    ->label('Tipo')
+                    ->formatStateUsing(fn ($state) => $state ? 'Sistema' : 'Customizado')
+                    ->badge()
+                    ->color(fn ($state) => $state ? 'warning' : 'success'),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -71,6 +79,8 @@ class CustomRecordTypeResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn ($record) => ! $record->is_system),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

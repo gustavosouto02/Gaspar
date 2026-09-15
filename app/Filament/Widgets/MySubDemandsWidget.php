@@ -35,7 +35,7 @@ class MySubDemandsWidget extends BaseWidget
             ->columns([
                 Tables\Columns\TextColumn::make('title')
                     ->label('Título')
-                    ->searchable()
+                    ->searchable(query: fn ($query, string $search) => $query->globalSearch($search))
                     ->limit(50)
                     ->url(fn (Demand $record) => DemandResource::getUrl('edit', ['record' => $record])),
 
@@ -49,6 +49,7 @@ class MySubDemandsWidget extends BaseWidget
 
                 Tables\Columns\TextColumn::make('entity.name')
                     ->label('Processo')
+                    ->formatStateUsing(fn ($record) => $record->entity?->full_display_name ?? '—')
                     ->badge()
                     ->color('gray'),
 
@@ -81,7 +82,7 @@ class MySubDemandsWidget extends BaseWidget
             ->filters([
                 Tables\Filters\SelectFilter::make('entity_id')
                     ->label('Processo')
-                    ->relationship('entity', 'name'),
+                    ->options(fn () => \App\Models\CustomEntity::with('macroprocess')->get()->pluck('full_display_name', 'id')),
 
                 Tables\Filters\SelectFilter::make('priority')
                     ->label('Prioridade')

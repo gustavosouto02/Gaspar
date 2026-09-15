@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\SupplierResource\Pages;
 use App\Filament\Resources\SupplierResource\RelationManagers;
+use App\Filament\Resources\Concerns\CustomFieldsRelationManager;
 use App\Models\Supplier;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -49,6 +50,8 @@ class SupplierResource extends Resource
                 Forms\Components\Textarea::make('description')
                     ->label('Descrição')
                     ->columnSpanFull(),
+
+                ...array_filter([Supplier::buildCustomFieldComponents()]),
             ]);
     }
 
@@ -58,7 +61,13 @@ class SupplierResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome')
-                    ->searchable()
+                    ->searchable(query: fn ($query, string $search) => $query->where(fn ($q) => 
+                        $q->where('name', 'like', "%{$search}%")
+                          ->orWhere('email', 'like', "%{$search}%")
+                          ->orWhere('phone', 'like', "%{$search}%")
+                          ->orWhere('business', 'like', "%{$search}%")
+                          ->orWhere('custom_data', 'like', "%{$search}%")
+                    ))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('phone')
                     ->label('Telefone')
@@ -94,7 +103,7 @@ class SupplierResource extends Resource
     public static function getRelations(): array
     {
         return [
-            //
+            CustomFieldsRelationManager::class,
         ];
     }
 

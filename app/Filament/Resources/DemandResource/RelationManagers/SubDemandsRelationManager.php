@@ -67,7 +67,7 @@ class SubDemandsRelationManager extends RelationManager
             ->columns([
                 Tables\Columns\TextColumn::make('title')
                     ->label('Título')
-                    ->searchable()
+                    ->searchable(query: fn ($query, string $search) => $query->globalSearch($search))
                     ->limit(50)
                     ->url(fn (Demand $record) => DemandResource::getUrl('edit', ['record' => $record])),
 

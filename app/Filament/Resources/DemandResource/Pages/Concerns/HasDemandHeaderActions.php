@@ -5,6 +5,8 @@ namespace App\Filament\Resources\DemandResource\Pages\Concerns;
 use App\Enums\ProcessStatusColorEnum;
 use App\Models\ActivityLog;
 use App\Models\StatusTransition;
+use App\Notifications\DemandActivityNotification;
+use App\Notifications\DemandSatisfactionNotification;
 use Filament\Actions;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Str;
@@ -126,6 +128,17 @@ trait HasDemandHeaderActions
                         'created_at'     => now(),
                     ]);
 
+                    // Dispara notificações
+                    if ($record->assignedTo && $record->assignedTo->id !== $user->id) {
+                        $record->assignedTo->notify(new DemandActivityNotification($record, "A situação foi alterada para: {$transition->toStatus?->name}"));
+                    }
+                    if ($record->requestedBy && $record->requestedBy->id !== $user->id) {
+                        $record->requestedBy->notify(new DemandActivityNotification($record, "A situação foi alterada para: {$transition->toStatus?->name}"));
+                    }
+                    if ($transition->toStatus?->name === 'Encerrada' && $record->requestedBy) {
+                        $record->requestedBy->notify(new DemandSatisfactionNotification($record));
+                    }
+
                     Notification::make()
                         ->title("Situação atualizada: {$transition->toStatus?->name}")
                         ->success()
@@ -191,6 +204,14 @@ trait HasDemandHeaderActions
                         'created_at'     => now(),
                     ]);
 
+                    // Dispara notificações
+                    if ($record->assignedTo && $record->assignedTo->id !== $user->id) {
+                        $record->assignedTo->notify(new DemandActivityNotification($record, "A demanda foi devolvida para: {$previousStatusName}"));
+                    }
+                    if ($record->requestedBy && $record->requestedBy->id !== $user->id) {
+                        $record->requestedBy->notify(new DemandActivityNotification($record, "A demanda foi devolvida para: {$previousStatusName}"));
+                    }
+
                     Notification::make()->title("Demanda devolvida para: {$previousStatusName}")->success()->send();
 
                     if (method_exists($this, 'refreshFormData')) {
@@ -216,6 +237,13 @@ trait HasDemandHeaderActions
                 auth()->user()->user_role === \App\Enums\UserRoleEnum::ADMIN
                 || $record->requested_by === auth()->id()
             );
+        $actions[] = Actions\Action::make('export_pdf')
+            ->label('Exportar PDF')
+            ->icon('heroicon-o-document-arrow-down')
+            ->color('gray')
+            ->url(fn () => route('demands.pdf', ['record' => $record->id]))
+            ->openUrlInNewTab();
+
         return array_merge($actions, $parentActions);
     }
 }

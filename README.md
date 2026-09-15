@@ -1,58 +1,251 @@
 # GASPAR — Plataforma Institucional de Gestão por Processos
 
-> Sistema institucional de BPM (Business Process Management) com foco em automação, padronização, rastreabilidade e gerenciamento dinâmico de processos baseado em uma arquitetura orientada a metadados (*metadata-driven architecture*).
+> Sistema institucional de BPM (*Business Process Management*) e Central de Demandas, desenvolvido para gestão, automação, padronização, rastreabilidade e parametrização dinâmica de fluxos de trabalho baseado em uma arquitetura orientada a metadados (*Metadata-Driven Architecture*).
 
 ---
 
-## 🎯 Fase Atual do Projeto: MVP Concluído
+## 🚀 Visão Geral e Arquitetura
 
-O MVP do Gaspar foi finalizado e validado com sucesso. A plataforma está totalmente funcional e conta com os seguintes módulos operacionais:
+O **Gaspar** foi concebido para eliminar a necessidade de alterações manuais no código ou no banco de dados relacional sempre que uma nova demanda institucional ou processo necessitar de novos formulários, campos ou fluxos.
 
-*   **Engine Dinâmica (Metadata-Driven)**: Criação de Entidades (Processos) e Campos Dinâmicos (texto, data, booleano, etc.) via painel administrativo, salvando as respostas dinamicamente em formato JSON no banco, sem a necessidade de alterar tabelas físicas do MySQL.
-*   **Workflow Avançado**: Mapeamento de Papéis de Processo (`process_roles`), Situações (`process_statuses`) e transições dinâmicas autorizadas. O sistema move as demandas entre situações, alterando dinamicamente os usuários/papéis responsáveis a cada transição.
-*   **Dashboard Inteligente**: Indicadores agregados na tela inicial (Minhas Demandas Pendentes, Vencidas, Concluídas, Ativas) visíveis para todos os colaboradores, além de uma listagem inteligente de pendências dinâmicas para o executor logado.
-*   **Auditoria Completa (Logs de Atividades)**: Rastreabilidade total. Cada ação de criação, alteração ou exclusão nos principais modelos gera logs detalhados estruturados (guardando valores antigos e novos no banco) visíveis apenas para Administradores.
-
+- **Framework**: Laravel 12 + FilamentPHP v3
+- **Chaves Primárias**: UUID versão 7 (`Str::uuid7()`) em todas as entidades, ordenáveis cronologicamente por padrão.
+- **Engine Dinâmica**: Metadados configuráveis em tempo de execução (`custom_entities`, `custom_fields`, `demand_field_values`).
+- **Banco de Dados**: MySQL 8+ com suporte a JSON nativo.
+- **Frontend / UI**: FilamentPHP com Livewire 3 e estilizações customizadas.
 
 ---
 
-## 📂 Organização das Pastas
+## ✨ Funcionalidades do Sistema
 
-O projeto segue a estrutura padrão do Laravel 11/12 e do FilamentPHP v3. Abaixo estão os principais diretórios customizados do sistema:
+### 1. Engine Dinâmica de Processos e Campos
+- **Processos Customizados**: Criação e edição de processos com finalidade, prazos de SLA e associação a macroprocessos.
+- **Sigla do Macroprocesso**: Exibição automática e padronizada da sigla do macroprocesso antes do nome do processo (`SIGLA - Nome do Processo`) em todas as tabelas, formulários e relatórios.
+- **Campos Dinâmicos Reutilizáveis**: Suporte aos tipos `TEXT`, `TEXTAREA`, `NUMBER`, `DATE`, `DATETIME`, `SELECT`, `CHECKBOX`, `RADIO`, `FILE`.
+- **Campos Customizados em Cadastros Permanentes**: Usuários, Clientes, Projetos, Fornecedores e Macroprocessos aceitam novos campos personalizados, mantendo os campos nativos do sistema protegidos contra exclusão ou alteração indevida.
+
+### 2. Workflow, Situações e Transições
+- **Papéis de Processo (`process_roles`)**: Definição de papéis estáticos (ex: *Aprovador*, *Financeiro*, *Técnico*) e vinculação de usuários aos papéis em cada processo (`process_members`).
+- **Matriz de Transição de Situações**: Configuração de quais situações podem transicionar para outras, quais papéis têm autorização para disparar a ação e auto-atribuição dinâmica do responsável na demanda.
+- **Devolução Retroativa**: Ação inteligente para retornar a demanda à situação anterior, reatribuindo automaticamente ao executor anterior com base no histórico de auditoria.
+
+### 3. Central de Gestão de Demandas
+- **Busca Global Avançada**: Localização inteligente de demandas por ID curto ou completo (com ou sem `#`), título, descrição, processo, sigla do macroprocesso, situação, cliente, projeto, responsáveis, **nomes de campos customizados** (ex: pesquisar *"Destino"*) e **valores preenchidos nos campos dinâmicos** (ex: pesquisar *"São Paulo"*).
+- **Busca em Cadastros Permanentes**: Usuários, Clientes, Projetos, Fornecedores e Macroprocessos também realizam busca completa em seus campos customizados adicionais (`custom_data`).
+- **Controle de SLA**: Definição automática de prazo limite de atendimento com base nas horas cadastradas no processo.
+- **Linha do Tempo e Relatos de Tratamento**: Registro contínuo de observações, tratamentos e interações com layout escuro responsivo e tipografia otimizada.
+- **Subdemandas**: Abertura de subdemandas filhas com trava de encerramento da demanda-mãe enquanto houver subdemandas em andamento.
+- **Pesquisa de Satisfação**: Avaliação de 1 a 5 estrelas e comentário após a conclusão do atendimento.
+- **Exportação Completa em PDF**: Emissão de relatório em PDF de alta qualidade contendo todas as informações da demanda: identificação, datas e SLA, solicitante, responsáveis, descrição, formulário dinâmico de campos customizados, histórico completo de tramitação ("por quem passou"), relatos de tratamento, subdemandas e avaliação. Pode ser aberto no navegador ou baixado diretamente na máquina.
+
+### 4. Sistema de Notificações por E-mail
+- **Provedor SMTP Homologado**: Integração com **Titan Email / HostGator** (`smtp.titan.email`, porta 465 SSL / 587 TLS).
+- **Link Direto**: Todos os e-mails contêm botão de ação e **link direto** no corpo do e-mail para abrir e visualizar a demanda no sistema.
+- **Disparos em Tempo Real**:
+  - Ao criar e enviar uma demanda para atendimento (notifica solicitante e responsável atribuído).
+  - Ao transicionar ou devolver a situação da demanda.
+  - Ao registrar novos comentários/relatos de tratamento (notifica a outra parte envolvida).
+  - Ao encerrar a demanda (envia pesquisa de satisfação ao solicitante).
+- **Alertas Automatizados de SLA**:
+  - **1 dia antes de vencer**: Alerta preventivo com contagem regressiva.
+  - **No dia do vencimento**: Alerta de urgência para priorização do atendimento.
+  - **Diariamente após vencida**: Lembrete diário contendo a contagem de dias em atraso.
+  - **Proteção Antiduplicação**: Controle diário via `last_deadline_alert_date` para garantir que cada demanda receba no máximo 1 alerta por dia.
+
+### 5. Relatórios e Indicadores
+- **Relatório de Demandas com Consulta Manual**: Botão "Consultar" para execução sob demanda, evitando lentidão ao carregar grandes massas de dados.
+- **Relatórios Salvos**: Armazenamento de configurações de filtros frequentes.
+- **Dashboards Operacionais**: Widgets com gráficos de SLA, distribuição por processo e resumo de pendências individuais.
+
+### 6. Auditoria Completa (*Activity Log*)
+- Rastreamento estruturado de eventos (`created`, `updated`, `deleted`, `transition`) com captura de valores anteriores e novos em formato JSON, IP do usuário e User-Agent.
+
+### 7. Instalador e Utilitários de Hospedagem
+- Rotas guiadas para instalação (`/instalar`) e desinstalação (`/desinstalar`) em hospedagens cPanel/HostGator.
+- Rota para gatilho de prazos via Web (`/trigger-deadlines`) para integração com Cron jobs web.
+
+---
+
+## 📋 Pré-requisitos
+
+Para executar o projeto localmente ou em servidor:
+
+- **PHP** >= 8.2 (Recomendado **PHP 8.3**)
+- **Extensões PHP obrigatórias**:
+  - `pdo_mysql`, `mbstring`, `openssl`, `curl`, `json`, `fileinfo`, `xml`, `zip`
+- **Composer** >= 2.5
+- **Node.js** >= 18.x e **NPM**
+- **MySQL** >= 8.0 ou **MariaDB** >= 10.5
+
+---
+
+## 📦 Instalação e Implantação no Servidor (Produção)
+
+O Gaspar oferece **dois métodos de instalação**: o método automatizado via `build.sh` (ideal para hospedagens compartilhadas como **HostGator / cPanel**, sem necessidade de terminal SSH) e o método tradicional via CLI/SSH para VPS e servidores dedicados.
+
+---
+
+### Método A: Deploy com `build.sh` (Hospedagem HostGator / cPanel — Sem SSH)
+
+Este método gera um pacote `.zip` completo, limpo e pré-compilado (já contendo as dependências de produção na pasta `vendor/` e sem arquivos desnecessários de desenvolvimento).
+
+#### 1. Gerar o Pacote na Máquina de Desenvolvimento
+Na raiz do projeto no seu computador, execute o script de build:
+```bash
+./build.sh
+```
+O script executará automaticamente:
+1. Exportação do código rastreado pelo Git (ignora `.env`, arquivos temporários e caches).
+2. Instalação das dependências do Composer otimizadas para produção (`composer install --no-dev --optimize-autoloader`).
+3. Limpeza de caches e criação da estrutura de pastas em `storage/`.
+4. Geração do arquivo **`gaspar.zip`** na raiz do projeto.
+
+#### 2. Enviar para o Servidor (HostGator / cPanel)
+1. Acesse o **cPanel** da sua hospedagem e abra o **Gerenciador de Arquivos**.
+2. Navegue até o diretório onde o sistema ficará (ex: `public_html`, ou na pasta de um subdomínio como `public_html/gaspar`).
+3. Faça o upload do arquivo `gaspar.zip`.
+4. Clique com o botão direito no arquivo e selecione **Extrair (Extract)**.
+5. *(Opcional)* Mova os arquivos extraídos da subpasta `gaspar/` diretamente para a raiz do seu subdomínio/domínio caso queira que ele responda direto no endereço principal.
+
+#### 3. Configurar Permissões de Escrita
+No cPanel (ou via FTP), garanta que o servidor web possa escrever nos diretórios de cache e logs:
+- Permissão **775** (ou 755) recursiva nas pastas:
+  - `storage/`
+  - `bootstrap/cache/`
+
+#### 4. Assistente de Instalação Web (Primeiro Acesso)
+1. Abra o navegador e acesse a URL do seu domínio ou subdomínio (ex: `https://gaspar.seusite.com.br` ou `https://seusite.com.br/gaspar/public`).
+2. O sistema detectará automaticamente que é a primeira instalação e redirecionará para a tela **`/instalar`**.
+3. Preencha as credenciais do banco MySQL do servidor:
+   - **Host do Banco:** geralmente `localhost`
+   - **Nome do Banco:** criado previamente no cPanel (ex: `usuario_gaspar`)
+   - **Usuário e Senha do Banco**
+4. Defina o **Nome, E-mail e Senha do usuário Administrador** principal.
+5. Clique em **Instalar Gaspar**.
+> O assistente criará automaticamente o arquivo `.env` de produção, executará todas as migrações de banco e gerará a trava de segurança `installed.txt`.
+
+#### 5. Como Atualizar o Sistema em Produção
+Sempre que fizer novas alterações no código ou criar novas migrations:
+1. Gere um novo `gaspar.zip` com `./build.sh` e extraia no servidor sobrescrevendo os arquivos (o arquivo `.env` existente não será apagado).
+2. Acesse pelo navegador a URL especial de atualização:
+   ```
+   https://seu-dominio.com.br/update-system
+   ```
+   Essa rota limpa os caches (`optimize:clear`) e roda as novas migrações de banco de dados (`migrate --force`) de forma automática, sem exigir terminal!
+
+---
+
+### Método B: Instalação Manual com Terminal / SSH (VPS ou Servidor Local)
+
+Para ambientes com acesso direto via SSH ou máquina local:
+
+#### 1. Clonar o Repositório
+```bash
+git clone https://github.com/gustavosouto02/Gaspar.git
+cd Gaspar
+```
+
+#### 2. Instalar Dependências do PHP
+```bash
+composer install
+```
+
+#### 3. Instalar Dependências do Frontend
+```bash
+npm install
+npm run build
+```
+
+#### 4. Configurar as Variáveis de Ambiente
+Copie o arquivo de exemplo e configure sua conexão de banco e e-mail:
+```bash
+cp .env.example .env
+```
+
+Abra o `.env` e configure o banco de dados e as credenciais de e-mail:
+```env
+APP_NAME=Gaspar
+APP_ENV=local
+APP_URL=http://localhost:8000
+
+DB_CONNECTION=mysql
+DB_HOST=127.0.0.1
+DB_PORT=3306
+DB_DATABASE=gaspar
+DB_USERNAME=root
+DB_PASSWORD=
+
+# Configuração SMTP (Exemplo Titan Mail / HostGator)
+MAIL_MAILER=smtp
+MAIL_HOST=smtp.titan.email
+MAIL_PORT=465
+MAIL_USERNAME=no-reply@seu-dominio.com.br
+MAIL_PASSWORD=SuaSenhaAqui
+MAIL_ENCRYPTION=ssl
+MAIL_FROM_ADDRESS=no-reply@seu-dominio.com.br
+MAIL_FROM_NAME="Sistema Gaspar"
+```
+
+#### 5. Gerar a Chave da Aplicação
+```bash
+php artisan key:generate
+```
+
+#### 6. Executar Migrações e Dados Iniciais
+```bash
+php artisan migrate --seed
+```
+
+#### 7. Criar Link Simbólico do Storage
+```bash
+php artisan storage:link
+```
+
+#### 8. Iniciar o Servidor de Desenvolvimento
+```bash
+php artisan serve
+```
+Acesse no navegador: **`http://localhost:8000/admin`**
+
+---
+
+## 🛠️ Comandos Artisan Essenciais
+
+| Comando | Descrição |
+|---|---|
+| `php artisan app:check-demand-deadlines` | Executa a verificação de prazos (1 dia antes, no dia e diariamente para vencidas) |
+| `php artisan app:check-demand-deadlines --force` | Força a reemissão de alertas ignorando o envio diário prévio |
+| `php artisan schedule:work` | Inicia o agendador do Laravel em ambiente de desenvolvimento |
+| `php artisan optimize:clear` | Limpa todos os caches compilados (config, rotas, views, eventos) |
+| `php artisan config:clear` | Limpa o cache exclusivo das configurações do `.env` |
+| `php artisan migrate:status` | Exibe o status de execução de todas as migrations |
+| `./build.sh` | Gera o pacote limpo `gaspar.zip` para deploy em produção |
+
+---
+
+
+## 📂 Estrutura de Diretórios
 
 ```txt
 Gaspar/
 ├── app/
-│   ├── Concerns/               # Traits auxiliares (ex: LogsActivity para auditoria automática)
-│   ├── Enums/                  # Enumeradores tipados do sistema (ex: UserRoleEnum, DemandStatusEnum)
-│   ├── Filament/               # Configurações do painel administrativo FilamentPHP
-│   │   ├── Resources/          # Telas de CRUD e lógicas de negócios (CustomEntity, Demand, User, etc.)
-│   │   └── Widgets/            # Blocos e gráficos do Dashboard (DemandStatsWidget, MyDemandsWidget)
-│   ├── Http/Controllers/       # Controladores da aplicação
-│   └── Models/                 # Modelos do Eloquent mapeando o banco (User, Demand, StatusTransition, etc.)
+│   ├── Concerns/               # Traits (HasCustomFields, LogsActivity)
+│   ├── Console/Commands/       # Comandos CLI (CheckDemandDeadlines)
+│   ├── Enums/                  # Enumeradores tipados (Roles, Status, Prioridades, Cores)
+│   ├── Filament/               # Recursos, páginas e widgets do painel Filament
+│   │   ├── Resources/          # CRUDs e regras de negócio
+│   │   ├── Pages/              # Páginas customizadas (Relatórios de Demandas)
+│   │   └── Widgets/            # Cards e gráficos analíticos
+│   ├── Models/                 # Modelos Eloquent mapeando o banco MySQL com UUID7
+│   ├── Notifications/          # Classes de e-mail (Atividade, Prazos SLA, Satisfação)
+│   └── Policies/               # Políticas de autorização e controle de acesso
 ├── database/
-│   ├── migrations/             # Estrutura física fixa do banco de dados MySQL
-│   └── seeders/                # Populadores de dados de teste (seeder de banco inicial)
-├── resources/
-│   ├── views/                  # Telas HTML/Blade do sistema
-│   └── css/                    # Estilos CSS globais da aplicação
+│   ├── migrations/             # Migrações com estrutura das tabelas fixas e relacionais
+│   └── seeders/                # Populadores de dados padrão do sistema
+├── public/                     # Ponto de entrada web público do servidor
+├── resources/views/            # Componentes Blade e páginas do instalador
 ├── routes/
-│   └── web.php                 # Definições de rotas web
-└── README.md                   # Documentação técnica do projeto
+│   ├── console.php             # Agendamentos de tarefas CLI
+│   └── web.php                 # Rotas do instalador, redirecionamentos e triggers web
+└── build.sh                    # Script automatizado para geração do pacote de produção
 ```
-
----
-
-## 🔄 Como Funciona o Processo (BPM) no Gaspar
-
-O Gaspar funciona através de um fluxo lógico de parametrização dinâmica de metadados:
-
-1.  **Criação de Papéis**: O Administrador define quais são os papéis do processo (ex: *Solicitante*, *Gestor*, *Financeiro*).
-2.  **Vinculação de Membros**: Os usuários do sistema são associados aos papéis criados dentro de cada processo/entidade.
-3.  **Configuração de Campos**: O Administrador adiciona campos dinâmicos ao processo (ex: *Destino da Viagem*, *Valor*, *Data de Ida*).
-4.  **Definição das Situações e Transições**:
-    *   Cria-se as etapas do fluxo (ex: *Pendente*, *Em Aprovação*, *Comprado*).
-    *   Desenham-se as "pontes" (Transições): De qual situação para qual situação a demanda pode ir, quem tem permissão para disparar essa transição (ex: apenas o *Gestor*) e quem se tornará o responsável pela demanda ao chegar na próxima situação (ex: o papel *Financeiro*).
-5.  **Operação**: O Solicitante abre a demanda preenchendo os campos dinâmicos. A demanda tramita de acordo com as permissões e o fluxo definidos, atualizando os dashboards e listagens dos respectivos responsáveis em tempo real.
-
----
