@@ -91,12 +91,19 @@ class InstaladorController extends Controller
             Artisan::call('migrate:fresh', ['--force' => true]);
 
             // 4. Cria o usuário Administrador (automático)
-            User::create([
+            $admin = User::create([
                 'name'      => 'Administrador Gaspar',
                 'email'     => 'admin@gaspar.com',
                 'password'  => Hash::make('admin'),
                 'user_role' => UserRoleEnum::ADMIN,
             ]);
+
+            // Vincula os status de sistema ao administrador
+            try {
+                DB::table('process_statuses')->whereNull('created_by')->update(['created_by' => $admin->id]);
+            } catch (\Throwable $t) {
+                // Silencioso
+            }
 
             // 5. Cria o link simbólico do storage (essencial para hospedagens como HostGator)
             try {

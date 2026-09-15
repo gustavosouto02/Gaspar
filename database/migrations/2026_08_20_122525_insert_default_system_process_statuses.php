@@ -12,6 +12,16 @@ return new class extends Migration
      */
     public function up(): void
     {
+        if (Schema::hasTable('process_statuses') && Schema::hasColumn('process_statuses', 'created_by')) {
+            try {
+                Schema::table('process_statuses', function (Blueprint $table) {
+                    $table->uuid('created_by')->nullable()->change();
+                });
+            } catch (\Throwable $t) {
+                // Ignora se já for anulável
+            }
+        }
+
         $adminId = DB::table('users')->first()->id ?? null;
 
         $statuses = [
