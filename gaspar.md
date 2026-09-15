@@ -41,7 +41,8 @@ A plataforma foi projetada para permitir que administradores e gestores criem e 
 
 ### 🟩 Etapa 5 — Central de Gestão de Demandas [CONCLUÍDO]
 - [x] Abertura de demandas ativas e rascunhos com cálculo automático de SLA em horas úteis.
-- [x] Busca universal por código de demanda aceitando formatações com ou sem hashtag (`#019F7D18` e `019F7D18`).
+- [x] Busca universal inteligente por código com ou sem hashtag (`#019F7D18`), título, descrição, processo, sigla de macroprocesso, situação, cliente, projeto, responsáveis, **nomes de campos customizados** (ex: *"Destino"*) e **valores preenchidos** (ex: *"São Paulo"*).
+- [x] Busca nos cadastros permanentes (`User`, `Client`, `Project`, `Supplier`, `Macroprocess`) incluindo os novos campos dinâmicos (`custom_data`).
 - [x] Subdemandas filhas com trava de segurança impedindo o encerramento da demanda-mãe se houver subdemandas pendentes.
 - [x] Linha do tempo de relatos/tratamentos com layout escuro e tipografia com contraste ideal.
 - [x] Módulo de Pesquisa de Satisfação pós-conclusão da demanda.

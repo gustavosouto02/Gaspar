@@ -30,7 +30,8 @@ O **Gaspar** foi concebido para eliminar a necessidade de alterações manuais n
 - **Devolução Retroativa**: Ação inteligente para retornar a demanda à situação anterior, reatribuindo automaticamente ao executor anterior com base no histórico de auditoria.
 
 ### 3. Central de Gestão de Demandas
-- **Busca Rápida por Código**: Localização de demandas por ID curto ou completo, com ou sem o caractere `#` (ex: `#019F7D18` ou `019F7D18`).
+- **Busca Global Avançada**: Localização inteligente de demandas por ID curto ou completo (com ou sem `#`), título, descrição, processo, sigla do macroprocesso, situação, cliente, projeto, responsáveis, **nomes de campos customizados** (ex: pesquisar *"Destino"*) e **valores preenchidos nos campos dinâmicos** (ex: pesquisar *"São Paulo"*).
+- **Busca em Cadastros Permanentes**: Usuários, Clientes, Projetos, Fornecedores e Macroprocessos também realizam busca completa em seus campos customizados adicionais (`custom_data`).
 - **Controle de SLA**: Definição automática de prazo limite de atendimento com base nas horas cadastradas no processo.
 - **Linha do Tempo e Relatos de Tratamento**: Registro contínuo de observações, tratamentos e interações com layout escuro responsivo e tipografia otimizada.
 - **Subdemandas**: Abertura de subdemandas filhas com trava de encerramento da demanda-mãe enquanto houver subdemandas em andamento.

@@ -87,7 +87,12 @@ class UserResource extends Resource
             ->columns([
                 TextColumn::make('name')
                     ->label('Nome')
-                    ->searchable(),
+                    ->searchable(query: fn ($query, string $search) => $query->where(fn ($q) => 
+                        $q->where('name', 'like', "%{$search}%")
+                          ->orWhere('email', 'like', "%{$search}%")
+                          ->orWhere('phone', 'like', "%{$search}%")
+                          ->orWhere('custom_data', 'like', "%{$search}%")
+                    )),
 
                 TextColumn::make('email')
                     ->label('E-mail')

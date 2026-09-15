@@ -119,7 +119,7 @@ class MacroprocessResource extends Resource
                 \Filament\Tables\Columns\TextColumn::make('name')
                     ->label('Macroprocesso')
                     ->formatStateUsing(fn ($record) => $record->full_display_name)
-                    ->searchable(['name', 'acronym']),
+                    ->searchable(['name', 'acronym', 'custom_data']),
                 \Filament\Tables\Columns\TextColumn::make('value_chain_function')
                     ->label('Função na Cadeia de Valor'),
                 \Filament\Tables\Columns\IconColumn::make('is_active')

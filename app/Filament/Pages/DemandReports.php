@@ -63,7 +63,7 @@ class DemandReports extends Page implements HasForms, HasTable
 
             Tables\Columns\TextColumn::make('title')
                 ->label('Título')
-                ->searchable()
+                ->searchable(query: fn ($query, string $search) => $query->globalSearch($search))
                 ->sortable()
                 ->limit(50)
                 ->toggleable(),

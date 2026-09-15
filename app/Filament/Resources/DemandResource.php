@@ -288,15 +288,7 @@ class DemandResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('title')
                     ->label('Título')
-                    ->searchable(query: function ($query, string $search) {
-                        $clean = ltrim(trim($search), '#');
-                        return $query->where(function ($q) use ($search, $clean) {
-                            $q->where('title', 'like', "%{$search}%");
-                            if ($clean !== '') {
-                                $q->orWhere('id', 'like', "{$clean}%");
-                            }
-                        });
-                    })
+                    ->searchable(query: fn ($query, string $search) => $query->globalSearch($search))
                     ->sortable()
                     ->limit(50),
 

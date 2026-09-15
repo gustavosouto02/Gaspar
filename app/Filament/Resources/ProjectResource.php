@@ -213,7 +213,11 @@ class ProjectResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Título')
-                    ->searchable(),
+                    ->searchable(query: fn ($query, string $search) => $query->where(fn ($q) => 
+                        $q->where('name', 'like', "%{$search}%")
+                          ->orWhere('description', 'like', "%{$search}%")
+                          ->orWhere('custom_data', 'like', "%{$search}%")
+                    )),
                 Tables\Columns\TextColumn::make('client.name')
                     ->label('Cliente')
                     ->sortable(),
