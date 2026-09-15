@@ -151,7 +151,7 @@ class InstaladorController extends Controller
             'DB_PASSWORD'       => $request->db_password ?? '',
             'SESSION_DRIVER'    => 'database',
             'CACHE_STORE'       => 'database',
-            'QUEUE_CONNECTION'  => 'database',
+            'QUEUE_CONNECTION'  => 'sync',
             'MAIL_MAILER'       => 'smtp',
             'MAIL_SCHEME'       => $mailScheme,
             'MAIL_HOST'         => $mailHost,

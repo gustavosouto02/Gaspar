@@ -21,14 +21,16 @@ Route::post('/desinstalar', [InstaladorController::class, 'executarDesinstalacao
 Route::get('/update-system', function () {
     \Illuminate\Support\Facades\Artisan::call('optimize:clear');
     \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
-    return 'Sistema atualizado, cache limpo e banco de dados sincronizado com sucesso!';
+    \Illuminate\Support\Facades\Artisan::call('queue:work', ['--stop-when-empty' => true]);
+    return 'Sistema atualizado, cache limpo, migrações sincronizadas e fila processada com sucesso!';
 });
 
 Route::get('/trigger-deadlines', function () {
     \Illuminate\Support\Facades\Artisan::call('app:check-demand-deadlines');
+    \Illuminate\Support\Facades\Artisan::call('queue:work', ['--stop-when-empty' => true]);
     return response()->json([
         'status' => 'success',
-        'message' => 'Verificação de prazos executada com sucesso.',
+        'message' => 'Verificação de prazos e envio executados com sucesso.',
         'output' => \Illuminate\Support\Facades\Artisan::output()
     ]);
 });
