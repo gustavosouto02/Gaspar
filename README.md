@@ -78,26 +78,84 @@ Para executar o projeto localmente ou em servidor:
 
 ---
 
-## ⚙️ Instalação e Execução Local
+## 📦 Instalação e Implantação no Servidor (Produção)
 
-### 1. Clonar o Repositório
+O Gaspar oferece **dois métodos de instalação**: o método automatizado via `build.sh` (ideal para hospedagens compartilhadas como **HostGator / cPanel**, sem necessidade de terminal SSH) e o método tradicional via CLI/SSH para VPS e servidores dedicados.
+
+---
+
+### Método A: Deploy com `build.sh` (Hospedagem HostGator / cPanel — Sem SSH)
+
+Este método gera um pacote `.zip` completo, limpo e pré-compilado (já contendo as dependências de produção na pasta `vendor/` e sem arquivos desnecessários de desenvolvimento).
+
+#### 1. Gerar o Pacote na Máquina de Desenvolvimento
+Na raiz do projeto no seu computador, execute o script de build:
+```bash
+./build.sh
+```
+O script executará automaticamente:
+1. Exportação do código rastreado pelo Git (ignora `.env`, arquivos temporários e caches).
+2. Instalação das dependências do Composer otimizadas para produção (`composer install --no-dev --optimize-autoloader`).
+3. Limpeza de caches e criação da estrutura de pastas em `storage/`.
+4. Geração do arquivo **`gaspar.zip`** na raiz do projeto.
+
+#### 2. Enviar para o Servidor (HostGator / cPanel)
+1. Acesse o **cPanel** da sua hospedagem e abra o **Gerenciador de Arquivos**.
+2. Navegue até o diretório onde o sistema ficará (ex: `public_html`, ou na pasta de um subdomínio como `public_html/gaspar`).
+3. Faça o upload do arquivo `gaspar.zip`.
+4. Clique com o botão direito no arquivo e selecione **Extrair (Extract)**.
+5. *(Opcional)* Mova os arquivos extraídos da subpasta `gaspar/` diretamente para a raiz do seu subdomínio/domínio caso queira que ele responda direto no endereço principal.
+
+#### 3. Configurar Permissões de Escrita
+No cPanel (ou via FTP), garanta que o servidor web possa escrever nos diretórios de cache e logs:
+- Permissão **775** (ou 755) recursiva nas pastas:
+  - `storage/`
+  - `bootstrap/cache/`
+
+#### 4. Assistente de Instalação Web (Primeiro Acesso)
+1. Abra o navegador e acesse a URL do seu domínio ou subdomínio (ex: `https://gaspar.seusite.com.br` ou `https://seusite.com.br/gaspar/public`).
+2. O sistema detectará automaticamente que é a primeira instalação e redirecionará para a tela **`/instalar`**.
+3. Preencha as credenciais do banco MySQL do servidor:
+   - **Host do Banco:** geralmente `localhost`
+   - **Nome do Banco:** criado previamente no cPanel (ex: `usuario_gaspar`)
+   - **Usuário e Senha do Banco**
+4. Defina o **Nome, E-mail e Senha do usuário Administrador** principal.
+5. Clique em **Instalar Gaspar**.
+> O assistente criará automaticamente o arquivo `.env` de produção, executará todas as migrações de banco e gerará a trava de segurança `installed.txt`.
+
+#### 5. Como Atualizar o Sistema em Produção
+Sempre que fizer novas alterações no código ou criar novas migrations:
+1. Gere um novo `gaspar.zip` com `./build.sh` e extraia no servidor sobrescrevendo os arquivos (o arquivo `.env` existente não será apagado).
+2. Acesse pelo navegador a URL especial de atualização:
+   ```
+   https://seu-dominio.com.br/update-system
+   ```
+   Essa rota limpa os caches (`optimize:clear`) e roda as novas migrações de banco de dados (`migrate --force`) de forma automática, sem exigir terminal!
+
+---
+
+### Método B: Instalação Manual com Terminal / SSH (VPS ou Servidor Local)
+
+Para ambientes com acesso direto via SSH ou máquina local:
+
+#### 1. Clonar o Repositório
 ```bash
 git clone https://github.com/gustavosouto02/Gaspar.git
 cd Gaspar
 ```
 
-### 2. Instalar Dependências do PHP
+#### 2. Instalar Dependências do PHP
 ```bash
 composer install
 ```
 
-### 3. Instalar Dependências do Frontend
+#### 3. Instalar Dependências do Frontend
 ```bash
 npm install
 npm run build
 ```
 
-### 4. Configurar as Variáveis de Ambiente
+#### 4. Configurar as Variáveis de Ambiente
 Copie o arquivo de exemplo e configure sua conexão de banco e e-mail:
 ```bash
 cp .env.example .env
@@ -127,22 +185,22 @@ MAIL_FROM_ADDRESS=no-reply@seu-dominio.com.br
 MAIL_FROM_NAME="Sistema Gaspar"
 ```
 
-### 5. Gerar a Chave da Aplicação
+#### 5. Gerar a Chave da Aplicação
 ```bash
 php artisan key:generate
 ```
 
-### 6. Executar Migrações e Dados Iniciais
+#### 6. Executar Migrações e Dados Iniciais
 ```bash
 php artisan migrate --seed
 ```
 
-### 7. Criar Link Simbólico do Storage
+#### 7. Criar Link Simbólico do Storage
 ```bash
 php artisan storage:link
 ```
 
-### 8. Iniciar o Servidor de Desenvolvimento
+#### 8. Iniciar o Servidor de Desenvolvimento
 ```bash
 php artisan serve
 ```

@@ -151,3 +151,36 @@ A plataforma foi projetada para permitir que administradores e gestores criem e 
 | 1 Dia Antes de Vencer | Responsável / Solicitante | Alerta preventivo de prazo limite de SLA |
 | No Dia do Vencimento | Responsável / Solicitante | Alerta de prioridade máxima para conclusão hoje |
 | Vencida (Diário) | Responsável / Solicitante | Alerta diário com número de dias em atraso |
+
+---
+
+## 🚀 Guia de Deploy e Instalação no Servidor
+
+### 1. Requisitos de Infraestrutura
+- **PHP**: 8.2 ou superior (recomendado 8.3).
+- **Extensões**: `pdo_mysql`, `mbstring`, `openssl`, `curl`, `json`, `fileinfo`, `xml`, `zip`.
+- **Banco de Dados**: MySQL 8.0+ ou MariaDB 10.5+.
+- **Servidor Web**: Apache (com `mod_rewrite`), Nginx ou LiteSpeed.
+
+### 2. Geração do Pacote de Produção (`build.sh`)
+O projeto possui um script de empacotamento automatizado (`build.sh`) que prepara uma versão autocontida sem necessidade de rodar composer/npm no servidor de produção:
+```bash
+./build.sh
+```
+O script:
+1. Exporta apenas arquivos versionados pelo Git (ignora `.env`, caches locais e logs).
+2. Instala dependências do Composer com `--no-dev --optimize-autoloader`.
+3. Prepara a árvore de diretórios do `storage/` e `bootstrap/cache/`.
+4. Compacta o projeto no arquivo **`gaspar.zip`**.
+
+### 3. Instalação Drop-In no Servidor (HostGator / cPanel)
+1. **Upload**: Enviar `gaspar.zip` para o diretório do domínio/subdomínio no cPanel.
+2. **Extração**: Descompactar os arquivos no servidor.
+3. **Permissões**: Aplicar permissão `775` (ou `755`) recursiva em `storage/` e `bootstrap/cache/`.
+4. **Assistente Web**: Acessar a URL pelo navegador (ex: `https://gaspar.seusite.com.br`). O sistema redirecionará para `/instalar`, onde serão informadas as credenciais do banco MySQL e criado o usuário Administrador.
+
+### 4. Atualização Contínua em Produção
+Para atualizar um sistema já em produção:
+1. Gerar novo `gaspar.zip` e descompactar sobrescrevendo os arquivos no servidor (o `.env` existente permanece intacto).
+2. Acessar a URL: `https://seu-dominio/update-system` para rodar automaticamente `optimize:clear` e `migrate --force`.
+
