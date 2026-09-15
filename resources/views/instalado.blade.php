@@ -299,6 +299,32 @@
             </div>
         </div>
 
+        @if(!empty($mail_username) || !empty($mail_host))
+        <div class="credentials-card">
+            <div class="credentials-title">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                </svg>
+                Provedor de E-mail (SMTP)
+            </div>
+
+            <div class="credential-row">
+                <span class="credential-label">Servidor SMTP</span>
+                <span class="credential-value">{{ $mail_host }}:{{ $mail_port }} ({{ strtoupper($mail_encryption ?: 'NENHUMA') }})</span>
+            </div>
+            @if(!empty($mail_username))
+            <div class="credential-row">
+                <span class="credential-label">Conta de Envio</span>
+                <span class="credential-value">{{ $mail_username }}</span>
+            </div>
+            @endif
+            <div class="credential-row">
+                <span class="credential-label">Remetente</span>
+                <span class="credential-value">{{ $mail_from_name }} &lt;{{ $mail_from_address }}&gt;</span>
+            </div>
+        </div>
+        @endif
+
         {{-- Aviso --}}
         <div class="warning-box">
             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">

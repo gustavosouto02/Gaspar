@@ -70,7 +70,7 @@
             position: relative;
             z-index: 1;
             width: 100%;
-            max-width: 520px;
+            max-width: 580px;
             animation: fadeInUp 0.6s ease-out;
         }
 
@@ -190,7 +190,8 @@
             margin-bottom: 0.375rem;
         }
 
-        .form-group input {
+        .form-group input,
+        .form-group select {
             background: var(--bg-input);
             border: 1px solid var(--border-color);
             border-radius: 8px;
@@ -202,11 +203,28 @@
             outline: none;
         }
 
+        .form-group select {
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='%239090a8' viewBox='0 0 24 24'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 18px;
+            padding-right: 2.25rem;
+        }
+
+        .form-group select option {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
         .form-group input::placeholder {
             color: var(--text-muted);
         }
 
-        .form-group input:focus {
+        .form-group input:focus,
+        .form-group select:focus {
             border-color: var(--border-focus);
             box-shadow: 0 0 0 3px var(--accent-glow);
         }
@@ -386,7 +404,7 @@
                 </svg>
             </div>
             <h1>Instalar Gaspar</h1>
-            <p>Configure o banco de dados e crie o administrador</p>
+            <p>Configure o banco de dados e o serviço de e-mail (SMTP)</p>
         </div>
 
         <div class="installer-card">
@@ -413,7 +431,7 @@
             @endif
 
             {{-- Erros de validação --}}
-            @if ($errors->any())
+            @if (isset($errors) && $errors->any())
                 <div class="alert alert-error">
                     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path
@@ -430,7 +448,7 @@
             <form method="POST" action="{{ route('instalar.post') }}" id="installForm">
                 @csrf
 
-                {{-- Seção: Banco de Dados --}}
+                {{-- Seção 1: Banco de Dados --}}
                 <div class="form-section">
                     <div class="section-title">
                         <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -473,6 +491,80 @@
                     </div>
                 </div>
 
+                {{-- Separador --}}
+                <div class="form-divider"></div>
+
+                {{-- Seção 2: Provedor de E-mail (SMTP) --}}
+                <div class="form-section">
+                    <div class="section-title">
+                        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                        </svg>
+                        Provedor de E-mail (SMTP)
+                    </div>
+                    <div class="form-grid">
+                        <div class="form-grid-row">
+                            <div class="form-group">
+                                <label for="mail_host">Servidor SMTP</label>
+                                <input type="text" id="mail_host" name="mail_host"
+                                    value="{{ old('mail_host', 'smtp.titan.email') }}"
+                                    placeholder="smtp.titan.email">
+                                <span class="input-hint">Ex: smtp.titan.email, mail.dominio.com</span>
+                            </div>
+                            <div class="form-group">
+                                <label for="mail_port">Porta SMTP</label>
+                                <input type="number" id="mail_port" name="mail_port"
+                                    value="{{ old('mail_port', '465') }}"
+                                    placeholder="465">
+                                <span class="input-hint">Padrão 465 (SSL) ou 587 (TLS)</span>
+                            </div>
+                        </div>
+
+                        <div class="form-grid-row">
+                            <div class="form-group">
+                                <label for="mail_encryption">Segurança / Criptografia</label>
+                                <select id="mail_encryption" name="mail_encryption">
+                                    <option value="ssl" {{ old('mail_encryption', 'ssl') === 'ssl' ? 'selected' : '' }}>SSL / SMTPS (Porta 465 - Recomendado)</option>
+                                    <option value="tls" {{ old('mail_encryption', 'tls') === 'tls' ? 'selected' : '' }}>TLS / STARTTLS (Porta 587)</option>
+                                    <option value="none" {{ old('mail_encryption') === 'none' ? 'selected' : '' }}>Nenhuma</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="mail_from_name">Nome do Remetente</label>
+                                <input type="text" id="mail_from_name" name="mail_from_name"
+                                    value="{{ old('mail_from_name', 'Sistema Gaspar') }}"
+                                    placeholder="Sistema Gaspar">
+                                <span class="input-hint">Nome exibido nas notificações</span>
+                            </div>
+                        </div>
+
+                        <div class="form-grid-row">
+                            <div class="form-group">
+                                <label for="mail_username">Conta / E-mail de Envio</label>
+                                <input type="text" id="mail_username" name="mail_username"
+                                    value="{{ old('mail_username') }}"
+                                    placeholder="no-reply@seudominio.com.br">
+                                <span class="input-hint">Conta autenticada no provedor</span>
+                            </div>
+                            <div class="form-group">
+                                <label for="mail_password">Senha do E-mail</label>
+                                <input type="password" id="mail_password" name="mail_password"
+                                    value="{{ old('mail_password') }}"
+                                    placeholder="••••••••">
+                                <span class="input-hint">Senha da conta de e-mail</span>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="mail_from_address">E-mail de Envio (Remetente)</label>
+                            <input type="text" id="mail_from_address" name="mail_from_address"
+                                value="{{ old('mail_from_address') }}"
+                                placeholder="no-reply@seudominio.com.br">
+                            <span class="input-hint">Opcional. Se vazio, usará a conta de envio acima.</span>
+                        </div>
+                    </div>
+                </div>
+
                 <button type="submit" class="btn-install" id="btnInstall">
                     <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
@@ -489,6 +581,17 @@
     </div>
 
     <script>
+        const mailUsernameInput = document.getElementById('mail_username');
+        const mailFromInput = document.getElementById('mail_from_address');
+
+        if (mailUsernameInput && mailFromInput) {
+            mailUsernameInput.addEventListener('input', function() {
+                if (!mailFromInput.value) {
+                    mailFromInput.placeholder = this.value || 'no-reply@seudominio.com.br';
+                }
+            });
+        }
+
         document.getElementById('installForm').addEventListener('submit', function () {
             const btn = document.getElementById('btnInstall');
             btn.classList.add('loading');

@@ -116,13 +116,21 @@ No cPanel (ou via FTP), garanta que o servidor web possa escrever nos diretório
 #### 4. Assistente de Instalação Web (Primeiro Acesso)
 1. Abra o navegador e acesse a URL do seu domínio ou subdomínio (ex: `https://gaspar.seusite.com.br` ou `https://seusite.com.br/gaspar/public`).
 2. O sistema detectará automaticamente que é a primeira instalação e redirecionará para a tela **`/instalar`**.
-3. Preencha as credenciais do banco MySQL do servidor:
+3. Preencha as credenciais do **Banco de Dados MySQL**:
    - **Host do Banco:** geralmente `localhost`
+   - **Porta:** padrão `3306`
    - **Nome do Banco:** criado previamente no cPanel (ex: `usuario_gaspar`)
    - **Usuário e Senha do Banco**
-4. Defina o **Nome, E-mail e Senha do usuário Administrador** principal.
+4. Configure o **Provedor de E-mail (SMTP)**:
+   - **Servidor SMTP:** ex: `smtp.titan.email`, `mail.seudominio.com.br` ou `smtp.gmail.com`
+   - **Porta SMTP:** `465` (SSL) ou `587` (TLS)
+   - **Criptografia:** `SSL` (SMTPS), `TLS` ou Nenhuma
+   - **Nome do Remetente:** ex: `Sistema Gaspar`
+   - **Conta / E-mail de Envio (Usuário):** conta criada no cPanel/Titan (ex: `no-reply@seudominio.com.br`)
+   - **Senha do E-mail:** senha da conta de e-mail
+   - **E-mail do Remetente:** opcional (usa a conta de envio automaticamente se vazio)
 5. Clique em **Instalar Gaspar**.
-> O assistente criará automaticamente o arquivo `.env` de produção, executará todas as migrações de banco e gerará a trava de segurança `installed.txt`.
+> O assistente criará automaticamente o arquivo `.env` de produção com todas as configurações de banco e e-mail (sem necessidade de editar o `.env` manualmente), executará todas as migrações e criará a trava de segurança `installed.txt`.
 
 #### 5. Como Atualizar o Sistema em Produção
 Sempre que fizer novas alterações no código ou criar novas migrations:
