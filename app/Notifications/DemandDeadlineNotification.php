@@ -5,11 +5,10 @@ namespace App\Notifications;
 use App\Filament\Resources\DemandResource;
 use App\Models\Demand;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 
-class DemandDeadlineNotification extends Notification implements ShouldQueue
+class DemandDeadlineNotification extends Notification
 {
     use Queueable;
 

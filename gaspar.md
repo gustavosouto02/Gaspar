@@ -178,7 +178,7 @@ O script:
 1. **Upload**: Enviar `gaspar.zip` para o diretório do domínio/subdomínio no cPanel.
 2. **Extração**: Descompactar os arquivos no servidor.
 3. **Permissões**: Aplicar permissão `775` (ou `755`) recursiva em `storage/` e `bootstrap/cache/`.
-4. **Assistente Web**: Acessar a URL pelo navegador (ex: `https://gaspar.seusite.com.br`). O sistema redirecionará para `/instalar`, onde serão informadas as credenciais do banco MySQL e criado o usuário Administrador.
+4. **Assistente Web**: Acessar a URL pelo navegador (ex: `https://gaspar.seusite.com.br`). O sistema redirecionará para `/instalar`, onde serão informadas as credenciais do banco MySQL e as configurações do provedor de e-mail (SMTP), gravando tudo no `.env` sem necessidade de edição manual.
 
 ### 4. Atualização Contínua em Produção
 Para atualizar um sistema já em produção:

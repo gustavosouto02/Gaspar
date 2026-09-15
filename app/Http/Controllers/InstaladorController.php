@@ -42,10 +42,17 @@ class InstaladorController extends Controller
         }
 
         $request->validate([
-            'db_host'     => 'required|string',
-            'db_port'     => 'required|integer|min:1|max:65535',
-            'db_database' => 'required|string|max:64',
-            'db_username' => 'required|string',
+            'db_host'           => 'required|string',
+            'db_port'           => 'required|integer|min:1|max:65535',
+            'db_database'       => 'required|string|max:64',
+            'db_username'       => 'required|string',
+            'mail_host'         => 'nullable|string|max:255',
+            'mail_port'         => 'nullable|integer|min:1|max:65535',
+            'mail_username'     => 'nullable|string|max:255',
+            'mail_password'     => 'nullable|string|max:255',
+            'mail_encryption'   => 'nullable|string|in:ssl,tls,none',
+            'mail_from_name'    => 'nullable|string|max:150',
+            'mail_from_address' => 'nullable|string|max:255',
         ]);
 
         // 1. Testa conexão MySQL e cria o banco se não existir
@@ -84,12 +91,19 @@ class InstaladorController extends Controller
             Artisan::call('migrate:fresh', ['--force' => true]);
 
             // 4. Cria o usuário Administrador (automático)
-            User::create([
+            $admin = User::create([
                 'name'      => 'Administrador Gaspar',
                 'email'     => 'admin@gaspar.com',
                 'password'  => Hash::make('admin'),
                 'user_role' => UserRoleEnum::ADMIN,
             ]);
+
+            // Vincula os status de sistema ao administrador
+            try {
+                DB::table('process_statuses')->whereNull('created_by')->update(['created_by' => $admin->id]);
+            } catch (\Throwable $t) {
+                // Silencioso
+            }
 
             // 5. Cria o link simbólico do storage (essencial para hospedagens como HostGator)
             try {
@@ -108,21 +122,45 @@ class InstaladorController extends Controller
             return response('<h1>Erro na Instalação</h1><p>' . $e->getMessage() . '</p><pre>' . $e->getTraceAsString() . '</pre>', 500);
         }
 
-        // 7. Registra a gravação do .env para DEPOIS de a resposta ser enviada ao navegador.
+        // 7. Normaliza as configurações de e-mail / SMTP
+        $mailHost = $request->input('mail_host') ?: 'smtp.titan.email';
+        $mailPort = (string) ($request->input('mail_port') ?: '465');
+        $mailUsername = $request->input('mail_username') ?: '';
+        $mailPassword = $request->input('mail_password') ?: '';
+        $mailEncryption = $request->input('mail_encryption') ?: 'ssl';
+        $mailFromName = $request->input('mail_from_name') ?: 'Sistema Gaspar';
+        $mailFromAddress = $request->input('mail_from_address') ?: ($mailUsername ?: 'no-reply@gaspar.com.br');
+
+        $mailScheme = ($mailEncryption === 'ssl' || $mailPort === '465') ? 'smtps' : 'smtp';
+        if ($mailEncryption === 'none') {
+            $mailEncryption = '';
+            $mailScheme = 'smtp';
+        }
+
+        // 8. Registra a gravação do .env para DEPOIS de a resposta ser enviada ao navegador.
         // O callback app()->terminating() roda após o Laravel enviar a resposta HTTP completa.
         // Isso evita que a escrita do .env mate a conexão antes da página de sucesso aparecer.
         $envData = [
-            'APP_NAME'         => 'Gaspar',
-            'APP_URL'          => url('/'),
-            'DB_CONNECTION'    => 'mysql',
-            'DB_HOST'          => $request->db_host,
-            'DB_PORT'          => $request->db_port,
-            'DB_DATABASE'      => $request->db_database,
-            'DB_USERNAME'      => $request->db_username,
-            'DB_PASSWORD'      => $request->db_password ?? '',
-            'SESSION_DRIVER'   => 'database',
-            'CACHE_STORE'      => 'database',
-            'QUEUE_CONNECTION' => 'database',
+            'APP_NAME'          => 'Gaspar',
+            'APP_URL'           => url('/'),
+            'DB_CONNECTION'     => 'mysql',
+            'DB_HOST'           => $request->db_host,
+            'DB_PORT'           => $request->db_port,
+            'DB_DATABASE'       => $request->db_database,
+            'DB_USERNAME'       => $request->db_username,
+            'DB_PASSWORD'       => $request->db_password ?? '',
+            'SESSION_DRIVER'    => 'database',
+            'CACHE_STORE'       => 'database',
+            'QUEUE_CONNECTION'  => 'sync',
+            'MAIL_MAILER'       => 'smtp',
+            'MAIL_SCHEME'       => $mailScheme,
+            'MAIL_HOST'         => $mailHost,
+            'MAIL_PORT'         => $mailPort,
+            'MAIL_USERNAME'     => $mailUsername,
+            'MAIL_PASSWORD'     => $mailPassword,
+            'MAIL_ENCRYPTION'   => $mailEncryption,
+            'MAIL_FROM_ADDRESS' => $mailFromAddress,
+            'MAIL_FROM_NAME'    => $mailFromName,
         ];
 
         app()->terminating(function () use ($envData) {
@@ -135,11 +173,17 @@ class InstaladorController extends Controller
             }
         });
 
-        // 8. Retorna a resposta de sucesso (o Laravel envia ao navegador normalmente)
+        // 9. Retorna a resposta de sucesso (o Laravel envia ao navegador normalmente)
         return response()->view('instalado', [
-            'admin_name'     => 'Administrador Gaspar',
-            'admin_email'    => 'admin@gaspar.com',
-            'admin_password' => 'admin',
+            'admin_name'        => 'Administrador Gaspar',
+            'admin_email'       => 'admin@gaspar.com',
+            'admin_password'    => 'admin',
+            'mail_host'         => $mailHost,
+            'mail_port'         => $mailPort,
+            'mail_username'     => $mailUsername,
+            'mail_encryption'   => $mailEncryption,
+            'mail_from_address' => $mailFromAddress,
+            'mail_from_name'    => $mailFromName,
         ]);
     }
 
@@ -233,21 +277,22 @@ class InstaladorController extends Controller
         $content = file_get_contents($path);
 
         foreach ($data as $key => $value) {
-            // Escapa valores que contêm espaços ou caracteres especiais
+            $value = (string) $value;
+            // Escapa valores que contêm espaços, cerquilhas, aspas ou cifrões
             $escapedValue = $value;
-            if (str_contains($value, ' ') || str_contains($value, '#') || $value === '') {
-                $escapedValue = '"' . $value . '"';
+            if (str_contains($value, ' ') || str_contains($value, '#') || str_contains($value, '"') || str_contains($value, '$') || $value === '') {
+                $escapedValue = '"' . addcslashes($value, '"\\$') . '"';
             }
 
             $pattern = "/^{$key}=.*/m";
             $commentedPattern = "/^#\s*{$key}=.*/m";
 
             if (preg_match($pattern, $content)) {
-                // Substitui valor existente
-                $content = preg_replace($pattern, "{$key}={$escapedValue}", $content);
+                // Substitui valor existente via callback para proteger caracteres como $
+                $content = preg_replace_callback($pattern, fn () => "{$key}={$escapedValue}", $content);
             } elseif (preg_match($commentedPattern, $content)) {
                 // Descomenta e define o valor
-                $content = preg_replace($commentedPattern, "{$key}={$escapedValue}", $content);
+                $content = preg_replace_callback($commentedPattern, fn () => "{$key}={$escapedValue}", $content);
             } else {
                 // Adiciona ao final
                 $content .= PHP_EOL . "{$key}={$escapedValue}";
