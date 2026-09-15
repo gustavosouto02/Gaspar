@@ -13,7 +13,7 @@ use Filament\Widgets\TableWidget as BaseWidget;
 
 class MySubDemandsWidget extends BaseWidget
 {
-    protected static ?int $sort = 3;
+    protected static ?int $sort = 5;
 
     protected int | string | array $columnSpan = 'full';
 

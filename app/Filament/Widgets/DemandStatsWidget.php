@@ -61,25 +61,26 @@ class DemandStatsWidget extends BaseWidget
                 ->icon('heroicon-o-clipboard-document-list')
                 ->color($minhasDemandas > 0 ? 'warning' : 'success'),
 
-            Stat::make('Demandas Atrasadas', $demandasAtrasadas)
-                ->description('Demandas com prazo vencido')
-                ->icon('heroicon-o-exclamation-triangle')
-                ->color($demandasAtrasadas > 0 ? 'danger' : 'success'),
-
             Stat::make('Qtde de Subdemandas', $minhasSubdemandas)
                 ->description('Subdemandas ativas sob sua responsabilidade')
                 ->icon('heroicon-o-document-duplicate')
                 ->color($minhasSubdemandas > 0 ? 'warning' : 'success'),
+
+            Stat::make('Projetos (membro)', $projetosMembro)
+                ->description('Projetos que você participa')
+                ->icon('heroicon-o-briefcase')
+                ->color('info'),
+
+            Stat::make('Demandas Atrasadas', $demandasAtrasadas)
+                ->description('Demandas com prazo vencido')
+                ->icon('heroicon-o-exclamation-triangle')
+                ->color($demandasAtrasadas > 0 ? 'danger' : 'success'),
 
             Stat::make('Subdemandas Atrasadas', $subdemandasAtrasadas)
                 ->description('Subdemandas com prazo vencido')
                 ->icon('heroicon-o-exclamation-circle')
                 ->color($subdemandasAtrasadas > 0 ? 'danger' : 'success'),
 
-            Stat::make('Projetos (membro)', $projetosMembro)
-                ->description('Projetos que você participa')
-                ->icon('heroicon-o-briefcase')
-                ->color('info'),
 
             Stat::make('Processos (membro)', $processosMembro)
                 ->description('Processos que você participa')
