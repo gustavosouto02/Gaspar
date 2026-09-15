@@ -36,6 +36,7 @@ O **Gaspar** foi concebido para eliminar a necessidade de alterações manuais n
 - **Linha do Tempo e Relatos de Tratamento**: Registro contínuo de observações, tratamentos e interações com layout escuro responsivo e tipografia otimizada.
 - **Subdemandas**: Abertura de subdemandas filhas com trava de encerramento da demanda-mãe enquanto houver subdemandas em andamento.
 - **Pesquisa de Satisfação**: Avaliação de 1 a 5 estrelas e comentário após a conclusão do atendimento.
+- **Exportação Completa em PDF**: Emissão de relatório em PDF de alta qualidade contendo todas as informações da demanda: identificação, datas e SLA, solicitante, responsáveis, descrição, formulário dinâmico de campos customizados, histórico completo de tramitação ("por quem passou"), relatos de tratamento, subdemandas e avaliação. Pode ser aberto no navegador ou baixado diretamente na máquina.
 
 ### 4. Sistema de Notificações por E-mail
 - **Provedor SMTP Homologado**: Integração com **Titan Email / HostGator** (`smtp.titan.email`, porta 465 SSL / 587 TLS).

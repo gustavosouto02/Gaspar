@@ -46,6 +46,7 @@ A plataforma foi projetada para permitir que administradores e gestores criem e 
 - [x] Subdemandas filhas com trava de segurança impedindo o encerramento da demanda-mãe se houver subdemandas pendentes.
 - [x] Linha do tempo de relatos/tratamentos com layout escuro e tipografia com contraste ideal.
 - [x] Módulo de Pesquisa de Satisfação pós-conclusão da demanda.
+- [x] Exportação completa do registro da demanda em PDF (dados gerais, SLA, formulário dinâmico, histórico de tramitação "por quem passou", relatos, subdemandas e avaliação).
 
 ### 🟩 Etapa 6 — Auditoria Completa e Logs [CONCLUÍDO]
 - [x] Trait `LogsActivity` nos modelos vitais (`Demand`, `CustomEntity`, `Client`, `Project`, etc.).

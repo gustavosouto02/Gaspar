@@ -32,3 +32,8 @@ Route::get('/trigger-deadlines', function () {
         'output' => \Illuminate\Support\Facades\Artisan::output()
     ]);
 });
+
+Route::get('/demands/{record}/pdf', [\App\Http\Controllers\DemandPdfController::class, 'export'])
+    ->name('demands.pdf')
+    ->middleware(['auth']);
+

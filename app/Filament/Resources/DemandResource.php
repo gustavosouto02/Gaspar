@@ -403,6 +403,12 @@ class DemandResource extends Resource
                         || $record->assigned_to === auth()->id()
                         || $record->canBeTransitionedBy(auth()->user())
                     ),
+                Tables\Actions\Action::make('pdf')
+                    ->label('PDF')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->color('gray')
+                    ->url(fn (Demand $record) => route('demands.pdf', ['record' => $record->id]))
+                    ->openUrlInNewTab(),
                 Tables\Actions\Action::make('cancelar')
                     ->label('Cancelar')
                     ->icon('heroicon-o-x-circle')

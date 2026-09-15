@@ -287,6 +287,12 @@ class DemandReports extends Page implements HasForms, HasTable
                         || $record->assigned_to === auth()->id()
                         || $record->canBeTransitionedBy(auth()->user())
                     ),
+                Tables\Actions\Action::make('pdf')
+                    ->label('PDF')
+                    ->icon('heroicon-o-document-arrow-down')
+                    ->color('gray')
+                    ->url(fn (Demand $record) => route('demands.pdf', ['record' => $record->id]))
+                    ->openUrlInNewTab(),
             ])
             ->bulkActions([
                 // Vazio
