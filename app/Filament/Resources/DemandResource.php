@@ -72,7 +72,7 @@ class DemandResource extends Resource
                                                     $entity = \App\Models\CustomEntity::find($state);
                                                     if ($entity) {
                                                         // Tenta buscar a situação "Nova"
-                                                        $nova = $entity->processStatuses()->where('name', 'Nova')->first();
+                                                        $nova = $entity->processStatuses()->where('system_key', 'new')->first();
                                                         // Se não tiver "Nova", pega a primeira que achar
                                                         if (! $nova) {
                                                             $nova = $entity->processStatuses()->orderBy('display_order')->first();
@@ -95,7 +95,8 @@ class DemandResource extends Resource
                                                 if (! $entity) return [];
                                                 return $entity->processStatuses()->pluck('name', 'process_statuses.id');
                                             })
-                                            ->searchable()
+                                            ->disabled()
+                                            ->dehydrated()
                                             ->required()
                                             ->placeholder('Selecione primeiro o processo...'),
 

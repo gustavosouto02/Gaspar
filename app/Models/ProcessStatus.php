@@ -18,6 +18,7 @@ class ProcessStatus extends Model
         'name',
         'color',
         'is_system',
+        'system_key',
         'created_by',
     ];
 
@@ -31,6 +32,55 @@ class ProcessStatus extends Model
     public function newUniqueId(): string
     {
         return (string) Str::uuid7();
+    }
+
+    /**
+     * Helpers de situação de sistema (comparação por system_key, nunca por nome)
+     */
+    public function isNew(): bool
+    {
+        return $this->system_key === 'new';
+    }
+
+    public function isClosed(): bool
+    {
+        return $this->system_key === 'closed';
+    }
+
+    public function isEvaluated(): bool
+    {
+        return $this->system_key === 'evaluated';
+    }
+
+    public function isCanceled(): bool
+    {
+        return $this->system_key === 'canceled';
+    }
+
+    public function isConditional(): bool
+    {
+        return $this->system_key === 'conditional';
+    }
+
+    public function scopeSystemKey($query, string $key)
+    {
+        return $query->where('system_key', $key);
+    }
+
+    /**
+     * Exclui a situação "Condicional" (gateway) de listagens e selects
+     */
+    public function scopeWithoutConditional($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNull('process_statuses.system_key')
+                ->orWhere('process_statuses.system_key', '!=', 'conditional');
+        });
+    }
+
+    public static function findBySystemKey(string $key): ?self
+    {
+        return static::query()->systemKey($key)->first();
     }
 
     /**

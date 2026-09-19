@@ -64,6 +64,16 @@ class CreateDemand extends CreateRecord
         $this->fieldData = $data['field_data'] ?? [];
         unset($data['field_data']);
 
+        // O select de situação é disabled; garante o preenchimento com a situação
+        // "Nova" mesmo quando o processo veio pré-selecionado via URL (o default
+        // por query string não dispara o afterStateUpdated do select de processo)
+        if (empty($data['process_status_id']) && ! empty($data['entity_id'])) {
+            $entity = CustomEntity::find($data['entity_id']);
+            $nova = $entity?->processStatuses()->where('system_key', 'new')->first()
+                ?? $entity?->processStatuses()->orderBy('display_order')->first();
+            $data['process_status_id'] = $nova?->id;
+        }
+
         if ($this->isDraft) {
             $data['status'] = \App\Enums\DemandStatusEnum::DRAFT->value;
         } else {
