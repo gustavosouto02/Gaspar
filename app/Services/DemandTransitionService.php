@@ -2,8 +2,10 @@
 
 namespace App\Services;
 
+use App\Enums\FieldPermissionEnum;
 use App\Exceptions\DemandTransitionException;
 use App\Models\ActivityLog;
+use App\Models\CustomField;
 use App\Models\Demand;
 use App\Models\ProcessStatus;
 use App\Models\StatusTransition;
@@ -15,6 +17,7 @@ class DemandTransitionService
 {
     public function __construct(
         private readonly TransitionDecisionEvaluator $decisionEvaluator,
+        private readonly FieldPermissionResolver $permissionResolver,
     ) {
     }
 
@@ -46,6 +49,9 @@ class DemandTransitionService
         if ($target->isClosed() && ! $demand->canBeCompleted()) {
             throw new DemandTransitionException('Esta demanda possui subdemandas abertas. Conclua ou cancele-as primeiro.');
         }
+
+        // Campos obrigatórios da situação ATUAL precisam estar preenchidos
+        $this->assertRequiredFieldsFilled($demand, $user);
 
         $oldStatusId   = $demand->process_status_id;
         $oldStatusName = $demand->processStatus?->name ?? '—';
@@ -85,5 +91,49 @@ class DemandTransitionService
         }
 
         return $target;
+    }
+
+    /**
+     * Bloqueia a transição se campos obrigatórios (pela matriz de permissões,
+     * na situação atual e para o usuário) estiverem vazios em demand_field_values.
+     *
+     * @throws DemandTransitionException
+     */
+    private function assertRequiredFieldsFilled(Demand $demand, User $user): void
+    {
+        $currentStatus = $demand->processStatus;
+        $entity        = $demand->entity;
+
+        if (! $currentStatus || ! $entity) {
+            return;
+        }
+
+        $permissions = $this->permissionResolver->resolve($entity, $currentStatus, $user);
+
+        $requiredIds = array_keys(array_filter(
+            $permissions,
+            fn (FieldPermissionEnum $permission) => $permission === FieldPermissionEnum::REQUIRED
+        ));
+
+        if (empty($requiredIds)) {
+            return;
+        }
+
+        $filledIds = $demand->fieldValues()
+            ->whereIn('custom_field_id', $requiredIds)
+            ->get()
+            ->filter(fn ($fieldValue) => trim((string) $fieldValue->value) !== '')
+            ->pluck('custom_field_id')
+            ->all();
+
+        $missingIds = array_diff($requiredIds, $filledIds);
+
+        if (empty($missingIds)) {
+            return;
+        }
+
+        $names = CustomField::whereIn('id', $missingIds)->pluck('name')->implode(', ');
+
+        throw new DemandTransitionException("Preencha os campos obrigatórios antes de mudar a situação: {$names}.");
     }
 }

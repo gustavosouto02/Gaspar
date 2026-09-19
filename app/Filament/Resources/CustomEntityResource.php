@@ -146,6 +146,7 @@ class CustomEntityResource extends Resource
             'create' => Pages\CreateCustomEntity::route('/create'),
             'view' => Pages\ViewCustomEntity::route('/{record}'),
             'edit' => Pages\EditCustomEntity::route('/{record}/edit'),
+            'permissions' => Pages\ManageFieldPermissions::route('/{record}/permissoes'),
         ];
     }
 }

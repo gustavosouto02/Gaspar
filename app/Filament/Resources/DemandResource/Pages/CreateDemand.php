@@ -15,6 +15,15 @@ class CreateDemand extends CreateRecord
     private bool $isDraft = false;
 
     /**
+     * Salvar como rascunho ignora a obrigatoriedade dos campos dinâmicos
+     * (lido pela closure de required() em buildDynamicFieldSchema)
+     */
+    public function isSavingDraft(): bool
+    {
+        return $this->isDraft;
+    }
+
+    /**
      * Botão principal: "Enviar para atendimento" — submissão oficial.
      */
     protected function getCreateFormAction(): \Filament\Actions\Action
@@ -126,9 +135,17 @@ class CreateDemand extends CreateRecord
         if (! $entity) return;
         $fields = $entity->fields()->get()->keyBy('key');
 
+        $blockedFieldIds = $this->blockedFieldIds($entity);
+
         foreach ($this->fieldData as $key => $value) {
             $field = $fields->get($key);
             if (! $field) {
+                continue;
+            }
+
+            // Garantia no servidor: campos somente leitura/ocultos para o
+            // usuário são descartados mesmo que venham no payload
+            if (in_array($field->id, $blockedFieldIds, true)) {
                 continue;
             }
 
@@ -137,5 +154,30 @@ class CreateDemand extends CreateRecord
                 ['value' => is_array($value) ? json_encode($value) : (string) $value]
             );
         }
+    }
+
+    /**
+     * Ids dos campos READONLY/HIDDEN para o usuário na situação atual da demanda
+     *
+     * @return array<string>
+     */
+    private function blockedFieldIds(CustomEntity $entity): array
+    {
+        $status = $this->getRecord()->processStatus;
+        $user   = auth()->user();
+
+        if (! $status || ! $user) {
+            return [];
+        }
+
+        $permissions = app(\App\Services\FieldPermissionResolver::class)->resolve($entity, $status, $user);
+
+        return array_keys(array_filter(
+            $permissions,
+            fn (\App\Enums\FieldPermissionEnum $permission) => in_array($permission, [
+                \App\Enums\FieldPermissionEnum::READONLY,
+                \App\Enums\FieldPermissionEnum::HIDDEN,
+            ], true)
+        ));
     }
 }

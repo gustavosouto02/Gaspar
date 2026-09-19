@@ -174,7 +174,11 @@ class DemandResource extends Resource
                     ]),
 
                 Forms\Components\Section::make('Campos do Processo')
-                    ->schema(fn (Get $get) => static::buildDynamicFieldSchema($get('entity_id')))
+                    ->schema(fn (Get $get, ?Demand $record) => static::buildDynamicFieldSchema(
+                        $get('entity_id'),
+                        $record?->process_status_id ?? $get('process_status_id'),
+                        auth()->user(),
+                    ))
                     ->columns(2)
                     ->visible(fn (Get $get) => filled($get('entity_id')))
                     ->description('Campos específicos configurados para este processo'),
@@ -222,8 +226,10 @@ class DemandResource extends Resource
     /**
      * Renderiza os campos customizados do processo no form.
      * Usa "field_data.{key}" como namespace — interceptado nas Pages para salvar em demand_field_values.
+     * Quando situação e usuário são informados, aplica a matriz de permissões
+     * de campos (obrigatório/opcional/somente leitura/oculto).
      */
-    public static function buildDynamicFieldSchema(?string $entityId): array
+    public static function buildDynamicFieldSchema(?string $entityId, ?string $processStatusId = null, ?\App\Models\User $user = null): array
     {
         if (! $entityId) {
             return [];
@@ -243,6 +249,13 @@ class DemandResource extends Resource
                     ->content('Este processo não possui campos customizados configurados.')
                     ->columnSpanFull(),
             ];
+        }
+
+        $permissions  = null;
+        $statusRecord = $processStatusId ? \App\Models\ProcessStatus::find($processStatusId) : null;
+
+        if ($statusRecord && $user) {
+            $permissions = app(\App\Services\FieldPermissionResolver::class)->resolve($entity, $statusRecord, $user);
         }
 
         $schema = [];
@@ -266,8 +279,22 @@ class DemandResource extends Resource
                 default                            => Forms\Components\TextInput::make($key),
             };
 
-            $component->label($field->name)
-                ->required($field->is_required);
+            $component->label($field->name);
+
+            if ($permissions === null) {
+                // Sem situação/usuário resolvidos, mantém o comportamento original
+                $component->required($field->is_required);
+            } else {
+                match ($permissions[$field->id] ?? \App\Enums\FieldPermissionEnum::OPTIONAL) {
+                    \App\Enums\FieldPermissionEnum::HIDDEN => $component->hidden(),
+                    \App\Enums\FieldPermissionEnum::READONLY => $component->disabled()->dehydrated(false),
+                    // Rascunho ("Salvar" na criação ou edição de rascunho) ignora a obrigatoriedade
+                    \App\Enums\FieldPermissionEnum::REQUIRED => $component->required(
+                        fn ($livewire) => ! method_exists($livewire, 'isSavingDraft') || ! $livewire->isSavingDraft()
+                    ),
+                    \App\Enums\FieldPermissionEnum::OPTIONAL => $component->required(false),
+                };
+            }
 
             if (method_exists($component, 'placeholder') && $field->placeholder) {
                 $component->placeholder($field->placeholder);
