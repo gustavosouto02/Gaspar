@@ -208,7 +208,7 @@ class DemandReports extends Page implements HasForms, HasTable
 
                 Tables\Filters\SelectFilter::make('process_status_id')
                     ->label('Situação')
-                    ->relationship('processStatus', 'name')
+                    ->relationship('processStatus', 'name', fn ($query) => $query->withoutConditional())
                     ->multiple()
                     ->placeholder('Todos'),
 

@@ -93,7 +93,7 @@ class DemandResource extends Resource
                                                 if (! $entityId) return [];
                                                 $entity = \App\Models\CustomEntity::find($entityId);
                                                 if (! $entity) return [];
-                                                return $entity->processStatuses()->pluck('name', 'process_statuses.id');
+                                                return $entity->processStatuses()->withoutConditional()->pluck('name', 'process_statuses.id');
                                             })
                                             ->disabled()
                                             ->dehydrated()
@@ -348,7 +348,7 @@ class DemandResource extends Resource
 
                 Tables\Filters\SelectFilter::make('process_status_id')
                     ->label('Situação')
-                    ->relationship('processStatus', 'name'),
+                    ->relationship('processStatus', 'name', fn ($query) => $query->withoutConditional()),
 
                 Tables\Filters\SelectFilter::make('status')
                     ->label('Status')

@@ -22,8 +22,11 @@ class StatusTransitionsRelationManager extends RelationManager
 
     public function form(Form $form): Form
     {
-        $entity        = $this->getOwnerRecord();
-        $statusOptions = $entity->processStatuses()->pluck('name', 'process_statuses.id')->toArray();
+        $entity = $this->getOwnerRecord();
+
+        // A Condicional (gateway) nunca é situação de origem, mas pode ser destino
+        $fromStatusOptions = $entity->processStatuses()->withoutConditional()->pluck('name', 'process_statuses.id')->toArray();
+        $toStatusOptions   = $entity->processStatuses()->pluck('name', 'process_statuses.id')->toArray();
         $roleOptions = [
             '__requester__' => 'Demandante (Quem abriu a demanda)',
             '__assignee__'  => 'Responsável (Executor atual)',
@@ -48,14 +51,14 @@ class StatusTransitionsRelationManager extends RelationManager
         return $form->schema([
             Forms\Components\Select::make('from_status_id')
                 ->label('De (situação atual)')
-                ->options($statusOptions)
+                ->options($fromStatusOptions)
                 ->nullable()
                 ->placeholder('Qualquer situação (inicial)')
                 ->helperText('Deixe vazio para permitir a transição de qualquer situação'),
 
             Forms\Components\Select::make('to_status_id')
                 ->label('Para (próxima situação)')
-                ->options($statusOptions)
+                ->options($toStatusOptions)
                 ->required(),
 
             Forms\Components\TextInput::make('label')
