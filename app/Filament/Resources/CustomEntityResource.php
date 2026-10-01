@@ -120,6 +120,12 @@ class CustomEntityResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
+                Tables\Actions\Action::make('permissions')
+                    ->label('Permissões')
+                    ->icon('heroicon-o-lock-closed')
+                    ->color('gray')
+                    ->url(fn (\App\Models\CustomEntity $record) => \App\Filament\Resources\CustomEntityResource::getUrl('permissions', ['record' => $record]))
+                    ->visible(fn () => auth()->user()?->user_role === \App\Enums\UserRoleEnum::ADMIN),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([

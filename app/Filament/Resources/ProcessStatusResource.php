@@ -68,7 +68,7 @@ class ProcessStatusResource extends Resource
                     ->label('Cor')
                     ->badge()
                     ->formatStateUsing(fn (string $state) => ProcessStatusColorEnum::options()[$state] ?? $state)
-                    ->color(fn (string $state) => ProcessStatusColorEnum::from($state)->filamentColor()),
+                    ->color(fn (string $state) => ProcessStatusColorEnum::tryFrom($state)?->filamentColor() ?? 'gray'),
 
                 Tables\Columns\TextColumn::make('creator.name')
                     ->label('Criado por')

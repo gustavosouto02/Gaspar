@@ -112,7 +112,7 @@ class ProcessRoleResource extends Resource
                     ->label('Cor')
                     ->badge()
                     ->formatStateUsing(fn (string $state) => ProcessStatusColorEnum::options()[$state] ?? $state)
-                    ->color(fn (string $state) => ProcessStatusColorEnum::from($state)->filamentColor()),
+                    ->color(fn (?string $state) => ProcessStatusColorEnum::tryFrom($state ?? '')?->filamentColor() ?? 'gray'),
                 
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Ativo')
