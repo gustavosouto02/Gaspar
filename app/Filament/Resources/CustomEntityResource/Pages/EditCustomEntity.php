@@ -13,6 +13,13 @@ class EditCustomEntity extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            Actions\Action::make('field_permissions')
+                ->label('Permissões de Campos')
+                ->icon('heroicon-o-lock-closed')
+                ->color('gray')
+                ->url(fn () => CustomEntityResource::getUrl('permissions', ['record' => $this->record]))
+                ->visible(fn () => auth()->user()?->user_role === \App\Enums\UserRoleEnum::ADMIN),
+
             Actions\DeleteAction::make(),
         ];
     }

@@ -25,7 +25,7 @@ class CustomEntity extends Model
             $order = 1;
             foreach ($systemStatuses as $status) {
                 // "Nova" goes first (order 1), others go later (order 99, 100)
-                $displayOrder = $status->name === 'Nova' ? 1 : 99 + $order++;
+                $displayOrder = $status->system_key === 'new' ? 1 : 99 + $order++;
                 $entity->processStatuses()->attach($status->id, ['display_order' => $displayOrder]);
             }
         });

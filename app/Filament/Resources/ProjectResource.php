@@ -52,7 +52,7 @@ class ProjectResource extends Resource
                                                 if ($state) {
                                                     $entity = \App\Models\CustomEntity::find($state);
                                                     if ($entity) {
-                                                        $nova = $entity->processStatuses()->where('name', 'Nova')->first() 
+                                                        $nova = $entity->processStatuses()->where('system_key', 'new')->first()
                                                                 ?? $entity->processStatuses()->orderBy('display_order')->first();
                                                         $set('process_status_id', $nova?->id);
                                                     } else {

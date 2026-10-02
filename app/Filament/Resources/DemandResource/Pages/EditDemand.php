@@ -68,6 +68,16 @@ class EditDemand extends EditRecord
     public bool $isSubmittingDraft = false;
 
     /**
+     * Salvar alterações de um rascunho ignora a obrigatoriedade dos campos
+     * dinâmicos; "Enviar para atendimento" valida normalmente
+     * (lido pela closure de required() em buildDynamicFieldSchema)
+     */
+    public function isSavingDraft(): bool
+    {
+        return $this->record->status === \App\Enums\DemandStatusEnum::DRAFT && ! $this->isSubmittingDraft;
+    }
+
+    /**
      * Antes de salvar, extrai field_data e new_treatment.
      * Se estiver enviando um rascunho para atendimento, atualiza status e SLA.
      */
@@ -186,9 +196,17 @@ class EditDemand extends EditRecord
         if (! $entity) return;
         $fields = $entity->fields()->get()->keyBy('key');
 
+        $blockedFieldIds = $this->blockedFieldIds($entity);
+
         foreach ($this->fieldData as $key => $value) {
             $field = $fields->get($key);
             if (! $field) {
+                continue;
+            }
+
+            // Garantia no servidor: campos somente leitura/ocultos para o
+            // usuário são descartados mesmo que venham no payload
+            if (in_array($field->id, $blockedFieldIds, true)) {
                 continue;
             }
 
@@ -199,10 +217,36 @@ class EditDemand extends EditRecord
         }
 
         // Remove valores de campos que não existem mais no processo
+        // (a lista completa preserva os valores de campos bloqueados)
         $validFieldIds = $fields->pluck('id')->all();
         DemandFieldValue::where('demand_id', $demandId)
             ->whereNotIn('custom_field_id', $validFieldIds)
             ->delete();
+    }
+
+    /**
+     * Ids dos campos READONLY/HIDDEN para o usuário na situação atual da demanda
+     *
+     * @return array<string>
+     */
+    private function blockedFieldIds(\App\Models\CustomEntity $entity): array
+    {
+        $status = $this->getRecord()->processStatus;
+        $user   = auth()->user();
+
+        if (! $status || ! $user) {
+            return [];
+        }
+
+        $permissions = app(\App\Services\FieldPermissionResolver::class)->resolve($entity, $status, $user);
+
+        return array_keys(array_filter(
+            $permissions,
+            fn (\App\Enums\FieldPermissionEnum $permission) => in_array($permission, [
+                \App\Enums\FieldPermissionEnum::READONLY,
+                \App\Enums\FieldPermissionEnum::HIDDEN,
+            ], true)
+        ));
     }
 
     protected function getFooterWidgets(): array

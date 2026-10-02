@@ -3,10 +3,11 @@
 namespace App\Filament\Resources\DemandResource\Pages\Concerns;
 
 use App\Enums\ProcessStatusColorEnum;
+use App\Exceptions\DemandTransitionException;
 use App\Models\ActivityLog;
 use App\Models\StatusTransition;
 use App\Notifications\DemandActivityNotification;
-use App\Notifications\DemandSatisfactionNotification;
+use App\Services\DemandTransitionService;
 use Filament\Actions;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Str;
@@ -32,7 +33,7 @@ trait HasDemandHeaderActions
         
         $user   = auth()->user();
 
-        if ($record->requested_by === $user->id && empty($record->satisfaction_rating) && $record->processStatus?->name === 'Encerrada') {
+        if ($record->requested_by === $user->id && empty($record->satisfaction_rating) && $record->processStatus?->isClosed()) {
             $actions[] = Actions\Action::make('rate_demand')
                 ->label('Avaliar Atendimento')
                 ->icon('heroicon-m-star')
@@ -47,7 +48,7 @@ trait HasDemandHeaderActions
                         ->rows(3),
                 ])
                 ->action(function (array $data) use ($record) {
-                    $avaliadaStatus = \App\Models\ProcessStatus::where('name', 'Avaliada')->first();
+                    $avaliadaStatus = \App\Models\ProcessStatus::findBySystemKey('evaluated');
                     
                     $record->update([
                         'satisfaction_rating' => $data['satisfaction_rating'],
@@ -82,7 +83,7 @@ trait HasDemandHeaderActions
                 ? (ProcessStatusColorEnum::tryFrom($transition->toStatus->color)?->filamentColor() ?? 'primary')
                 : 'primary';
 
-            $label = $transition->toStatus?->name === 'Encerrada' ? 'Encerrar demanda' : $transition->label;
+            $label = $transition->toStatus?->isClosed() ? 'Encerrar demanda' : $transition->label;
 
             $actions[] = Actions\Action::make('transition_' . Str::slug($transition->id))
                 ->label($label)
@@ -97,57 +98,33 @@ trait HasDemandHeaderActions
                 })
                 ->modalSubmitActionLabel('Confirmar')
                 ->action(function () use ($record, $transition, $user) {
-                    // Verifica se a transição vai encerrar a demanda e se pode ser concluída
-                    if ($transition->toStatus?->name === 'Encerrada' && ! $record->canBeCompleted()) {
+                    // Na edição, o usuário pode ter digitado valores sem salvar:
+                    // persiste o form antes, pois o serviço lê os valores do banco
+                    if ($this instanceof \App\Filament\Resources\DemandResource\Pages\EditDemand) {
+                        $this->save(shouldRedirect: false, shouldSendSavedNotification: false);
+                    }
+
+                    try {
+                        $newStatus = app(DemandTransitionService::class)
+                            ->execute($record->refresh(), $transition, $user);
+                    } catch (DemandTransitionException $e) {
                         Notification::make()
-                            ->title('Não é possível encerrar')
-                            ->body('Esta demanda possui subdemandas abertas. Conclua ou cancele-as primeiro.')
+                            ->title('Não foi possível executar a transição')
+                            ->body($e->getMessage())
                             ->danger()
                             ->send();
                         return;
                     }
 
-                    $oldStatusId   = $record->process_status_id;
-                    $oldStatusName = $record->processStatus?->name ?? '—';
-
-                    // Executa a transição
-                    $record->process_status_id = $transition->to_status_id;
-                    $record->save(); // save first so autoAssign sees new status
-                    $record->autoAssign();
-
-                    // Registra no audit log
-                    ActivityLog::create([
-                        'user_id'        => $user->id,
-                        'event'          => 'transition',
-                        'auditable_type' => \App\Models\Demand::class,
-                        'auditable_id'   => (string) $record->id,
-                        'old_values'     => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
-                        'new_values'     => ['process_status_id' => $transition->to_status_id, 'status_name' => $transition->toStatus?->name, 'action' => $transition->label],
-                        'ip_address'     => request()->ip(),
-                        'user_agent'     => request()->userAgent(),
-                        'created_at'     => now(),
-                    ]);
-
-                    // Dispara notificações
-                    if ($record->assignedTo && $record->assignedTo->id !== $user->id) {
-                        $record->assignedTo->notify(new DemandActivityNotification($record, "A situação foi alterada para: {$transition->toStatus?->name}"));
-                    }
-                    if ($record->requestedBy && $record->requestedBy->id !== $user->id) {
-                        $record->requestedBy->notify(new DemandActivityNotification($record, "A situação foi alterada para: {$transition->toStatus?->name}"));
-                    }
-                    if ($transition->toStatus?->name === 'Encerrada' && $record->requestedBy) {
-                        $record->requestedBy->notify(new DemandSatisfactionNotification($record));
-                    }
-
                     Notification::make()
-                        ->title("Situação atualizada: {$transition->toStatus?->name}")
+                        ->title("Situação atualizada: {$newStatus->name}")
                         ->success()
                         ->send();
 
                     if (method_exists($this, 'refreshFormData')) {
                         $this->refreshFormData(['process_status_id']);
                     }
-                    
+
                     $this->redirect(static::getResource()::getUrl('view', ['record' => $record]));
                 });
         }
@@ -161,7 +138,7 @@ trait HasDemandHeaderActions
             ->first();
 
         // Se encontrou histórico e a situação atual é o destino dessa última transição
-        $isClosedOrEvaluated = in_array($record->processStatus?->name, ['Encerrada', 'Avaliada']);
+        $isClosedOrEvaluated = $record->processStatus?->isClosed() || $record->processStatus?->isEvaluated();
         
         if (! $isClosedOrEvaluated && $lastTransitionLog && isset($lastTransitionLog->old_values['process_status_id']) && $record->process_status_id != $lastTransitionLog->old_values['process_status_id']) {
             $previousStatusId = $lastTransitionLog->old_values['process_status_id'];

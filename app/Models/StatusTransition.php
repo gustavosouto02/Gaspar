@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class StatusTransition extends Model
 {
@@ -17,6 +19,7 @@ class StatusTransition extends Model
         'entity_id',
         'from_status_id',
         'to_status_id',
+        'default_to_status_id',
         'label',
         'allow_return',
         'allowed_role_ids',
@@ -26,6 +29,27 @@ class StatusTransition extends Model
     protected $casts = [
         'allowed_role_ids' => 'array',
     ];
+
+    protected static function booted(): void
+    {
+        // Gateways encadeados não são suportados: o "senão" nunca pode
+        // apontar para a própria situação Condicional
+        static::saving(function (StatusTransition $transition) {
+            if (! $transition->default_to_status_id) {
+                return;
+            }
+
+            $isConditional = ProcessStatus::whereKey($transition->default_to_status_id)
+                ->where('system_key', 'conditional')
+                ->exists();
+
+            if ($isConditional) {
+                throw ValidationException::withMessages([
+                    'default_to_status_id' => 'O "senão" não pode apontar para a situação Condicional (gateways encadeados não são suportados).',
+                ]);
+            }
+        });
+    }
 
     public function newUniqueId(): string
     {
@@ -48,6 +72,18 @@ class StatusTransition extends Model
     public function toStatus(): BelongsTo
     {
         return $this->belongsTo(ProcessStatus::class, 'to_status_id');
+    }
+
+    /** Situação "senão" da tabela de decisão (quando o destino é a Condicional) */
+    public function defaultToStatus(): BelongsTo
+    {
+        return $this->belongsTo(ProcessStatus::class, 'default_to_status_id');
+    }
+
+    /** Regras da tabela de decisão, na ordem de avaliação (hit policy FIRST) */
+    public function rules(): HasMany
+    {
+        return $this->hasMany(TransitionRule::class)->orderBy('rule_order');
     }
 
     /**
