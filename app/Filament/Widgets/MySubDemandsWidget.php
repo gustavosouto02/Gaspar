@@ -6,6 +6,7 @@ use App\Enums\DemandPriorityEnum;
 use App\Enums\DemandStatusEnum;
 use App\Enums\ProcessStatusColorEnum;
 use App\Filament\Resources\DemandResource;
+use App\Filament\Widgets\Concerns\HasKanbanView;
 use App\Models\Demand;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -13,6 +14,8 @@ use Filament\Widgets\TableWidget as BaseWidget;
 
 class MySubDemandsWidget extends BaseWidget
 {
+    use HasKanbanView;
+
     protected static ?int $sort = 5;
 
     protected int | string | array $columnSpan = 'full';
@@ -21,7 +24,7 @@ class MySubDemandsWidget extends BaseWidget
 
     public function table(Table $table): Table
     {
-        return $table
+        return $this->applyKanbanView($table)
             ->query(
                 Demand::query()
                     ->with(['entity', 'processStatus', 'assignee', 'requester', 'parent'])
@@ -90,7 +93,6 @@ class MySubDemandsWidget extends BaseWidget
             ])
             ->emptyStateHeading('Nenhuma subdemanda pendente')
             ->emptyStateDescription('Você não tem subdemandas ativas atribuídas a você.')
-            ->emptyStateIcon('heroicon-o-check-circle')
-            ->paginated([10, 25, 50]);
+            ->emptyStateIcon('heroicon-o-check-circle');
     }
 }
