@@ -102,7 +102,8 @@ class ProcessStatusResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->recordUrl(fn (ProcessStatus $record): ?string => $record->is_system ? null : Pages\EditProcessStatus::getUrl(['record' => $record]));
     }
 
     public static function getPages(): array

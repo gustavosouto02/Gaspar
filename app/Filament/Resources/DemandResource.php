@@ -460,7 +460,8 @@ class DemandResource extends Resource
                         ->action(fn (\Illuminate\Database\Eloquent\Collection $records) => $records->each(fn ($record) => $record->update(['status' => \App\Enums\DemandStatusEnum::CANCELED->value, 'completed_at' => now()])))
                         ->visible(fn () => auth()->user()->user_role === \App\Enums\UserRoleEnum::ADMIN),
                 ]),
-            ]);
+            ])
+            ->recordUrl(fn (Demand $record): string => Pages\ViewDemand::getUrl(['record' => $record]));
     }
 
     public static function getRelations(): array

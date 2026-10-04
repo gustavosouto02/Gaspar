@@ -9,6 +9,7 @@ use Filament\Forms;
 use Filament\Forms\Form;
 use App\Models\CustomField;
 use App\Models\CustomRecordType;
+use App\Enums\UserRoleEnum;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -26,6 +27,21 @@ class CustomFieldsRelationManager extends RelationManager
     protected static ?string $modelLabel = 'Campo';
 
     protected static ?string $pluralModelLabel = 'Campos';
+
+    public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool
+    {
+        // Apenas Administradores podem visualizar o gerenciador de campos customizados
+        if (auth()->user()?->user_role !== UserRoleEnum::ADMIN) {
+            return false;
+        }
+
+        // Não exibir em páginas de visualização (ViewRecord), pois vincular campos é ação de edição
+        if (is_subclass_of($pageClass, \Filament\Resources\Pages\ViewRecord::class)) {
+            return false;
+        }
+
+        return true;
+    }
 
     /**
      * Override to get the correct record type for this model.
@@ -115,7 +131,8 @@ class CustomFieldsRelationManager extends RelationManager
                                 'field_order' => $maxOrder + 1,
                             ]);
                         }
-                    }),
+                    })
+                    ->visible(fn () => auth()->user()?->user_role === UserRoleEnum::ADMIN),
             ])
             ->actions([
                 Tables\Actions\Action::make('detach')
@@ -128,7 +145,8 @@ class CustomFieldsRelationManager extends RelationManager
                         if ($recordType) {
                             $recordType->fields()->detach($record->id);
                         }
-                    }),
+                    })
+                    ->visible(fn () => auth()->user()?->user_role === UserRoleEnum::ADMIN),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -143,7 +161,8 @@ class CustomFieldsRelationManager extends RelationManager
                                 $recordType->fields()->detach($records->pluck('id'));
                             }
                         })
-                        ->deselectRecordsAfterCompletion(),
+                        ->deselectRecordsAfterCompletion()
+                        ->visible(fn () => auth()->user()?->user_role === UserRoleEnum::ADMIN),
                 ]),
             ]);
     }

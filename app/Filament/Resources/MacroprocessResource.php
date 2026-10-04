@@ -21,9 +21,47 @@ class MacroprocessResource extends Resource
     protected static ?string $model = Macroprocess::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
-    protected static ?string $navigationGroup = 'Administração';
+    protected static ?string $navigationGroup = 'Cadastros';
     protected static ?string $modelLabel = 'Macroprocesso';
     protected static ?string $pluralModelLabel = 'Macroprocessos';
+
+    public static function getNavigationItems(): array
+    {
+        $items = [
+            \Filament\Navigation\NavigationItem::make('Macroprocessos')
+                ->group('Cadastros')
+                ->icon(static::getNavigationIcon())
+                ->sort(5)
+                ->url(static::getUrl('index'))
+                ->isActiveWhen(fn () => request()->routeIs(static::getRouteBaseName() . '.*')),
+        ];
+
+        if (auth()->user()?->user_role === \App\Enums\UserRoleEnum::ADMIN) {
+            $items[] = \Filament\Navigation\NavigationItem::make('Macroprocessos')
+                ->group('Administração')
+                ->icon(static::getNavigationIcon())
+                ->sort(2)
+                ->url(static::getUrl('index'))
+                ->isActiveWhen(fn () => request()->routeIs(static::getRouteBaseName() . '.*'));
+        }
+
+        return $items;
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->user_role === \App\Enums\UserRoleEnum::ADMIN;
+    }
+
+    public static function canEdit(\Illuminate\Database\Eloquent\Model $record): bool
+    {
+        return auth()->user()?->user_role === \App\Enums\UserRoleEnum::ADMIN;
+    }
+
+    public static function canDelete(\Illuminate\Database\Eloquent\Model $record): bool
+    {
+        return auth()->user()?->user_role === \App\Enums\UserRoleEnum::ADMIN;
+    }
 
     public static function form(Form $form): Form
     {
@@ -103,8 +141,8 @@ class MacroprocessResource extends Resource
                                 Infolists\Components\TextEntry::make('name')
                                     ->label('')
                                     ->formatStateUsing(fn ($record) => $record->full_display_name)
-                                    ->url(fn ($record) => \App\Filament\Resources\CustomEntityResource::getUrl('edit', ['record' => $record]))
-                                    ->color('primary'),
+                                    ->url(fn ($record) => auth()->user()?->user_role === \App\Enums\UserRoleEnum::ADMIN ? \App\Filament\Resources\CustomEntityResource::getUrl('edit', ['record' => $record]) : null)
+                                    ->color(fn () => auth()->user()?->user_role === \App\Enums\UserRoleEnum::ADMIN ? 'primary' : 'gray'),
                             ])
                             ->grid(1)
                             ->columnSpanFull(),

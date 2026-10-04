@@ -128,6 +128,7 @@ class SubDemandsRelationManager extends RelationManager
             ])
             ->emptyStateHeading('Nenhuma subdemanda')
             ->emptyStateDescription('Clique em "Registrar Subdemanda" para criar.')
-            ->emptyStateIcon('heroicon-o-document-duplicate');
+            ->emptyStateIcon('heroicon-o-document-duplicate')
+            ->recordUrl(fn (Demand $record) => DemandResource::getUrl('view', ['record' => $record]));
     }
 }

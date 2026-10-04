@@ -26,6 +26,11 @@ class CustomFieldResource extends Resource
 
     protected static ?int $navigationSort = 4;
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->user_role === \App\Enums\UserRoleEnum::ADMIN;
+    }
+
     public static function form(Form $form): Form
     {
         return $form

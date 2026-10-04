@@ -93,6 +93,7 @@ class MySubDemandsWidget extends BaseWidget
             ])
             ->emptyStateHeading('Nenhuma subdemanda pendente')
             ->emptyStateDescription('Você não tem subdemandas ativas atribuídas a você.')
-            ->emptyStateIcon('heroicon-o-check-circle');
+            ->emptyStateIcon('heroicon-o-check-circle')
+            ->recordUrl(fn (Demand $record): string => \App\Filament\Resources\DemandResource::getUrl('view', ['record' => $record]));
     }
 }

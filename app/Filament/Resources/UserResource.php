@@ -11,6 +11,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
 use Filament\Resources\Pages\CreateRecord; // Importação corrigida para o password rule
+use Filament\Resources\Pages\ViewRecord;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Tables\Columns\TextColumn;
@@ -66,7 +67,8 @@ class UserResource extends Resource
                     ->password()
                     ->required(fn ($livewire) => $livewire instanceof CreateRecord)
                     ->dehydrateStateUsing(fn ($state) => filled($state) ? bcrypt($state) : null)
-                    ->dehydrated(fn ($state) => filled($state)),
+                    ->dehydrated(fn ($state) => filled($state))
+                    ->hidden(fn ($livewire) => $livewire instanceof ViewRecord),
 
                 Select::make('user_role')
                     ->label('Perfil')
@@ -111,9 +113,11 @@ class UserResource extends Resource
                     ->dateTime('d/m/Y H:i'),
             ])
             ->actions([
+                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
-            ]);
+            ])
+            ->recordUrl(fn (User $record): string => Pages\ViewUser::getUrl(['record' => $record]));
     }
 
     public static function getRelations(): array
@@ -128,6 +132,7 @@ class UserResource extends Resource
         return [
             'index' => Pages\ListUsers::route('/'),
             'create' => Pages\CreateUser::route('/create'),
+            'view' => Pages\ViewUser::route('/{record}'),
             'edit' => Pages\EditUser::route('/{record}/edit'),
         ];
     }

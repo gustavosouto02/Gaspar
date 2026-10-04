@@ -61,7 +61,7 @@ class CustomRecordResource extends Resource
     {
         $items = [];
         try {
-            $types = \App\Models\CustomRecordType::where('is_active', true)->get();
+            $types = \App\Models\CustomRecordType::where('is_active', true)->where('is_system', false)->get();
             foreach ($types as $type) {
                 $items[] = \Filament\Navigation\NavigationItem::make($type->name)
                     ->group('Cadastros')
@@ -176,7 +176,8 @@ class CustomRecordResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->recordUrl(fn (\App\Models\CustomRecord $record) => static::getUrl('view', ['record' => $record, 'type_id' => $record->custom_record_type_id]));
     }
 
     public static function getRelations(): array

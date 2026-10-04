@@ -180,7 +180,8 @@ class ActivityLogResource extends Resource
                 Tables\Actions\ViewAction::make(),
             ])
             ->bulkActions([])
-            ->poll('30s');  // Atualização automática a cada 30s
+            ->poll('30s')  // Atualização automática a cada 30s
+            ->recordUrl(fn (\App\Models\ActivityLog $record): string => Pages\ViewActivityLog::getUrl(['record' => $record]));
     }
 
     public static function getPages(): array
