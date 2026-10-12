@@ -20,6 +20,19 @@ class FieldsRelationManager extends RelationManager
 
     protected static ?string $pluralModelLabel = 'Campos';
 
+    public static function canViewForRecord(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): bool
+    {
+        if (auth()->user()?->user_role !== \App\Enums\UserRoleEnum::ADMIN) {
+            return false;
+        }
+
+        if (is_subclass_of($pageClass, \Filament\Resources\Pages\ViewRecord::class)) {
+            return false;
+        }
+
+        return true;
+    }
+
     public function form(Form $form): Form
     {
         return $form->schema([]);

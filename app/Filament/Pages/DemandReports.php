@@ -296,6 +296,7 @@ class DemandReports extends Page implements HasForms, HasTable
             ])
             ->bulkActions([
                 // Vazio
-            ]);
+            ])
+            ->recordUrl(fn (Demand $record) => \App\Filament\Resources\DemandResource::getUrl('view', ['record' => $record]));
     }
 }

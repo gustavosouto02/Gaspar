@@ -90,6 +90,7 @@ class MyDemandsWidget extends BaseWidget
             ])
             ->emptyStateHeading('Nenhuma demanda pendente')
             ->emptyStateDescription('Você não tem demandas ativas atribuídas a você.')
-            ->emptyStateIcon('heroicon-o-check-circle');
+            ->emptyStateIcon('heroicon-o-check-circle')
+            ->recordUrl(fn (Demand $record): string => \App\Filament\Resources\DemandResource::getUrl('view', ['record' => $record]));
     }
 }

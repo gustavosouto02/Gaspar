@@ -24,6 +24,11 @@ class CustomRecordTypeResource extends Resource
     protected static ?string $pluralModelLabel = 'Cadastros';
     protected static ?int $navigationSort = 5;
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->user_role === \App\Enums\UserRoleEnum::ADMIN;
+    }
+
     public static function form(Form $form): Form
     {
         return $form

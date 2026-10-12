@@ -43,6 +43,7 @@ class SavedReports extends Page implements HasTable
                     ->icon('heroicon-o-arrow-right')
                     ->url(fn (SavedReport $record) => DemandReports::getUrl(['saved_report_id' => $record->id])),
                 DeleteAction::make(),
-            ]);
+            ])
+            ->recordUrl(fn (SavedReport $record) => DemandReports::getUrl(['saved_report_id' => $record->id]));
     }
 }

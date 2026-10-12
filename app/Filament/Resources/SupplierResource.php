@@ -97,7 +97,8 @@ class SupplierResource extends Resource
                     Tables\Actions\ForceDeleteBulkAction::make(),
                     Tables\Actions\RestoreBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->recordUrl(fn (Supplier $record): string => Pages\ViewSupplier::getUrl(['record' => $record]));
     }
 
     public static function getRelations(): array

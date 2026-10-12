@@ -30,6 +30,11 @@ class CustomEntityResource extends Resource
 
     protected static ?int $navigationSort = 3;
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->user_role === \App\Enums\UserRoleEnum::ADMIN;
+    }
+
     public static function form(Form $form): Form
     {
         return $form
@@ -132,7 +137,8 @@ class CustomEntityResource extends Resource
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
-            ]);
+            ])
+            ->recordUrl(fn (\App\Models\CustomEntity $record): string => Pages\ViewCustomEntity::getUrl(['record' => $record]));
     }
 
     public static function getRelations(): array

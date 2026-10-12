@@ -53,6 +53,7 @@ class DemandsRelationManager extends RelationManager
             ])
             ->bulkActions([
                 //
-            ]);
+            ])
+            ->recordUrl(fn ($record) => \App\Filament\Resources\DemandResource::getUrl('view', ['record' => $record->id]));
     }
 }

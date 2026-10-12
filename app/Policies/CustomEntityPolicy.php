@@ -13,7 +13,7 @@ class CustomEntityPolicy
      */
     public function viewAny(User $user): bool
     {
-        return true;
+        return $user->user_role === UserRoleEnum::ADMIN;
     }
 
     /**

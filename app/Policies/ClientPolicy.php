@@ -20,12 +20,12 @@ class ClientPolicy
 
     public function create(User $user): bool
     {
-        return in_array($user->user_role, [UserRoleEnum::ADMIN, UserRoleEnum::GESTOR]);
+        return $user->user_role === UserRoleEnum::ADMIN;
     }
 
     public function update(User $user, Client $client): bool
     {
-        return in_array($user->user_role, [UserRoleEnum::ADMIN, UserRoleEnum::GESTOR]);
+        return $user->user_role === UserRoleEnum::ADMIN;
     }
 
     public function delete(User $user, Client $client): bool
