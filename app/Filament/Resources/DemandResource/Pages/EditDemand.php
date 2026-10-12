@@ -128,12 +128,16 @@ class EditDemand extends EditRecord
             $record->autoAssign();
             $record->refresh();
 
-            if ($record->assignedTo && $record->assignedTo->id !== auth()->id()) {
-                $record->assignedTo->notify(new \App\Notifications\DemandActivityNotification($record, 'Uma nova demanda foi enviada e atribuída a você.'));
-            }
+            try {
+                if ($record->assignee && $record->assignee->id !== auth()->id()) {
+                    $record->assignee->notify(new \App\Notifications\DemandActivityNotification($record, 'Uma nova demanda foi enviada e atribuída a você.'));
+                }
 
-            if ($record->requestedBy) {
-                $record->requestedBy->notify(new \App\Notifications\DemandActivityNotification($record, 'Sua demanda foi enviada para atendimento com sucesso.'));
+                if ($record->requester) {
+                    $record->requester->notify(new \App\Notifications\DemandActivityNotification($record, 'Sua demanda foi enviada para atendimento com sucesso.'));
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Falha ao enviar notificação de envio de demanda: {$e->getMessage()}");
             }
         }
 

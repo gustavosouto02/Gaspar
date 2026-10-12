@@ -40,13 +40,17 @@ class MySubDemandsWidget extends BaseWidget
                     ->label('Título')
                     ->searchable(query: fn ($query, string $search) => $query->globalSearch($search))
                     ->limit(50)
-                    ->url(fn (Demand $record) => DemandResource::getUrl('edit', ['record' => $record])),
+                    ->url(fn (Demand $record) => auth()->user()->can('update', $record)
+                        ? DemandResource::getUrl('edit', ['record' => $record])
+                        : DemandResource::getUrl('view', ['record' => $record])),
 
                 Tables\Columns\TextColumn::make('parent.title')
                     ->label('Demanda Pai')
                     ->limit(40)
                     ->url(fn (Demand $record) => $record->parent
-                        ? DemandResource::getUrl('edit', ['record' => $record->parent])
+                        ? (auth()->user()->can('update', $record->parent)
+                            ? DemandResource::getUrl('edit', ['record' => $record->parent])
+                            : DemandResource::getUrl('view', ['record' => $record->parent]))
                         : null)
                     ->placeholder('—'),
 

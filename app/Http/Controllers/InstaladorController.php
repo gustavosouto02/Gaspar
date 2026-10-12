@@ -211,6 +211,10 @@ class InstaladorController extends Controller
             return redirect()->route('instalar');
         }
 
+        if (! auth()->check() || ! auth()->user()->isAdmin()) {
+            abort(403, 'Apenas administradores autenticados podem executar a desinstalação.');
+        }
+
         try {
             // HACK DEFINITIVO: O Laravel tenta salvar a sessão no banco no final do request.
             // Para evitar o erro "Table sessions/users doesn't exist", mudamos a config

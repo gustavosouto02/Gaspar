@@ -26,6 +26,15 @@ class ProcessStatus extends Model
         'is_system' => 'boolean',
     ];
 
+    protected static function booted(): void
+    {
+        static::deleting(function (ProcessStatus $status) {
+            if ($status->is_system) {
+                throw new \Exception('Situações de sistema não podem ser excluídas.');
+            }
+        });
+    }
+
     /**
      * Gerar UUID7 para a chave primária
      */

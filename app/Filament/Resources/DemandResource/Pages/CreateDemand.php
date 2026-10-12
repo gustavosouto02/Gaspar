@@ -113,12 +113,16 @@ class CreateDemand extends CreateRecord
             $record->autoAssign();
             $record->refresh();
 
-            if ($record->assignedTo && $record->assignedTo->id !== auth()->id()) {
-                $record->assignedTo->notify(new \App\Notifications\DemandActivityNotification($record, 'Uma nova demanda foi atribuída a você para atendimento.'));
-            }
+            try {
+                if ($record->assignee && $record->assignee->id !== auth()->id()) {
+                    $record->assignee->notify(new \App\Notifications\DemandActivityNotification($record, 'Uma nova demanda foi atribuída a você para atendimento.'));
+                }
 
-            if ($record->requestedBy) {
-                $record->requestedBy->notify(new \App\Notifications\DemandActivityNotification($record, 'Sua demanda foi cadastrada com sucesso e enviada para atendimento.'));
+                if ($record->requester) {
+                    $record->requester->notify(new \App\Notifications\DemandActivityNotification($record, 'Sua demanda foi cadastrada com sucesso e enviada para atendimento.'));
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Falha ao enviar notificação de criação de demanda: {$e->getMessage()}");
             }
         }
     }

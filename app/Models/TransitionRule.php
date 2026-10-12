@@ -40,6 +40,21 @@ class TransitionRule extends Model
                     'to_status_id' => 'Uma regra não pode apontar para a situação Condicional (gateways encadeados não são suportados).',
                 ]);
             }
+
+            // Sanitiza conditions para evitar que {min: null, max: null} contamine operadores que não são range
+            if (is_array($rule->conditions)) {
+                $conditions = $rule->conditions;
+                foreach ($conditions as &$cond) {
+                    $op = isset($cond['operator']) ? \App\Enums\RuleOperatorEnum::tryFrom($cond['operator']) : null;
+                    if ($op && $op->valueKind() !== 'range' && is_array($cond['value'] ?? null)) {
+                        $val = $cond['value'];
+                        if (array_key_exists('min', $val) && array_key_exists('max', $val) && $val['min'] === null && $val['max'] === null) {
+                            $cond['value'] = null;
+                        }
+                    }
+                }
+                $rule->conditions = $conditions;
+            }
         });
     }
 

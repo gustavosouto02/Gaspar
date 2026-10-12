@@ -61,6 +61,14 @@ class User extends Authenticatable implements FilamentUser
     }
 
     /**
+     * Verifica se o usuário possui papel de Administrador.
+     */
+    public function isAdmin(): bool
+    {
+        return $this->user_role === UserRoleEnum::ADMIN;
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>

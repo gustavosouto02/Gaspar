@@ -296,7 +296,13 @@
                 <td style="width: 25%;">
                     <span class="label">Prazo Limite (SLA)</span>
                     <span class="value" style="font-weight: 700; color: {{ $demand->sla_due_at && $demand->sla_due_at->isPast() && $demand->status?->value === 'ACTIVE' ? '#b91c1c' : '#0f172a' }};">
-                        {{ $demand->sla_due_at ? $demand->sla_due_at->format('d/m/Y H:i') : 'Sem prazo' }}
+                        @if($demand->sla_due_at)
+                            {{ $demand->sla_due_at->format('d/m/Y H:i') }}
+                        @elseif($demand->entity && $demand->entity->sla_hours)
+                            {{ $demand->entity->sla_hours }}h (~{{ round($demand->entity->sla_hours / 24, 1) }} dias)
+                        @else
+                            Sem prazo
+                        @endif
                     </span>
                 </td>
                 <td style="width: 25%;">
@@ -313,7 +319,7 @@
 
     <!-- SEÇÃO 4: DESCRIÇÃO DETALHADA -->
     <div class="section">
-        <div class="section-title">4. Descrição da Demana</div>
+        <div class="section-title">4. Descrição da Demanda</div>
         <div class="text-box">
             {{ $demand->description ?: 'Nenhuma descrição detalhada informada.' }}
         </div>

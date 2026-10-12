@@ -17,10 +17,18 @@ class DemandStatsWidget extends BaseWidget
         $user = auth()->user();
         $userId = $user->id;
 
-        // Minhas demandas (demandas pai onde sou participante)
-        $minhasDemandas = Demand::where('status', DemandStatusEnum::ACTIVE->value)
-            ->whereNull('parent_demand_id')
-            ->pendingForUser($user)
+        $aguardandoAvaliacao = Demand::whereNull('parent_demand_id')
+            ->where('requested_by', $user->id)
+            ->where(function ($sq) {
+                $sq->where('status', DemandStatusEnum::CLOSED->value)
+                    ->orWhereHas('processStatus', fn ($ps) => $ps->where('system_key', 'closed'));
+            })
+            ->whereNull('satisfaction_rating')
+            ->count();
+
+        // Minhas demandas (demandas pai ativas ou pendências de avaliação)
+        $minhasDemandas = Demand::whereNull('parent_demand_id')
+            ->pendingActionForUser($user)
             ->count();
 
         // Demandas atrasadas (SLA vencido, minhas)
@@ -57,9 +65,11 @@ class DemandStatsWidget extends BaseWidget
 
         return [
             Stat::make('Qtde de Demandas', $minhasDemandas)
-                ->description('Demandas ativas sob sua responsabilidade')
+                ->description($aguardandoAvaliacao > 0
+                    ? "{$aguardandoAvaliacao} aguardando sua avaliação ⭐"
+                    : 'Demandas sob sua responsabilidade')
                 ->icon('heroicon-o-clipboard-document-list')
-                ->color($minhasDemandas > 0 ? 'warning' : 'success'),
+                ->color($aguardandoAvaliacao > 0 ? 'warning' : ($minhasDemandas > 0 ? 'warning' : 'success')),
 
             Stat::make('Qtde de Subdemandas', $minhasSubdemandas)
                 ->description('Subdemandas ativas sob sua responsabilidade')
