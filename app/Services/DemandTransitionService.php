@@ -92,7 +92,7 @@ class DemandTransitionService
             'auditable_id'   => (string) $demand->id,
             'old_values'     => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
             'new_values'     => array_merge(
-                ['process_status_id' => $target->id, 'status_name' => $target->name, 'action' => $transition->label],
+                ['process_status_id' => $target->id, 'status_name' => $target->name, 'action' => $transition->label, 'transition_id' => $transition->id],
                 $transition->toStatus?->isConditional()
                     ? ['via' => 'Condicional', 'rule_order' => $matchedRule?->rule_order]
                     : [],

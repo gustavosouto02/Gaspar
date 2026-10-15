@@ -49,6 +49,9 @@ trait HasDemandHeaderActions
                 ])
                 ->action(function (array $data) use ($record) {
                     $avaliadaStatus = \App\Models\ProcessStatus::findBySystemKey('evaluated');
+                    $oldStatusId = $record->process_status_id;
+                    $oldStatusName = $record->processStatus?->name ?? '—';
+                    $newStatusName = $avaliadaStatus?->name ?? 'Avaliada';
                     
                     $record->update([
                         'satisfaction_rating' => $data['satisfaction_rating'],
@@ -57,6 +60,24 @@ trait HasDemandHeaderActions
                         'process_status_id' => $avaliadaStatus ? $avaliadaStatus->id : $record->process_status_id,
                         'status' => \App\Enums\DemandStatusEnum::EVALUATED,
                     ]);
+
+                    \App\Models\ActivityLog::create([
+                        'user_id'        => auth()->id(),
+                        'event'          => 'transition',
+                        'auditable_type' => \App\Models\Demand::class,
+                        'auditable_id'   => (string) $record->id,
+                        'old_values'     => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
+                        'new_values'     => [
+                            'process_status_id'   => $avaliadaStatus?->id ?? $oldStatusId,
+                            'status_name'         => $newStatusName,
+                            'action'              => 'Avaliação de Atendimento',
+                            'satisfaction_rating' => $data['satisfaction_rating'],
+                        ],
+                        'ip_address'     => request()->ip(),
+                        'user_agent'     => request()->userAgent(),
+                        'created_at'     => now(),
+                    ]);
+
                     Notification::make()->title('Avaliação enviada com sucesso!')->success()->send();
                     if (method_exists($this, 'refreshFormData')) {
                         $this->refreshFormData(['satisfaction_rating', 'satisfaction_comment', 'process_status_id']);
@@ -148,17 +169,28 @@ trait HasDemandHeaderActions
             $previousUserId = $lastTransitionLog->user_id;
 
             // Verifica se a transição que trouxe a demanda até a situação atual permite retorno (allow_return)
-            $transitionUsed = StatusTransition::where('entity_id', $record->entity_id)
-                ->where(function ($q) use ($previousStatusId) {
-                    $q->where('from_status_id', $previousStatusId)
-                      ->orWhereNull('from_status_id');
-                })
-                ->where(function ($q) use ($record) {
-                    $q->where('to_status_id', $record->process_status_id)
-                      ->orWhere('default_to_status_id', $record->process_status_id)
-                      ->orWhereHas('toStatus', fn ($s) => $s->where('system_key', 'conditional'));
-                })
-                ->first();
+            $transitionId = $lastTransitionLog->new_values['transition_id'] ?? null;
+            if ($transitionId) {
+                $transitionUsed = StatusTransition::find($transitionId);
+            } else {
+                $transitionUsed = StatusTransition::where('entity_id', $record->entity_id)
+                    ->where(function ($q) use ($previousStatusId) {
+                        $q->where('from_status_id', $previousStatusId)
+                          ->orWhereNull('from_status_id');
+                    })
+                    ->where(function ($q) use ($record) {
+                        $q->where('to_status_id', $record->process_status_id)
+                          ->orWhere('default_to_status_id', $record->process_status_id)
+                          ->orWhere(function ($condQ) use ($record) {
+                              $condQ->whereHas('toStatus', fn ($s) => $s->where('system_key', 'conditional'))
+                                    ->where(function ($matchQ) use ($record) {
+                                        $matchQ->where('default_to_status_id', $record->process_status_id)
+                                               ->orWhereHas('rules', fn ($r) => $r->where('to_status_id', $record->process_status_id));
+                                    });
+                          });
+                    })
+                    ->first();
+            }
 
             $allowReturn = (bool) ($transitionUsed?->allow_return);
 

@@ -101,6 +101,9 @@ class MyDemandsWidget extends BaseWidget
                     ])
                     ->action(function (Demand $record, array $data) {
                         $avaliadaStatus = \App\Models\ProcessStatus::findBySystemKey('evaluated');
+                        $oldStatusId = $record->process_status_id;
+                        $oldStatusName = $record->processStatus?->name ?? '—';
+                        $newStatusName = $avaliadaStatus?->name ?? 'Avaliada';
 
                         $record->update([
                             'satisfaction_rating' => $data['satisfaction_rating'],
@@ -109,6 +112,24 @@ class MyDemandsWidget extends BaseWidget
                             'process_status_id' => $avaliadaStatus ? $avaliadaStatus->id : $record->process_status_id,
                             'status' => \App\Enums\DemandStatusEnum::EVALUATED,
                         ]);
+
+                        \App\Models\ActivityLog::create([
+                            'user_id'        => auth()->id(),
+                            'event'          => 'transition',
+                            'auditable_type' => \App\Models\Demand::class,
+                            'auditable_id'   => (string) $record->id,
+                            'old_values'     => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
+                            'new_values'     => [
+                                'process_status_id'   => $avaliadaStatus?->id ?? $oldStatusId,
+                                'status_name'         => $newStatusName,
+                                'action'              => 'Avaliação de Atendimento',
+                                'satisfaction_rating' => $data['satisfaction_rating'],
+                            ],
+                            'ip_address'     => request()->ip(),
+                            'user_agent'     => request()->userAgent(),
+                            'created_at'     => now(),
+                        ]);
+
                         \Filament\Notifications\Notification::make()->title('Avaliação enviada com sucesso!')->success()->send();
                     }),
             ])

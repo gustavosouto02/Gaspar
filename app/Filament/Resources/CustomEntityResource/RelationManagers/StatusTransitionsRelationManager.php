@@ -423,15 +423,29 @@ class StatusTransitionsRelationManager extends RelationManager
 
                         $staticRolesIds = array_diff($ids, ['__requester__', '__assignee__']);
                         if (! empty($staticRolesIds)) {
-                            // Busca os papéis exigidos
-                            $roles = \App\Models\ProcessRole::whereIn('id', $staticRolesIds)->get();
+                            static $cachedRoles = null;
+                            static $cachedMembersByEntity = [];
 
-                            foreach ($roles as $role) {
-                                // Busca os membros reais do processo que têm esse papel
-                                $members = \App\Models\ProcessMember::with('user')
+                            if ($cachedRoles === null) {
+                                $cachedRoles = \App\Models\ProcessRole::all()->keyBy('id');
+                            }
+
+                            if (! isset($cachedMembersByEntity[$record->entity_id])) {
+                                $cachedMembersByEntity[$record->entity_id] = \App\Models\ProcessMember::with('user')
                                     ->where('entity_id', $record->entity_id)
-                                    ->where('process_role_id', $role->id)
-                                    ->get();
+                                    ->get()
+                                    ->groupBy('process_role_id');
+                            }
+
+                            $membersByRole = $cachedMembersByEntity[$record->entity_id];
+
+                            foreach ($staticRolesIds as $roleId) {
+                                $role = $cachedRoles->get($roleId);
+                                if (! $role) {
+                                    continue;
+                                }
+
+                                $members = $membersByRole->get($roleId, collect());
 
                                 if ($members->isEmpty()) {
                                     $labels->push("{$role->name} (Sem usuários)");

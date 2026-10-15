@@ -12,13 +12,13 @@ use Illuminate\Support\Str;
 $relatorios = [
     [
         'md' => dirname(__DIR__) . '/docs/relatorios/relatorio_executivo_gaspar.md',
-        'pdf' => dirname(__DIR__) . '/docs/relatorios/relatorio_executivo_gaspar.pdf',
+        'pdf' => dirname(__DIR__) . '/docs/relatorios/GASPAR_Apresentacao_Resumida.pdf',
         'title' => 'GASPAR — Relatório Executivo',
         'badge' => 'Documento Executivo para Assembleia Geral',
     ],
     [
         'md' => dirname(__DIR__) . '/docs/relatorios/relatorio_tecnico_gaspar.md',
-        'pdf' => dirname(__DIR__) . '/docs/relatorios/relatorio_tecnico_gaspar.pdf',
+        'pdf' => dirname(__DIR__) . '/docs/relatorios/GASPAR_Relatorio_Tecnico.pdf',
         'title' => 'GASPAR — Relatório Técnico de Engenharia',
         'badge' => 'Documento Técnico e Arquitetural',
     ],

@@ -92,8 +92,9 @@ class EditDemand extends EditRecord
         if ($this->isSubmittingDraft) {
             $data['status'] = \App\Enums\DemandStatusEnum::ACTIVE->value;
 
-            if (! empty($data['entity_id']) && empty($this->record->sla_due_at)) {
-                $entity = \App\Models\CustomEntity::find($data['entity_id']);
+            $entityId = $data['entity_id'] ?? $this->record->entity_id;
+            if (! empty($entityId) && empty($this->record->sla_due_at)) {
+                $entity = \App\Models\CustomEntity::find($entityId);
                 if ($entity && $entity->sla_hours) {
                     $data['sla_due_at'] = now()->addHours($entity->sla_hours);
                 }
@@ -159,6 +160,12 @@ class EditDemand extends EditRecord
         }
     }
 
+    public function submitDraft(): void
+    {
+        $this->isSubmittingDraft = true;
+        $this->save();
+    }
+
     protected function getFormActions(): array
     {
         $actions = [];
@@ -169,8 +176,7 @@ class EditDemand extends EditRecord
                 ->label('Enviar para atendimento')
                 ->color('primary')
                 ->action(function () {
-                    $this->isSubmittingDraft = true;
-                    $this->save();
+                    $this->submitDraft();
                     
                     \Filament\Notifications\Notification::make()
                         ->title('Demanda enviada para atendimento!')

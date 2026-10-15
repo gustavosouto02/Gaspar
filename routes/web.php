@@ -20,14 +20,14 @@ Route::middleware([\App\Http\Middleware\EnsureAdmin::class])->group(function () 
     Route::get('/desinstalar', [InstaladorController::class, 'desinstalar'])->name('desinstalar');
     Route::post('/desinstalar', [InstaladorController::class, 'executarDesinstalacao'])->name('desinstalar.post');
 
-    Route::get('/update-system', function () {
+    Route::post('/update-system', function () {
         \Illuminate\Support\Facades\Artisan::call('optimize:clear');
         \Illuminate\Support\Facades\Artisan::call('migrate', ['--force' => true]);
         \Illuminate\Support\Facades\Artisan::call('queue:work', ['--stop-when-empty' => true]);
         return 'Sistema atualizado, cache limpo, migrações sincronizadas e fila processada com sucesso!';
-    });
+    })->name('admin.update-system');
 
-    Route::get('/trigger-deadlines', function () {
+    Route::post('/trigger-deadlines', function () {
         \Illuminate\Support\Facades\Artisan::call('app:check-demand-deadlines', ['--force' => true]);
         $deadlinesOutput = \Illuminate\Support\Facades\Artisan::output();
 
@@ -40,12 +40,12 @@ Route::middleware([\App\Http\Middleware\EnsureAdmin::class])->group(function () 
             'deadlines' => $deadlinesOutput,
             'queue' => $queueOutput,
         ]);
-    });
+    })->name('admin.trigger-deadlines');
 
-    Route::get('/test-email', function (\Illuminate\Http\Request $request) {
-        $to = $request->query('to', 'gugasouto2004@gmail.com');
+    Route::post('/test-email', function (\Illuminate\Http\Request $request) {
+        $to = $request->input('to', $request->query('to', auth()->user()?->email ?? config('mail.from.address')));
         try {
-            \Illuminate\Support\Facades\Mail::raw("Olá! Este é um e-mail de teste disparado com sucesso pelo Gaspar através do servidor HostGator Titan Mail em " . now()->format('d/m/Y H:i:s') . ".\n\nSe você recebeu este e-mail, as configurações de SMTP estão 100% corretas e ativas!", function ($message) use ($to) {
+            \Illuminate\Support\Facades\Mail::raw("Olá! Este é um e-mail de teste disparado com sucesso pelo Gaspar através do servidor SMTP configurado em " . now()->format('d/m/Y H:i:s') . ".\n\nSe você recebeu este e-mail, as configurações de SMTP estão 100% corretas e ativas!", function ($message) use ($to) {
                 $message->to($to)
                         ->subject('Teste de Conexão SMTP - Sistema Gaspar');
             });
@@ -61,7 +61,7 @@ Route::middleware([\App\Http\Middleware\EnsureAdmin::class])->group(function () 
                 'code' => $e->getCode(),
             ], 500);
         }
-    });
+    })->name('admin.test-email');
 });
 
 Route::get('/demands/{record}/pdf', [\App\Http\Controllers\DemandPdfController::class, 'export'])

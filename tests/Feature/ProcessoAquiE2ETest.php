@@ -198,21 +198,21 @@ class ProcessoAquiE2ETest extends TestCase
 
     public function test_rotas_administrativas_sao_bloqueadas_para_usuarios_nao_admin(): void
     {
-        $response = $this->get('/update-system');
+        $response = $this->post('/update-system');
         $response->assertStatus(403);
 
-        $response = $this->get('/trigger-deadlines');
+        $response = $this->post('/trigger-deadlines');
         $response->assertStatus(403);
 
-        $response = $this->get('/test-email');
+        $response = $this->post('/test-email');
         $response->assertStatus(403);
 
         $this->actingAs($this->demandante);
-        $response = $this->get('/update-system');
+        $response = $this->post('/update-system');
         $response->assertStatus(403);
 
         $this->actingAs($this->admin);
-        $response = $this->get('/test-email');
+        $response = $this->post('/test-email');
         $this->assertTrue(in_array($response->status(), [200, 500])); // Autenticado, passa pelo middleware (retorna json)
     }
 
@@ -326,5 +326,30 @@ class ProcessoAquiE2ETest extends TestCase
         $response = $this->get(route('demands.pdf', ['record' => $demanda->id]));
         $response->assertStatus(200);
         $response->assertDontSee('Sem prazo');
+    }
+
+    public function test_submissao_rascunho_em_edit_demand_calcula_sla_mesmo_com_entity_id_disabled(): void
+    {
+        $statusNova = ProcessStatus::where('system_key', 'new')->firstOrFail();
+
+        $demanda = Demand::factory()->create([
+            'entity_id' => $this->processo->id,
+            'process_status_id' => $statusNova->id,
+            'requested_by' => $this->demandante->id,
+            'created_by' => $this->demandante->id,
+            'title' => 'Rascunho sem SLA preenchido',
+            'status' => DemandStatusEnum::DRAFT,
+            'sla_due_at' => null,
+        ]);
+
+        $this->actingAs($this->demandante);
+
+        \Livewire\Livewire::test(\App\Filament\Resources\DemandResource\Pages\EditDemand::class, ['record' => $demanda->id])
+            ->call('submitDraft')
+            ->assertHasNoErrors();
+
+        $demanda->refresh();
+        $this->assertEquals(DemandStatusEnum::ACTIVE, $demanda->status);
+        $this->assertNotNull($demanda->sla_due_at);
     }
 }
