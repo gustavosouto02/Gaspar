@@ -57,7 +57,8 @@ class CustomEntityResource extends Resource
                     ->relationship('macroprocess', 'name')
                     ->getOptionLabelFromRecordUsing(fn (Model $record) => $record->full_display_name)
                     ->searchable(['name', 'acronym'])
-                    ->preload(),
+                    ->preload()
+                    ->required(),
 
                 Forms\Components\Toggle::make('is_active')
                     ->label('Situação (Ativo)')
@@ -66,6 +67,7 @@ class CustomEntityResource extends Resource
 
                 Forms\Components\Select::make('purpose')
                     ->label('Finalidade')
+                    ->required()
                     ->options([
                         'Apoio' => 'Apoio',
                         'Finalístico' => 'Finalístico',
@@ -75,12 +77,14 @@ class CustomEntityResource extends Resource
                 Forms\Components\TextInput::make('sla_hours')
                     ->label('Prazo de atendimento (horas)')
                     ->numeric()
-                    ->nullable()
+                    ->required()
+                    ->minValue(1)
                     ->placeholder('Ex: 48')
                     ->helperText('Prazo padrão em horas para demandas deste processo. Será calculado automaticamente ao criar a demanda.'),
 
                 Forms\Components\Textarea::make('description')
                     ->label('Descrição')
+                    ->required()
                     ->maxLength(65535)
                     ->columnSpanFull(),
 

@@ -82,23 +82,28 @@ class MacroprocessResource extends Resource
 
                 \Filament\Forms\Components\TextInput::make('acronym')
                     ->label('Sigla')
+                    ->required()
                     ->maxLength(255),
 
                 \Filament\Forms\Components\Select::make('value_chain_function')
                     ->label('Função na Cadeia de Valor')
+                    ->required()
                     ->options([
                         'Suportar Processos' => 'Suportar Processos',
                         'Definir Diretrizes e Estratégia' => 'Definir Diretrizes e Estratégia',
                         'Entregar Produtos e Serviços' => 'Entregar Produtos e Serviços',
                         'Manter Relacionamentos' => 'Manter Relacionamentos',
+                        'Apoio' => 'Apoio',
                     ]),
 
                 \Filament\Forms\Components\Textarea::make('description')
                     ->label('Descrição')
+                    ->required()
                     ->columnSpanFull(),
 
                 \Filament\Forms\Components\Toggle::make('is_active')
                     ->label('Ativo')
+                    ->required()
                     ->default(true),
 
                 ...array_filter([Macroprocess::buildCustomFieldComponents()]),
