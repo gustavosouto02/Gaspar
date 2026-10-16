@@ -78,11 +78,15 @@ class CheckDemandDeadlines extends Command
             }
 
             // Destinatário prioritário é o responsável atribuído; se não houver, notifica o solicitante
-            $recipient = $demand->assignedTo ?? $demand->requestedBy;
+            $recipient = $demand->assignee ?? $demand->requester;
 
             if ($recipient) {
-                $recipient->notify(new DemandDeadlineNotification($demand, $type, $daysOverdue));
-                $demand->updateQuietly(['last_deadline_alert_date' => $todayDate]);
+                try {
+                    $recipient->notify(new DemandDeadlineNotification($demand, $type, $daysOverdue));
+                    $demand->updateQuietly(['last_deadline_alert_date' => $todayDate]);
+                } catch (\Throwable $e) {
+                    $this->warn("Falha ao notificar prazo da demanda #{$demand->id}: {$e->getMessage()}");
+                }
             }
         }
 

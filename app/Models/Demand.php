@@ -56,6 +56,19 @@ class Demand extends Model
         return (string) Str::uuid7();
     }
 
+    protected static function booted(): void
+    {
+        static::creating(function (Demand $demand) {
+            // Se o processo possuir sla_hours configurado e o prazo não foi definido manualmente, calcula automaticamente
+            if (empty($demand->sla_due_at) && ! empty($demand->entity_id)) {
+                $entity = $demand->entity ?? CustomEntity::find($demand->entity_id);
+                if ($entity && $entity->sla_hours) {
+                    $demand->sla_due_at = now()->addHours($entity->sla_hours);
+                }
+            }
+        });
+    }
+
     /** Processo (CustomEntity) */
     public function entity(): BelongsTo
     {
@@ -318,19 +331,57 @@ class Demand extends Model
                              ->orWhereNull('status_transitions.from_status_id');
                       })
                       ->where(function ($q3) use ($userId) {
-                          $q3->whereNull('status_transitions.allowed_role_ids')
-                             ->orWhereRaw("JSON_LENGTH(status_transitions.allowed_role_ids) = 0")
-                             ->orWhereRaw("JSON_CONTAINS(status_transitions.allowed_role_ids, '\"__requester__\"') AND demands.requested_by = ?", [$userId])
-                             ->orWhereRaw("JSON_CONTAINS(status_transitions.allowed_role_ids, '\"__assignee__\"') AND demands.assigned_to = ?", [$userId])
-                             ->orWhereExists(function ($q4) use ($userId) {
-                                 $q4->select(\Illuminate\Support\Facades\DB::raw(1))
-                                     ->from('process_members')
-                                     ->whereColumn('process_members.entity_id', 'status_transitions.entity_id')
-                                     ->where('process_members.user_id', $userId)
-                                     ->whereRaw('JSON_CONTAINS(status_transitions.allowed_role_ids, JSON_QUOTE(process_members.process_role_id))');
-                             });
+                          $isSqlite = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'sqlite';
+                          if ($isSqlite) {
+                              $q3->whereNull('status_transitions.allowed_role_ids')
+                                 ->orWhere('status_transitions.allowed_role_ids', '[]')
+                                 ->orWhere('status_transitions.allowed_role_ids', '')
+                                 ->orWhereRaw("status_transitions.allowed_role_ids LIKE '%\"__requester__\"%' AND demands.requested_by = ?", [$userId])
+                                 ->orWhereRaw("status_transitions.allowed_role_ids LIKE '%\"__assignee__\"%' AND demands.assigned_to = ?", [$userId])
+                                 ->orWhereExists(function ($q4) use ($userId) {
+                                     $q4->select(\Illuminate\Support\Facades\DB::raw(1))
+                                         ->from('process_members')
+                                         ->whereColumn('process_members.entity_id', 'status_transitions.entity_id')
+                                         ->where('process_members.user_id', $userId)
+                                         ->whereRaw("status_transitions.allowed_role_ids LIKE '%' || process_members.process_role_id || '%'");
+                                 });
+                          } else {
+                              $q3->whereNull('status_transitions.allowed_role_ids')
+                                 ->orWhereRaw("JSON_LENGTH(status_transitions.allowed_role_ids) = 0")
+                                 ->orWhereRaw("JSON_CONTAINS(status_transitions.allowed_role_ids, '\"__requester__\"') AND demands.requested_by = ?", [$userId])
+                                 ->orWhereRaw("JSON_CONTAINS(status_transitions.allowed_role_ids, '\"__assignee__\"') AND demands.assigned_to = ?", [$userId])
+                                 ->orWhereExists(function ($q4) use ($userId) {
+                                      $q4->select(\Illuminate\Support\Facades\DB::raw(1))
+                                          ->from('process_members')
+                                          ->whereColumn('process_members.entity_id', 'status_transitions.entity_id')
+                                          ->where('process_members.user_id', $userId)
+                                          ->whereRaw('JSON_CONTAINS(status_transitions.allowed_role_ids, JSON_QUOTE(process_members.process_role_id))');
+                                  });
+                          }
                       });
               });
+        });
+    }
+
+    /**
+     * Escopo para demandas que exigem ação do usuário:
+     * - Demandas ativas que dependem do usuário (executor, solicitante ou transições liberadas)
+     * - Demandas encerradas aguardando avaliação de atendimento pelo solicitante
+     */
+    public function scopePendingActionForUser($query, User $user)
+    {
+        return $query->where(function ($outer) use ($user) {
+            $outer->where(function ($activeQ) use ($user) {
+                $activeQ->where('status', DemandStatusEnum::ACTIVE->value)
+                    ->pendingForUser($user);
+            })->orWhere(function ($evalQ) use ($user) {
+                $evalQ->where('requested_by', $user->id)
+                    ->where(function ($sq) {
+                        $sq->where('status', DemandStatusEnum::CLOSED->value)
+                            ->orWhereHas('processStatus', fn ($ps) => $ps->where('system_key', 'closed'));
+                    })
+                    ->whereNull('satisfaction_rating');
+            });
         });
     }
 

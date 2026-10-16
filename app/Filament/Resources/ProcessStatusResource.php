@@ -100,7 +100,10 @@ class ProcessStatusResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->action(fn (\Illuminate\Database\Eloquent\Collection $records) => 
+                            $records->reject(fn (ProcessStatus $r) => $r->is_system)->each->delete()
+                        ),
                 ]),
             ])
             ->recordUrl(fn (ProcessStatus $record): ?string => $record->is_system ? null : Pages\EditProcessStatus::getUrl(['record' => $record]));

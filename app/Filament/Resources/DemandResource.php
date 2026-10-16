@@ -66,6 +66,7 @@ class DemandResource extends Resource
                                             ->options(fn () => \App\Models\CustomEntity::with('macroprocess')->where('is_active', true)->get()->pluck('full_display_name', 'id'))
                                             ->searchable()
                                             ->required()
+                                            ->disabled(fn (string $operation) => $operation === 'edit')
                                             ->live()
                                             ->afterStateUpdated(function (Forms\Set $set, $state) {
                                                 if ($state) {
@@ -135,7 +136,25 @@ class DemandResource extends Resource
                                     ->schema([
                                         Forms\Components\Placeholder::make('sla_due_at_label')
                                             ->label('Prazo de atendimento:')
-                                            ->content(fn ($record) => $record && $record->sla_due_at ? $record->sla_due_at->format('d/m/Y') : '-'),
+                                            ->content(function ($record, Forms\Get $get) {
+                                                if ($record && $record->sla_due_at) {
+                                                    $isClosed = in_array($record->status?->value, ['CLOSED', 'EVALUATED']);
+                                                    $vencido = $record->sla_due_at->isPast() && ! $isClosed;
+                                                    return $record->sla_due_at->format('d/m/Y H:i') . ($vencido ? ' (Vencido)' : '');
+                                                }
+
+                                                $entityId = $get('entity_id') ?? $record?->entity_id;
+                                                if ($entityId) {
+                                                    $entity = \App\Models\CustomEntity::find($entityId);
+                                                    if ($entity && $entity->sla_hours) {
+                                                        $dias = round($entity->sla_hours / 24, 1);
+                                                        $previsao = now()->addHours($entity->sla_hours)->format('d/m/Y H:i');
+                                                        return "{$entity->sla_hours}h (~{$dias} dias) — Previsão: {$previsao}";
+                                                    }
+                                                }
+
+                                                return 'Sem prazo configurado';
+                                            }),
 
                                         Forms\Components\Placeholder::make('updated_at_label')
                                             ->label('Última atualização:')
@@ -424,13 +443,7 @@ class DemandResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make()
-                    ->visible(fn (Demand $record) => 
-                        auth()->user()->user_role === \App\Enums\UserRoleEnum::ADMIN
-                        || $record->created_by === auth()->id()
-                        || $record->requested_by === auth()->id()
-                        || $record->assigned_to === auth()->id()
-                        || $record->canBeTransitionedBy(auth()->user())
-                    ),
+                    ->visible(fn (Demand $record) => auth()->user()->can('update', $record)),
                 Tables\Actions\Action::make('pdf')
                     ->label('PDF')
                     ->icon('heroicon-o-document-arrow-down')

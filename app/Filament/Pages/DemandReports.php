@@ -129,8 +129,8 @@ class DemandReports extends Page implements HasForms, HasTable
                 $columns[] = Tables\Columns\TextColumn::make('field_' . $field->id)
                     ->label($field->name)
                     ->getStateUsing(function (Demand $record) use ($field) {
-                        $values = $record->demand_field_values ?? [];
-                        return $values[$field->key] ?? '—';
+                        $fv = $record->fieldValues->firstWhere('custom_field_id', $field->id);
+                        return filled($fv?->value) ? $fv->value : '—';
                     })
                     ->toggleable(isToggledHiddenByDefault: true); // Campos customizados vêm ocultos por padrão
             }
@@ -143,6 +143,7 @@ class DemandReports extends Page implements HasForms, HasTable
     {
         return $table
             ->query(fn () => Demand::query()
+                ->with(['fieldValues', 'requester', 'assignee', 'processStatus'])
                 ->when(
                     !empty($this->tableFilters['entity_id']['value']),
                     fn ($q) => $q->where('entity_id', $this->tableFilters['entity_id']['value'])
@@ -280,13 +281,7 @@ class DemandReports extends Page implements HasForms, HasTable
                     ->icon('heroicon-o-pencil-square')
                     ->color('warning')
                     ->url(fn (Demand $record) => \App\Filament\Resources\DemandResource::getUrl('edit', ['record' => $record]))
-                    ->visible(fn (Demand $record) => 
-                        auth()->user()->user_role === \App\Enums\UserRoleEnum::ADMIN
-                        || $record->created_by === auth()->id()
-                        || $record->requested_by === auth()->id()
-                        || $record->assigned_to === auth()->id()
-                        || $record->canBeTransitionedBy(auth()->user())
-                    ),
+                    ->visible(fn (Demand $record) => auth()->user()->can('update', $record)),
                 Tables\Actions\Action::make('pdf')
                     ->label('PDF')
                     ->icon('heroicon-o-document-arrow-down')

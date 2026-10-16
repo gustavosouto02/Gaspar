@@ -130,7 +130,67 @@ class StatusTransitionsRelationManager extends RelationManager
                                 ->defaultItems(1)
                                 ->addActionLabel('Adicionar condição')
                                 ->columns(3)
-                                ->schema($this->conditionSchema($entity)),
+                                ->schema($this->conditionSchema($entity))
+                                ->afterStateHydrated(function (Forms\Components\Repeater $component, $state) {
+                                    if (! is_array($state)) {
+                                        return;
+                                    }
+                                    $hydrated = [];
+                                    foreach ($state as $key => $item) {
+                                        if (! is_array($item)) {
+                                            continue;
+                                        }
+                                        $val = $item['value'] ?? null;
+                                        if (is_array($val) && (isset($val['min']) || isset($val['max']) || array_key_exists('min', $val))) {
+                                            $item['value_min'] = $val['min'] ?? null;
+                                            $item['value_max'] = $val['max'] ?? null;
+                                            $item['value_single'] = null;
+                                            $item['value_list'] = [];
+                                        } elseif (is_array($val)) {
+                                            $item['value_list'] = $val;
+                                            $item['value_single'] = null;
+                                            $item['value_min'] = null;
+                                            $item['value_max'] = null;
+                                        } else {
+                                            $item['value_single'] = $val;
+                                            $item['value_list'] = [];
+                                            $item['value_min'] = null;
+                                            $item['value_max'] = null;
+                                        }
+                                        $hydrated[$key] = $item;
+                                    }
+                                    $component->state($hydrated);
+                                })
+                                ->mutateDehydratedStateUsing(function (?array $state): array {
+                                    if (! is_array($state)) {
+                                        return [];
+                                    }
+                                    $clean = [];
+                                    foreach ($state as $key => $item) {
+                                        if (! is_array($item)) {
+                                            continue;
+                                        }
+                                        $operator = isset($item['operator']) ? RuleOperatorEnum::tryFrom($item['operator']) : null;
+                                        $kind = $operator?->valueKind() ?? 'single';
+
+                                        if ($kind === 'range') {
+                                            $item['value'] = [
+                                                'min' => $item['value_min'] ?? null,
+                                                'max' => $item['value_max'] ?? null,
+                                            ];
+                                        } elseif ($kind === 'list') {
+                                            $item['value'] = $item['value_list'] ?? [];
+                                        } elseif ($kind === 'none') {
+                                            $item['value'] = null;
+                                        } else {
+                                            $item['value'] = $item['value_single'] ?? null;
+                                        }
+
+                                        unset($item['value_single'], $item['value_list'], $item['value_min'], $item['value_max']);
+                                        $clean[$key] = $item;
+                                    }
+                                    return $clean;
+                                }),
 
                             Forms\Components\Select::make('to_status_id')
                                 ->label('Então vai para')
@@ -184,7 +244,10 @@ class StatusTransitionsRelationManager extends RelationManager
                 ->live()
                 ->afterStateUpdated(function (Set $set) {
                     $set('operator', null);
-                    $set('value', null);
+                    $set('value_single', null);
+                    $set('value_list', null);
+                    $set('value_min', null);
+                    $set('value_max', null);
                 }),
 
             Forms\Components\Select::make('operator')
@@ -196,36 +259,41 @@ class StatusTransitionsRelationManager extends RelationManager
                 })
                 ->required()
                 ->live()
-                ->afterStateUpdated(fn (Set $set) => $set('value', null)),
+                ->afterStateUpdated(function (Set $set) {
+                    $set('value_single', null);
+                    $set('value_list', null);
+                    $set('value_min', null);
+                    $set('value_max', null);
+                }),
 
             // Valor único: número
-            Forms\Components\TextInput::make('value')
+            Forms\Components\TextInput::make('value_single')
                 ->label('Valor')
                 ->numeric()
                 ->visible(fn (Get $get) => $valueKind($get) === 'single' && $fieldType($get) === FieldTypeEnum::NUMBER)
                 ->required(fn (Get $get) => $valueKind($get) === 'single' && $fieldType($get) === FieldTypeEnum::NUMBER),
 
             // Valor único: data
-            Forms\Components\DatePicker::make('value')
+            Forms\Components\DatePicker::make('value_single')
                 ->label('Valor')
                 ->visible(fn (Get $get) => $valueKind($get) === 'single' && $fieldType($get) === FieldTypeEnum::DATE)
                 ->required(fn (Get $get) => $valueKind($get) === 'single' && $fieldType($get) === FieldTypeEnum::DATE),
 
             // Valor único: opção do campo (SELECT/RADIO)
-            Forms\Components\Select::make('value')
+            Forms\Components\Select::make('value_single')
                 ->label('Valor')
                 ->options($choiceOptions)
                 ->visible(fn (Get $get) => $valueKind($get) === 'single' && in_array($fieldType($get), [FieldTypeEnum::SELECT, FieldTypeEnum::RADIO], true))
                 ->required(fn (Get $get) => $valueKind($get) === 'single' && in_array($fieldType($get), [FieldTypeEnum::SELECT, FieldTypeEnum::RADIO], true)),
 
             // Valor único: texto (TEXT, TEXTAREA, EMAIL)
-            Forms\Components\TextInput::make('value')
+            Forms\Components\TextInput::make('value_single')
                 ->label('Valor')
                 ->visible(fn (Get $get) => $valueKind($get) === 'single' && in_array($fieldType($get), [FieldTypeEnum::TEXT, FieldTypeEnum::TEXTAREA, FieldTypeEnum::EMAIL], true))
                 ->required(fn (Get $get) => $valueKind($get) === 'single' && in_array($fieldType($get), [FieldTypeEnum::TEXT, FieldTypeEnum::TEXTAREA, FieldTypeEnum::EMAIL], true)),
 
             // Lista de opções ("em lista")
-            Forms\Components\Select::make('value')
+            Forms\Components\Select::make('value_list')
                 ->label('Valores')
                 ->options($choiceOptions)
                 ->multiple()
@@ -233,23 +301,23 @@ class StatusTransitionsRelationManager extends RelationManager
                 ->required(fn (Get $get) => $valueKind($get) === 'list'),
 
             // Intervalo "entre": número
-            Forms\Components\TextInput::make('value.min')
+            Forms\Components\TextInput::make('value_min')
                 ->label('De')
                 ->numeric()
                 ->visible(fn (Get $get) => $valueKind($get) === 'range' && $fieldType($get) === FieldTypeEnum::NUMBER)
                 ->required(fn (Get $get) => $valueKind($get) === 'range' && $fieldType($get) === FieldTypeEnum::NUMBER),
-            Forms\Components\TextInput::make('value.max')
+            Forms\Components\TextInput::make('value_max')
                 ->label('Até')
                 ->numeric()
                 ->visible(fn (Get $get) => $valueKind($get) === 'range' && $fieldType($get) === FieldTypeEnum::NUMBER)
                 ->required(fn (Get $get) => $valueKind($get) === 'range' && $fieldType($get) === FieldTypeEnum::NUMBER),
 
             // Intervalo "entre": data
-            Forms\Components\DatePicker::make('value.min')
+            Forms\Components\DatePicker::make('value_min')
                 ->label('De')
                 ->visible(fn (Get $get) => $valueKind($get) === 'range' && $fieldType($get) === FieldTypeEnum::DATE)
                 ->required(fn (Get $get) => $valueKind($get) === 'range' && $fieldType($get) === FieldTypeEnum::DATE),
-            Forms\Components\DatePicker::make('value.max')
+            Forms\Components\DatePicker::make('value_max')
                 ->label('Até')
                 ->visible(fn (Get $get) => $valueKind($get) === 'range' && $fieldType($get) === FieldTypeEnum::DATE)
                 ->required(fn (Get $get) => $valueKind($get) === 'range' && $fieldType($get) === FieldTypeEnum::DATE),
@@ -271,9 +339,13 @@ class StatusTransitionsRelationManager extends RelationManager
 
             $fieldName = CustomField::find($first['field_id'])?->name ?? '?';
             $operator  = RuleOperatorEnum::tryFrom($first['operator']);
-            $value     = $first['value'] ?? null;
+            $value     = $first['value'] ?? $first['value_single'] ?? null;
 
-            if (is_array($value)) {
+            if ($value === null && (isset($first['value_min']) || isset($first['value_max']))) {
+                $value = sprintf('%s e %s', $first['value_min'] ?? '?', $first['value_max'] ?? '?');
+            } elseif ($value === null && ! empty($first['value_list'])) {
+                $value = implode(', ', $first['value_list']);
+            } elseif (is_array($value)) {
                 $value = isset($value['min']) || isset($value['max'])
                     ? sprintf('%s e %s', $value['min'] ?? '?', $value['max'] ?? '?')
                     : implode(', ', $value);
@@ -333,10 +405,10 @@ class StatusTransitionsRelationManager extends RelationManager
 
                 Tables\Columns\TextColumn::make('allowed_role_ids')
                     ->label('Papéis permitidos')
-                    ->formatStateUsing(function ($state, $record) {
-                        $ids = is_string($state) ? json_decode($state, true) : $state;
+                    ->getStateUsing(function (StatusTransition $record) {
+                        $ids = $record->allowed_role_ids;
 
-                        if (empty($ids)) {
+                        if (empty($ids) || ! is_array($ids)) {
                             return 'Todos os membros';
                         }
 
@@ -351,15 +423,29 @@ class StatusTransitionsRelationManager extends RelationManager
 
                         $staticRolesIds = array_diff($ids, ['__requester__', '__assignee__']);
                         if (! empty($staticRolesIds)) {
-                            // Busca os papéis exigidos
-                            $roles = \App\Models\ProcessRole::whereIn('id', $staticRolesIds)->get();
+                            static $cachedRoles = null;
+                            static $cachedMembersByEntity = [];
 
-                            foreach ($roles as $role) {
-                                // Busca os membros reais do processo que têm esse papel
-                                $members = \App\Models\ProcessMember::with('user')
+                            if ($cachedRoles === null) {
+                                $cachedRoles = \App\Models\ProcessRole::all()->keyBy('id');
+                            }
+
+                            if (! isset($cachedMembersByEntity[$record->entity_id])) {
+                                $cachedMembersByEntity[$record->entity_id] = \App\Models\ProcessMember::with('user')
                                     ->where('entity_id', $record->entity_id)
-                                    ->where('process_role_id', $role->id)
-                                    ->get();
+                                    ->get()
+                                    ->groupBy('process_role_id');
+                            }
+
+                            $membersByRole = $cachedMembersByEntity[$record->entity_id];
+
+                            foreach ($staticRolesIds as $roleId) {
+                                $role = $cachedRoles->get($roleId);
+                                if (! $role) {
+                                    continue;
+                                }
+
+                                $members = $membersByRole->get($roleId, collect());
 
                                 if ($members->isEmpty()) {
                                     $labels->push("{$role->name} (Sem usuários)");
@@ -370,7 +456,7 @@ class StatusTransitionsRelationManager extends RelationManager
                             }
                         }
 
-                        return $labels->implode(' / ');
+                        return $labels->isEmpty() ? 'Todos os membros' : $labels->implode(' / ');
                     })
                     ->wrap(),
             ])

@@ -58,6 +58,29 @@ class DemandTransitionService
 
         // Executa a transição
         $demand->process_status_id = $target->id;
+
+        // Se estava em rascunho, ativa ao avançar no fluxo
+        if ($demand->status === \App\Enums\DemandStatusEnum::DRAFT) {
+            $demand->status = \App\Enums\DemandStatusEnum::ACTIVE;
+        }
+
+        // Registra o início do atendimento na primeira transição
+        if (empty($demand->started_at)) {
+            $demand->started_at = now();
+        }
+
+        // Se o prazo SLA ainda não foi calculado e o processo possui sla_hours
+        if (empty($demand->sla_due_at)) {
+            $entity = $demand->entity ?? \App\Models\CustomEntity::find($demand->entity_id);
+            if ($entity && $entity->sla_hours) {
+                $demand->sla_due_at = ($demand->started_at ?? now())->copy()->addHours($entity->sla_hours);
+            }
+        }
+
+        if ($target->isClosed()) {
+            $demand->status = \App\Enums\DemandStatusEnum::CLOSED;
+            $demand->completed_at = now();
+        }
         $demand->save(); // save first so autoAssign sees new status
         $demand->autoAssign();
 
@@ -69,7 +92,7 @@ class DemandTransitionService
             'auditable_id'   => (string) $demand->id,
             'old_values'     => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
             'new_values'     => array_merge(
-                ['process_status_id' => $target->id, 'status_name' => $target->name, 'action' => $transition->label],
+                ['process_status_id' => $target->id, 'status_name' => $target->name, 'action' => $transition->label, 'transition_id' => $transition->id],
                 $transition->toStatus?->isConditional()
                     ? ['via' => 'Condicional', 'rule_order' => $matchedRule?->rule_order]
                     : [],
@@ -79,15 +102,19 @@ class DemandTransitionService
             'created_at'     => now(),
         ]);
 
-        // Dispara notificações
-        if ($demand->assignee && $demand->assignee->id !== $user->id) {
-            $demand->assignee->notify(new DemandActivityNotification($demand, "A situação foi alterada para: {$target->name}"));
-        }
-        if ($demand->requester && $demand->requester->id !== $user->id) {
-            $demand->requester->notify(new DemandActivityNotification($demand, "A situação foi alterada para: {$target->name}"));
-        }
-        if ($target->isClosed() && $demand->requester) {
-            $demand->requester->notify(new DemandSatisfactionNotification($demand));
+        // Dispara notificações com proteção contra falha de SMTP
+        try {
+            if ($demand->assignee && $demand->assignee->id !== $user->id) {
+                $demand->assignee->notify(new DemandActivityNotification($demand, "A situação foi alterada para: {$target->name}"));
+            }
+            if ($demand->requester && $demand->requester->id !== $user->id) {
+                $demand->requester->notify(new DemandActivityNotification($demand, "A situação foi alterada para: {$target->name}"));
+            }
+            if ($target->isClosed() && $demand->requester) {
+                $demand->requester->notify(new DemandSatisfactionNotification($demand));
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning("Falha ao enviar notificação de transição de demanda: {$e->getMessage()}");
         }
 
         return $target;

@@ -28,9 +28,9 @@ class MyDemandsWidget extends BaseWidget
             ->query(
                 Demand::query()
                     ->with(['entity', 'processStatus', 'assignee', 'requester'])
-                    ->where('status', DemandStatusEnum::ACTIVE->value)
                     ->whereNull('parent_demand_id')
-                    ->pendingForUser(auth()->user())
+                    ->pendingActionForUser(auth()->user())
+                    ->orderByRaw('CASE WHEN satisfaction_rating IS NULL AND (status = \'' . DemandStatusEnum::CLOSED->value . '\' OR status = \'closed\') THEN 0 ELSE 1 END ASC')
                     ->orderByRaw('CASE WHEN sla_due_at IS NULL THEN 1 ELSE 0 END ASC')
                     ->orderBy('sla_due_at', 'asc')
                     ->orderBy('created_at', 'desc')
@@ -40,7 +40,12 @@ class MyDemandsWidget extends BaseWidget
                     ->label('Título')
                     ->searchable(query: fn ($query, string $search) => $query->globalSearch($search))
                     ->limit(60)
-                    ->url(fn (Demand $record) => DemandResource::getUrl('edit', ['record' => $record])),
+                    ->description(fn (Demand $record) => ($record->requested_by === auth()->id() && empty($record->satisfaction_rating) && ($record->status === DemandStatusEnum::CLOSED || $record->processStatus?->isClosed()))
+                        ? '⭐ Aguardando sua avaliação de atendimento'
+                        : null)
+                    ->url(fn (Demand $record) => auth()->user()->can('update', $record)
+                        ? DemandResource::getUrl('edit', ['record' => $record])
+                        : DemandResource::getUrl('view', ['record' => $record])),
 
                 Tables\Columns\TextColumn::make('entity.name')
                     ->label('Processo')
@@ -79,6 +84,55 @@ class MyDemandsWidget extends BaseWidget
                     ->since()
                     ->sortable(),
             ])
+            ->actions([
+                Tables\Actions\Action::make('rate_demand')
+                    ->label('Avaliar')
+                    ->icon('heroicon-m-star')
+                    ->color('warning')
+                    ->visible(fn (Demand $record) => $record->requested_by === auth()->id() && empty($record->satisfaction_rating) && ($record->status === DemandStatusEnum::CLOSED || $record->processStatus?->isClosed()))
+                    ->form([
+                        \Filament\Forms\Components\Select::make('satisfaction_rating')
+                            ->label('Nota de Avaliação')
+                            ->options(\App\Enums\SatisfactionRatingEnum::options())
+                            ->required(),
+                        \Filament\Forms\Components\Textarea::make('satisfaction_comment')
+                            ->label('Comentário')
+                            ->rows(3),
+                    ])
+                    ->action(function (Demand $record, array $data) {
+                        $avaliadaStatus = \App\Models\ProcessStatus::findBySystemKey('evaluated');
+                        $oldStatusId = $record->process_status_id;
+                        $oldStatusName = $record->processStatus?->name ?? '—';
+                        $newStatusName = $avaliadaStatus?->name ?? 'Avaliada';
+
+                        $record->update([
+                            'satisfaction_rating' => $data['satisfaction_rating'],
+                            'satisfaction_comment' => $data['satisfaction_comment'],
+                            'satisfaction_evaluated_at' => now(),
+                            'process_status_id' => $avaliadaStatus ? $avaliadaStatus->id : $record->process_status_id,
+                            'status' => \App\Enums\DemandStatusEnum::EVALUATED,
+                        ]);
+
+                        \App\Models\ActivityLog::create([
+                            'user_id'        => auth()->id(),
+                            'event'          => 'transition',
+                            'auditable_type' => \App\Models\Demand::class,
+                            'auditable_id'   => (string) $record->id,
+                            'old_values'     => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
+                            'new_values'     => [
+                                'process_status_id'   => $avaliadaStatus?->id ?? $oldStatusId,
+                                'status_name'         => $newStatusName,
+                                'action'              => 'Avaliação de Atendimento',
+                                'satisfaction_rating' => $data['satisfaction_rating'],
+                            ],
+                            'ip_address'     => request()->ip(),
+                            'user_agent'     => request()->userAgent(),
+                            'created_at'     => now(),
+                        ]);
+
+                        \Filament\Notifications\Notification::make()->title('Avaliação enviada com sucesso!')->success()->send();
+                    }),
+            ])
             ->filters([
                 Tables\Filters\SelectFilter::make('entity_id')
                     ->label('Processo')
@@ -89,7 +143,7 @@ class MyDemandsWidget extends BaseWidget
                     ->options(DemandPriorityEnum::options()),
             ])
             ->emptyStateHeading('Nenhuma demanda pendente')
-            ->emptyStateDescription('Você não tem demandas ativas atribuídas a você.')
+            ->emptyStateDescription('Você não tem demandas ativas ou pendências atribuídas a você.')
             ->emptyStateIcon('heroicon-o-check-circle')
             ->recordUrl(fn (Demand $record): string => \App\Filament\Resources\DemandResource::getUrl('view', ['record' => $record]));
     }

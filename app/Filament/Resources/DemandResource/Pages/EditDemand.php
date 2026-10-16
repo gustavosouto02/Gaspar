@@ -92,8 +92,9 @@ class EditDemand extends EditRecord
         if ($this->isSubmittingDraft) {
             $data['status'] = \App\Enums\DemandStatusEnum::ACTIVE->value;
 
-            if (! empty($data['entity_id']) && empty($this->record->sla_due_at)) {
-                $entity = \App\Models\CustomEntity::find($data['entity_id']);
+            $entityId = $data['entity_id'] ?? $this->record->entity_id;
+            if (! empty($entityId) && empty($this->record->sla_due_at)) {
+                $entity = \App\Models\CustomEntity::find($entityId);
                 if ($entity && $entity->sla_hours) {
                     $data['sla_due_at'] = now()->addHours($entity->sla_hours);
                 }
@@ -128,12 +129,16 @@ class EditDemand extends EditRecord
             $record->autoAssign();
             $record->refresh();
 
-            if ($record->assignedTo && $record->assignedTo->id !== auth()->id()) {
-                $record->assignedTo->notify(new \App\Notifications\DemandActivityNotification($record, 'Uma nova demanda foi enviada e atribuída a você.'));
-            }
+            try {
+                if ($record->assignee && $record->assignee->id !== auth()->id()) {
+                    $record->assignee->notify(new \App\Notifications\DemandActivityNotification($record, 'Uma nova demanda foi enviada e atribuída a você.'));
+                }
 
-            if ($record->requestedBy) {
-                $record->requestedBy->notify(new \App\Notifications\DemandActivityNotification($record, 'Sua demanda foi enviada para atendimento com sucesso.'));
+                if ($record->requester) {
+                    $record->requester->notify(new \App\Notifications\DemandActivityNotification($record, 'Sua demanda foi enviada para atendimento com sucesso.'));
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::warning("Falha ao enviar notificação de envio de demanda: {$e->getMessage()}");
             }
         }
 
@@ -155,6 +160,12 @@ class EditDemand extends EditRecord
         }
     }
 
+    public function submitDraft(): void
+    {
+        $this->isSubmittingDraft = true;
+        $this->save();
+    }
+
     protected function getFormActions(): array
     {
         $actions = [];
@@ -165,8 +176,7 @@ class EditDemand extends EditRecord
                 ->label('Enviar para atendimento')
                 ->color('primary')
                 ->action(function () {
-                    $this->isSubmittingDraft = true;
-                    $this->save();
+                    $this->submitDraft();
                     
                     \Filament\Notifications\Notification::make()
                         ->title('Demanda enviada para atendimento!')

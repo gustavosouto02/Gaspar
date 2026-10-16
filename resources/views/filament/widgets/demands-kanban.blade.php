@@ -26,7 +26,7 @@
                         $slaOverdue = $demand->sla_due_at?->isPast();
                     @endphp
 
-                    <a href="{{ DemandResource::getUrl('edit', ['record' => $demand]) }}"
+                    <a href="{{ auth()->user()->can('update', $demand) ? DemandResource::getUrl('edit', ['record' => $demand]) : DemandResource::getUrl('view', ['record' => $demand]) }}"
                        wire:key="kanban-card-{{ $demand->id }}"
                        class="flex flex-col gap-2 rounded-lg bg-white p-3 shadow-sm ring-1 ring-gray-950/5 transition hover:ring-primary-500 dark:bg-gray-900 dark:ring-white/10 dark:hover:ring-primary-400">
                         <div class="flex items-start justify-between gap-2">
@@ -40,6 +40,13 @@
                                 </x-filament::badge>
                             @endif
                         </div>
+
+                        @if ($demand->requested_by === auth()->id() && empty($demand->satisfaction_rating) && ($demand->status === \App\Enums\DemandStatusEnum::CLOSED || $demand->processStatus?->isClosed()))
+                            <span class="flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                                <x-heroicon-m-star class="h-4 w-4 shrink-0 text-amber-500" />
+                                Aguardando sua avaliação
+                            </span>
+                        @endif
 
                         <span class="text-xs text-gray-500 dark:text-gray-400">
                             #{{ strtoupper(substr($demand->id, 0, 8)) }} · {{ $demand->entity?->full_display_name ?? '—' }}
