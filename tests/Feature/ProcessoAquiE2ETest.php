@@ -334,6 +334,7 @@ class ProcessoAquiE2ETest extends TestCase
 
         $demanda = Demand::factory()->create([
             'entity_id' => $this->processo->id,
+            'client_id' => \App\Models\Client::first()?->id,
             'process_status_id' => $statusNova->id,
             'requested_by' => $this->demandante->id,
             'created_by' => $this->demandante->id,

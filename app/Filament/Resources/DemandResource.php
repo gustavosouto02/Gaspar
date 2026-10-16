@@ -107,7 +107,7 @@ class DemandResource extends Resource
                                             ->relationship('client', 'name')
                                             ->searchable()
                                             ->preload()
-                                            ->nullable(),
+                                            ->required(),
 
                                         Forms\Components\Select::make('project_id')
                                             ->label('Projeto:')
