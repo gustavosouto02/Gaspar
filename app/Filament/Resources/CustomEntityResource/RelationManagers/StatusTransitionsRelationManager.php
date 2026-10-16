@@ -466,7 +466,10 @@ class StatusTransitionsRelationManager extends RelationManager
             ->defaultSort('display_order')
             ->headerActions([
                 Tables\Actions\CreateAction::make()
-                    ->label('Nova Transição')
+                    ->label('Adicionar Transição')
+                    ->modalHeading('Adicionar Transição')
+                    ->modalSubmitActionLabel('Adicionar')
+                    ->color('primary')
                     ->modalWidth('5xl')
                     ->after(fn (StatusTransition $record) => $this->cleanupDecisionTable($record)),
             ])

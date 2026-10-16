@@ -169,6 +169,13 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
             ->assertTableActionExists('attach')
             ->assertSee('Vincular Situação');
 
+        Livewire::test(\App\Filament\Resources\CustomEntityResource\RelationManagers\StatusTransitionsRelationManager::class, [
+            'ownerRecord' => $entity,
+            'pageClass' => \App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity::class,
+        ])
+            ->assertTableActionExists('create')
+            ->assertSee('Adicionar Transição');
+
         $this->assertEquals(
             'Fluxo do Processo',
             \App\Filament\Resources\CustomEntityResource\RelationManagers\StatusTransitionsRelationManager::getTitle($entity, \App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity::class)
