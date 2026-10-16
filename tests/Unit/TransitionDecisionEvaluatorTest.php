@@ -144,6 +144,23 @@ class TransitionDecisionEvaluatorTest extends TestCase
         $this->assertMatches(FieldTypeEnum::NUMBER, 'gt', '1000', '1.500,00');
     }
 
+    // ---- CURRENCY ----
+
+    public function test_currency_comparisons_and_formatting(): void
+    {
+        $this->assertMatches(FieldTypeEnum::CURRENCY, 'eq', '1500', '1500');
+        $this->assertMatches(FieldTypeEnum::CURRENCY, 'eq', '1500', 'R$ 1.500,00');
+        $this->assertMatches(FieldTypeEnum::CURRENCY, 'gt', '1000', 'R$ 1.500,50');
+        $this->assertMatches(FieldTypeEnum::CURRENCY, 'gte', '1500', 'R$ 1.500,00');
+        $this->assertMatches(FieldTypeEnum::CURRENCY, 'lt', '2000', 'R$ 1.500,00');
+        $this->assertMatches(FieldTypeEnum::CURRENCY, 'lte', '1500', 'R$ 1.500,00');
+        $this->assertDoesNotMatch(FieldTypeEnum::CURRENCY, 'lt', '1000', 'R$ 1.500,00');
+
+        $between = ['min' => '1000', 'max' => '2000'];
+        $this->assertMatches(FieldTypeEnum::CURRENCY, 'between', $between, 'R$ 1.500,00');
+        $this->assertDoesNotMatch(FieldTypeEnum::CURRENCY, 'between', $between, 'R$ 2.500,00');
+    }
+
     // ---- DATE ----
 
     public function test_date_equals_compares_by_day(): void

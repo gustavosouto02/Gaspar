@@ -95,7 +95,7 @@ class TransitionDecisionEvaluator
         $expected = $condition['value'] ?? null;
 
         return match ($field->field_type) {
-            FieldTypeEnum::NUMBER => $this->compareNumeric($raw, $operator, $expected),
+            FieldTypeEnum::NUMBER, FieldTypeEnum::CURRENCY => $this->compareNumeric($raw, $operator, $expected),
             FieldTypeEnum::DATE => $this->compareDate($raw, $operator, $expected),
             FieldTypeEnum::SELECT, FieldTypeEnum::RADIO => $this->compareChoice($raw, $operator, $expected),
             default => $this->compareText($raw, $operator, $expected), // TEXT, TEXTAREA, EMAIL
@@ -180,6 +180,9 @@ class TransitionDecisionEvaluator
     private function toFloat(string $value): float
     {
         $value = trim($value);
+
+        // Remove prefixos como R$, espaços e caracteres não numéricos exceto pontuação
+        $value = preg_replace('/[^\d,.-]/', '', $value);
 
         if (str_contains($value, ',')) {
             $value = str_replace('.', '', $value);

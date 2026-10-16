@@ -284,6 +284,7 @@ class DemandResource extends Resource
                 \App\Enums\FieldTypeEnum::TEXT     => Forms\Components\TextInput::make($key),
                 \App\Enums\FieldTypeEnum::TEXTAREA => Forms\Components\Textarea::make($key)->rows(3),
                 \App\Enums\FieldTypeEnum::NUMBER   => Forms\Components\TextInput::make($key)->numeric(),
+                \App\Enums\FieldTypeEnum::CURRENCY => Forms\Components\TextInput::make($key)->prefix('R$')->numeric(),
                 \App\Enums\FieldTypeEnum::DATE     => Forms\Components\DatePicker::make($key),
                 \App\Enums\FieldTypeEnum::SELECT   => Forms\Components\Select::make($key)
                     ->options($field->options_json

@@ -63,7 +63,7 @@ enum RuleOperatorEnum: string
         $common = [self::IS_EMPTY, self::IS_FILLED];
 
         return match ($type) {
-            FieldTypeEnum::NUMBER, FieldTypeEnum::DATE => [
+            FieldTypeEnum::NUMBER, FieldTypeEnum::CURRENCY, FieldTypeEnum::DATE => [
                 self::EQUALS, self::NOT_EQUALS,
                 self::GREATER, self::GREATER_OR_EQUAL,
                 self::LESS, self::LESS_OR_EQUAL,

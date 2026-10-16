@@ -7,6 +7,7 @@ enum FieldTypeEnum: string
     case TEXT = 'TEXT';
     case TEXTAREA = 'TEXTAREA';
     case NUMBER = 'NUMBER';
+    case CURRENCY = 'CURRENCY';
     case DATE = 'DATE';
     case SELECT = 'SELECT';
     case CHECKBOX = 'CHECKBOX';
@@ -19,6 +20,7 @@ enum FieldTypeEnum: string
             self::TEXT->value => 'Texto Simples',
             self::TEXTAREA->value => 'Área de Texto',
             self::NUMBER->value => 'Número',
+            self::CURRENCY->value => 'Moeda (R$)',
             self::DATE->value => 'Data',
             self::SELECT->value => 'Caixa de Seleção',
             self::CHECKBOX->value => 'Checkbox',

@@ -266,12 +266,13 @@ class StatusTransitionsRelationManager extends RelationManager
                     $set('value_max', null);
                 }),
 
-            // Valor único: número
+            // Valor único: número / moeda
             Forms\Components\TextInput::make('value_single')
                 ->label('Valor')
                 ->numeric()
-                ->visible(fn (Get $get) => $valueKind($get) === 'single' && $fieldType($get) === FieldTypeEnum::NUMBER)
-                ->required(fn (Get $get) => $valueKind($get) === 'single' && $fieldType($get) === FieldTypeEnum::NUMBER),
+                ->prefix(fn (Get $get) => $fieldType($get) === FieldTypeEnum::CURRENCY ? 'R$' : null)
+                ->visible(fn (Get $get) => $valueKind($get) === 'single' && in_array($fieldType($get), [FieldTypeEnum::NUMBER, FieldTypeEnum::CURRENCY], true))
+                ->required(fn (Get $get) => $valueKind($get) === 'single' && in_array($fieldType($get), [FieldTypeEnum::NUMBER, FieldTypeEnum::CURRENCY], true)),
 
             // Valor único: data
             Forms\Components\DatePicker::make('value_single')
@@ -300,17 +301,19 @@ class StatusTransitionsRelationManager extends RelationManager
                 ->visible(fn (Get $get) => $valueKind($get) === 'list')
                 ->required(fn (Get $get) => $valueKind($get) === 'list'),
 
-            // Intervalo "entre": número
+            // Intervalo "entre": número / moeda
             Forms\Components\TextInput::make('value_min')
                 ->label('De')
                 ->numeric()
-                ->visible(fn (Get $get) => $valueKind($get) === 'range' && $fieldType($get) === FieldTypeEnum::NUMBER)
-                ->required(fn (Get $get) => $valueKind($get) === 'range' && $fieldType($get) === FieldTypeEnum::NUMBER),
+                ->prefix(fn (Get $get) => $fieldType($get) === FieldTypeEnum::CURRENCY ? 'R$' : null)
+                ->visible(fn (Get $get) => $valueKind($get) === 'range' && in_array($fieldType($get), [FieldTypeEnum::NUMBER, FieldTypeEnum::CURRENCY], true))
+                ->required(fn (Get $get) => $valueKind($get) === 'range' && in_array($fieldType($get), [FieldTypeEnum::NUMBER, FieldTypeEnum::CURRENCY], true)),
             Forms\Components\TextInput::make('value_max')
                 ->label('Até')
                 ->numeric()
-                ->visible(fn (Get $get) => $valueKind($get) === 'range' && $fieldType($get) === FieldTypeEnum::NUMBER)
-                ->required(fn (Get $get) => $valueKind($get) === 'range' && $fieldType($get) === FieldTypeEnum::NUMBER),
+                ->prefix(fn (Get $get) => $fieldType($get) === FieldTypeEnum::CURRENCY ? 'R$' : null)
+                ->visible(fn (Get $get) => $valueKind($get) === 'range' && in_array($fieldType($get), [FieldTypeEnum::NUMBER, FieldTypeEnum::CURRENCY], true))
+                ->required(fn (Get $get) => $valueKind($get) === 'range' && in_array($fieldType($get), [FieldTypeEnum::NUMBER, FieldTypeEnum::CURRENCY], true)),
 
             // Intervalo "entre": data
             Forms\Components\DatePicker::make('value_min')

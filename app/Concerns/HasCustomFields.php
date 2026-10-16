@@ -74,6 +74,7 @@ trait HasCustomFields
                 FieldTypeEnum::TEXT     => Forms\Components\TextInput::make($key),
                 FieldTypeEnum::TEXTAREA => Forms\Components\Textarea::make($key)->rows(3),
                 FieldTypeEnum::NUMBER   => Forms\Components\TextInput::make($key)->numeric(),
+                FieldTypeEnum::CURRENCY => Forms\Components\TextInput::make($key)->prefix('R$')->numeric(),
                 FieldTypeEnum::DATE     => Forms\Components\DatePicker::make($key),
                 FieldTypeEnum::SELECT   => Forms\Components\Select::make($key)
                     ->options($field->options_json

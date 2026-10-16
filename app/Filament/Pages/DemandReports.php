@@ -130,7 +130,13 @@ class DemandReports extends Page implements HasForms, HasTable
                     ->label($field->name)
                     ->getStateUsing(function (Demand $record) use ($field) {
                         $fv = $record->fieldValues->firstWhere('custom_field_id', $field->id);
-                        return filled($fv?->value) ? $fv->value : '—';
+                        if (blank($fv?->value)) {
+                            return '—';
+                        }
+                        if ($field->field_type === \App\Enums\FieldTypeEnum::CURRENCY && is_numeric($fv->value)) {
+                            return 'R$ ' . number_format((float) $fv->value, 2, ',', '.');
+                        }
+                        return $fv->value;
                     })
                     ->toggleable(isToggledHiddenByDefault: true); // Campos customizados vêm ocultos por padrão
             }
