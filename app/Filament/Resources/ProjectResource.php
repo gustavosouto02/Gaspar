@@ -42,40 +42,13 @@ class ProjectResource extends Resource
                                             ->label('Data de criação:')
                                             ->content(fn ($record) => $record ? $record->created_at->format('d/m/Y') : '-'),
 
-                                        Forms\Components\Select::make('entity_id')
-                                            ->label('Processo:')
-                                            ->options(fn () => \App\Models\CustomEntity::with('macroprocess')->where('is_active', true)->get()->pluck('full_display_name', 'id'))
-                                            ->searchable()
-                                            ->required()
-                                            ->live()
-                                            ->afterStateUpdated(function (Forms\Set $set, $state) {
-                                                if ($state) {
-                                                    $entity = \App\Models\CustomEntity::find($state);
-                                                    if ($entity) {
-                                                        $nova = $entity->processStatuses()->where('system_key', 'new')->first()
-                                                                ?? $entity->processStatuses()->orderBy('display_order')->first();
-                                                        $set('process_status_id', $nova?->id);
-                                                    } else {
-                                                        $set('process_status_id', null);
-                                                    }
-                                                } else {
-                                                    $set('process_status_id', null);
-                                                }
-                                            }),
-
                                         Forms\Components\Select::make('process_status_id')
                                             ->label('Situação:')
-                                            ->options(function (\Filament\Forms\Get $get) {
-                                                $entityId = $get('entity_id');
-                                                if (! $entityId) return [];
-                                                $entity = \App\Models\CustomEntity::find($entityId);
-                                                if (! $entity) return [];
-                                                return $entity->processStatuses()->pluck('name', 'process_statuses.id');
-                                            })
+                                            ->options(fn () => \App\Models\ProcessStatus::orderBy('name')->pluck('name', 'id'))
                                             ->searchable()
+                                            ->preload()
                                             ->required()
-                                            ->live()
-                                            ->placeholder('Selecione primeiro o processo...'),
+                                            ->placeholder('Selecione a situação...'),
                                             
                                         Forms\Components\Select::make('client_id')
                                             ->label('Cliente:')
@@ -221,9 +194,10 @@ class ProjectResource extends Resource
                 Tables\Columns\TextColumn::make('client.name')
                     ->label('Cliente')
                     ->sortable(),
-                Tables\Columns\TextColumn::make('status')
+                Tables\Columns\TextColumn::make('processStatus.name')
                     ->label('Situação')
-                    ->searchable(),
+                    ->searchable()
+                    ->sortable(),
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Ativo')
                     ->boolean(),
