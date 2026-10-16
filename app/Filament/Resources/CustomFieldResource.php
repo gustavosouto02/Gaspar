@@ -40,17 +40,19 @@ class CustomFieldResource extends Resource
                         ->label('Nome do Campo')
                         ->required()
                         ->maxLength(255)
-                        ->live(onBlur: true)
+                        ->live(debounce: 500)
                         ->afterStateUpdated(fn (string $operation, $state, Forms\Set $set) => 
                             $operation === 'create' ? $set('key', str($state)->slug('_')->toString()) : null
                         ),
 
                     Forms\Components\TextInput::make('key')
+                        ->label('Chave (slug)')
+                        ->disabled()
+                        ->dehydrated()
                         ->required()
                         ->maxLength(255)
                         ->regex('/^[a-z0-9_]+$/')
-                        ->label('Chave (slug)')
-                        ->helperText('Ex: destino_viagem. Apenas minúsculas e sublinhados.'),
+                        ->helperText('Gerado automaticamente a partir do nome do campo.'),
 
                     Forms\Components\Select::make('field_type')
                         ->options(\App\Enums\FieldTypeEnum::options())
