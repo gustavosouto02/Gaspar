@@ -66,7 +66,10 @@ class MembersRelationManager extends RelationManager
                     ->sortable(),
             ])
             ->headerActions([
-                Tables\Actions\CreateAction::make(),
+                Tables\Actions\CreateAction::make()
+                    ->label('Vincular Papel')
+                    ->modalHeading('Vincular Papel')
+                    ->modalSubmitActionLabel('Vincular'),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

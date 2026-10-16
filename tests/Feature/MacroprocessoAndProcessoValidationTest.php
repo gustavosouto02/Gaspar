@@ -124,4 +124,35 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
             'sla_hours' => 72,
         ]);
     }
+
+    public function test_aba_papeis_no_processo_possui_acao_vincular_papel(): void
+    {
+        $this->actingAs($this->admin);
+
+        $macro = Macroprocess::create([
+            'name' => 'Macroprocesso Teste',
+            'acronym' => 'TEST',
+            'value_chain_function' => 'Apoio',
+            'description' => 'Descrição do macroprocesso teste',
+            'is_active' => true,
+            'created_by' => $this->admin->id,
+        ]);
+
+        $entity = CustomEntity::create([
+            'name' => 'Processo Exemplo',
+            'macroprocess_id' => $macro->id,
+            'purpose' => 'Finalístico',
+            'sla_hours' => 48,
+            'description' => 'Descrição do processo',
+            'is_active' => true,
+            'created_by' => $this->admin->id,
+        ]);
+
+        Livewire::test(\App\Filament\Resources\CustomEntityResource\RelationManagers\MembersRelationManager::class, [
+            'ownerRecord' => $entity,
+            'pageClass' => \App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity::class,
+        ])
+            ->assertTableActionExists('create')
+            ->assertSee('Vincular Papel');
+    }
 }
