@@ -181,4 +181,46 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
             \App\Filament\Resources\CustomEntityResource\RelationManagers\StatusTransitionsRelationManager::getTitle($entity, \App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity::class)
         );
     }
+
+    public function test_campo_papeis_que_podem_disparar_eh_obrigatorio_no_formulario_de_transicao(): void
+    {
+        $this->actingAs($this->admin);
+
+        $macro = Macroprocess::create([
+            'name' => 'Macroprocesso Teste 2',
+            'acronym' => 'TEST2',
+            'value_chain_function' => 'Apoio',
+            'description' => 'Descrição',
+            'is_active' => true,
+            'created_by' => $this->admin->id,
+        ]);
+
+        $entity = CustomEntity::create([
+            'name' => 'Processo Exemplo 2',
+            'macroprocess_id' => $macro->id,
+            'purpose' => 'Finalístico',
+            'sla_hours' => 48,
+            'description' => 'Descrição',
+            'is_active' => true,
+            'created_by' => $this->admin->id,
+        ]);
+
+        $status = \App\Models\ProcessStatus::create([
+            'name' => 'Em Análise Teste',
+            'color' => 'blue',
+            'is_system' => false,
+        ]);
+        $entity->processStatuses()->attach($status->id, ['display_order' => 1]);
+
+        Livewire::test(\App\Filament\Resources\CustomEntityResource\RelationManagers\StatusTransitionsRelationManager::class, [
+            'ownerRecord' => $entity,
+            'pageClass' => \App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity::class,
+        ])
+            ->callTableAction('create', data: [
+                'to_status_id' => $status->id,
+                'label' => 'Encaminhar',
+                'allowed_role_ids' => [],
+            ])
+            ->assertHasTableActionErrors(['allowed_role_ids' => 'required']);
+    }
 }

@@ -105,9 +105,9 @@ class StatusTransitionsRelationManager extends RelationManager
                 ->label('Papéis que podem disparar')
                 ->options($roleOptions)
                 ->multiple()
-                ->nullable()
-                ->placeholder('Todos os membros/envolvidos')
-                ->helperText('Vazio = qualquer envolvido na demanda ou membro do processo pode; selecione para restringir'),
+                ->required()
+                ->placeholder('Selecione os papéis permitidos...')
+                ->helperText('Selecione ao menos um papel com permissão para disparar esta transição'),
 
             Forms\Components\Section::make('Tabela de decisão')
                 ->description('Regras avaliadas em ordem; a primeira que casar define a situação de destino. Se nenhuma casar, vale o "Senão vai para".')
