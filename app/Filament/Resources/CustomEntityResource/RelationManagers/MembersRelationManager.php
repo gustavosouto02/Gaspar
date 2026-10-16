@@ -68,6 +68,7 @@ class MembersRelationManager extends RelationManager
             ->headerActions([
                 Tables\Actions\CreateAction::make()
                     ->label('Vincular Papel')
+                    ->color('primary')
                     ->modalHeading('Vincular Papel')
                     ->modalSubmitActionLabel('Vincular'),
             ])

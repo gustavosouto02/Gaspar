@@ -20,7 +20,7 @@ class StatusTransitionsRelationManager extends RelationManager
 {
     protected static string $relationship = 'statusTransitions';
 
-    protected static ?string $title = 'Fluxo de Situações';
+    protected static ?string $title = 'Fluxo do Processo';
 
     protected static ?string $modelLabel = 'Transição';
 

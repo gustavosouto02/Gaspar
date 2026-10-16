@@ -154,5 +154,24 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
         ])
             ->assertTableActionExists('create')
             ->assertSee('Vincular Papel');
+
+        Livewire::test(\App\Filament\Resources\CustomEntityResource\RelationManagers\FieldsRelationManager::class, [
+            'ownerRecord' => $entity,
+            'pageClass' => \App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity::class,
+        ])
+            ->assertTableActionExists('attach')
+            ->assertSee('Vincular Campo');
+
+        Livewire::test(\App\Filament\Resources\CustomEntityResource\RelationManagers\ProcessStatusesRelationManager::class, [
+            'ownerRecord' => $entity,
+            'pageClass' => \App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity::class,
+        ])
+            ->assertTableActionExists('attach')
+            ->assertSee('Vincular Situação');
+
+        $this->assertEquals(
+            'Fluxo do Processo',
+            \App\Filament\Resources\CustomEntityResource\RelationManagers\StatusTransitionsRelationManager::getTitle($entity, \App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity::class)
+        );
     }
 }

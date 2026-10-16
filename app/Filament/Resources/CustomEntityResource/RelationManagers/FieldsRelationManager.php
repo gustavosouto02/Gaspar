@@ -68,7 +68,12 @@ class FieldsRelationManager extends RelationManager
                 //
             ])
             ->headerActions([
-                Tables\Actions\AttachAction::make()->preloadRecordSelect(),
+                Tables\Actions\AttachAction::make()
+                    ->label('Vincular Campo')
+                    ->color('primary')
+                    ->modalHeading('Vincular Campo')
+                    ->modalSubmitActionLabel('Vincular')
+                    ->preloadRecordSelect(),
             ])
             ->actions([
                 Tables\Actions\DetachAction::make(),

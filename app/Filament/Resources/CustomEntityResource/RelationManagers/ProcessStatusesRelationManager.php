@@ -59,6 +59,10 @@ class ProcessStatusesRelationManager extends RelationManager
             ->checkIfRecordIsSelectableUsing(fn ($record) => !$record->is_system)
             ->headerActions([
                 Tables\Actions\AttachAction::make()
+                    ->label('Vincular Situação')
+                    ->color('primary')
+                    ->modalHeading('Vincular Situação')
+                    ->modalSubmitActionLabel('Vincular')
                     ->preloadRecordSelect()
                     ->recordSelectOptionsQuery(fn ($query) => $query->orderBy('name'))
                     ->form(fn (Tables\Actions\AttachAction $action) => [
