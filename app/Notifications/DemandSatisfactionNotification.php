@@ -40,7 +40,6 @@ class DemandSatisfactionNotification extends Notification
             ->line('A demanda **' . $this->demand->title . '** (#' . $shortId . ') foi concluída.')
             ->line('Gostaríamos muito de saber como foi a sua experiência com o atendimento.')
             ->action('Avaliar Atendimento', $demandUrl)
-            ->line('Link direto para acesso: ' . $demandUrl)
             ->line('Leva apenas um minuto e nos ajuda a melhorar cada vez mais!');
     }
 
