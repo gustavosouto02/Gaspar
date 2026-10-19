@@ -37,7 +37,7 @@ class DemandSatisfactionNotification extends Notification
         return (new MailMessage)
             ->subject('Pesquisa de Satisfação: Demanda #' . $shortId . ' - ' . $this->demand->title)
             ->greeting('Olá, ' . explode(' ', $notifiable->name)[0] . '!')
-            ->line('A demanda **' . $this->demand->title . '** (#' . $shortId . ') foi concluída.')
+            ->line('A demanda **' . $this->demand->title . '** ([#' . $shortId . '](' . $demandUrl . ')) foi concluída.')
             ->line('Gostaríamos muito de saber como foi a sua experiência com o atendimento.')
             ->action('Avaliar Atendimento', $demandUrl)
             ->line('Leva apenas um minuto e nos ajuda a melhorar cada vez mais!');

@@ -44,22 +44,20 @@ class DemandDeadlineNotification extends Notification
                 $mailMessage
                     ->subject("⏳ Demanda vencendo AMANHÃ: #{$shortId} - {$this->demand->title}")
                     ->greeting('Olá, ' . explode(' ', $notifiable->name)[0] . '!')
-                    ->line("A demanda **{$this->demand->title}** (#{$shortId}) vencerá **amanhã**.")
+                    ->line("A demanda **{$this->demand->title}** ([#{$shortId}]({$demandUrl})) vencerá **amanhã**.")
                     ->line("**Data limite (SLA):** {$slaFormatted}")
                     ->line('Este é um lembrete preventivo para que as atividades possam ser finalizadas dentro do prazo planejado.')
-                    ->action('Abrir Demanda no Sistema', $demandUrl)
-                    ->line('Link direto para acesso: ' . $demandUrl);
+                    ->action('Acessar demanda', $demandUrl);
                 break;
 
             case 'today':
                 $mailMessage
                     ->subject("⏳ Atenção: Demanda vence HOJE: #{$shortId} - {$this->demand->title}")
                     ->greeting('Olá, ' . explode(' ', $notifiable->name)[0] . '!')
-                    ->line("A demanda **{$this->demand->title}** (#{$shortId}) **vence HOJE**.")
+                    ->line("A demanda **{$this->demand->title}** ([#{$shortId}]({$demandUrl})) **vence HOJE**.")
                     ->line("**Data limite (SLA):** {$slaFormatted}")
                     ->line('Por favor, priorize o atendimento para evitar atrasos no cumprimento do SLA.')
-                    ->action('Abrir Demanda no Sistema', $demandUrl)
-                    ->line('Link direto para acesso: ' . $demandUrl);
+                    ->action('Acessar demanda', $demandUrl);
                 break;
 
             case 'overdue':
@@ -68,11 +66,10 @@ class DemandDeadlineNotification extends Notification
                 $mailMessage
                     ->subject("⚠️ Demanda VENCIDA ({$daysText}): #{$shortId} - {$this->demand->title}")
                     ->greeting('Olá, ' . explode(' ', $notifiable->name)[0] . '!')
-                    ->line("A demanda **{$this->demand->title}** (#{$shortId}) está **VENCIDA** {$daysText}.")
+                    ->line("A demanda **{$this->demand->title}** ([#{$shortId}]({$demandUrl})) está **VENCIDA** {$daysText}.")
                     ->line("**Data de vencimento original:** {$slaFormatted}")
                     ->line('Ela continua aberta e pendente no sistema. Solicitamos atenção para concluir o atendimento ou atualizar a situação com urgência.')
-                    ->action('Abrir Demanda no Sistema', $demandUrl)
-                    ->line('Link direto para acesso: ' . $demandUrl);
+                    ->action('Acessar demanda', $demandUrl);
                 break;
         }
 
