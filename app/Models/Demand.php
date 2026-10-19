@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\HasSequentialCode;
 use App\Concerns\LogsActivity;
 use App\Enums\DemandPriorityEnum;
 use App\Enums\DemandStatusEnum;
@@ -14,9 +15,13 @@ use Illuminate\Support\Str;
 
 class Demand extends Model
 {
-    use HasFactory, HasUuids, LogsActivity;
+    use HasFactory, HasUuids, LogsActivity, HasSequentialCode;
+
+    protected string $sequentialCodePrefix = 'DEM';
+    protected string $sequentialCodeColumn = 'code';
 
     protected $fillable = [
+        'code',
         'entity_id',
         'process_status_id',
         'client_id',
@@ -412,9 +417,10 @@ class Demand extends Model
             $q->where('demands.title', 'like', "%{$search}%")
               ->orWhere('demands.description', 'like', "%{$search}%");
 
-            // 2. ID da Demanda
+            // 2. Código e ID da Demanda
             if ($clean !== '') {
-                $q->orWhere('demands.id', 'like', "%{$clean}%");
+                $q->orWhere('demands.code', 'like', "%{$clean}%")
+                  ->orWhere('demands.id', 'like', "%{$clean}%");
             }
 
             // 3. Processo e Macroprocesso (Nome e Sigla)
@@ -437,10 +443,13 @@ class Demand extends Model
                    ->orWhere('custom_data', 'like', "%{$search}%");
             });
 
-            // 6. Projeto (Nome e campos adicionais custom_data)
-            $q->orWhereHas('project', function ($pq) use ($search) {
+            // 6. Projeto (Nome, Número e campos adicionais custom_data)
+            $q->orWhereHas('project', function ($pq) use ($search, $clean) {
                 $pq->where('name', 'like', "%{$search}%")
                    ->orWhere('custom_data', 'like', "%{$search}%");
+                if ($clean !== '') {
+                    $pq->orWhere('number', 'like', "%{$clean}%");
+                }
             });
 
             // 7. Solicitante ou Responsável
