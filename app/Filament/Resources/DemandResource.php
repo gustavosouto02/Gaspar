@@ -48,13 +48,13 @@ class DemandResource extends Resource
                                         Forms\Components\Placeholder::make('parent_link')
                                             ->label('Demanda Mãe:')
                                             ->content(fn ($record) => $record?->parent_demand_id 
-                                                ? new \Illuminate\Support\HtmlString('<a href="'.DemandResource::getUrl('edit', ['record' => $record->parent_demand_id]).'" class="text-primary-600 underline font-semibold">Acessar Demanda Mãe: ' . e($record->parent?->title) . ' (#' . strtoupper(substr($record->parent_demand_id, 0, 8)) . ')</a>') 
+                                                ? new \Illuminate\Support\HtmlString('<a href="'.DemandResource::getUrl('edit', ['record' => $record->parent_demand_id]).'" class="text-primary-600 underline font-semibold">Acessar Demanda Mãe: ' . e($record->parent?->title) . ' (' . ($record->parent?->code ?? '#' . strtoupper(substr($record->parent_demand_id, 0, 8))) . ')</a>') 
                                                 : '-')
                                             ->visible(fn ($record) => (bool) $record?->parent_demand_id),
 
                                         Forms\Components\Placeholder::make('id_label')
                                             ->label('Demanda número:')
-                                            ->content(fn ($record) => $record ? '#' . strtoupper(substr($record->id, 0, 8)) : 'NOVA'),
+                                            ->content(fn ($record) => $record ? ($record->code ?? '#' . strtoupper(substr($record->id, 0, 8))) : 'NOVA'),
 
                                         Forms\Components\Placeholder::make('created_at_label')
                                             ->label('Data de criação:')
@@ -334,6 +334,11 @@ class DemandResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('code')
+                    ->label('Código')
+                    ->searchable()
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('title')
                     ->label('Título')
                     ->searchable(query: fn ($query, string $search) => $query->globalSearch($search))

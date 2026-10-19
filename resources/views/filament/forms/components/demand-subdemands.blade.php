@@ -11,7 +11,7 @@
             @foreach($subdemands as $subdemand)
                 <li class="text-sm mb-2">
                     <a href="{{ \App\Filament\Resources\DemandResource::getUrl('view', ['record' => $subdemand->id]) }}" class="underline text-primary-600 dark:text-primary-400 font-medium">
-                        #{{ strtoupper(substr($subdemand->id, 0, 8)) }} - Título: {{ $subdemand->title }} - {{ $subdemand->processStatus ? $subdemand->processStatus->name : 'Sem Situação' }};
+                        {{ $subdemand->code ?? '#' . strtoupper(substr($subdemand->id, 0, 8)) }} - Título: {{ $subdemand->title }} - {{ $subdemand->processStatus ? $subdemand->processStatus->name : 'Sem Situação' }};
                     </a>
                 </li>
             @endforeach

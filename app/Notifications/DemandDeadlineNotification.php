@@ -34,7 +34,7 @@ class DemandDeadlineNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $demandUrl = DemandResource::getUrl('edit', ['record' => $this->demand]);
-        $shortId = strtoupper(substr($this->demand->id, 0, 8));
+        $code = $this->demand->code ?: '#' . strtoupper(substr($this->demand->id, 0, 8));
         $slaFormatted = $this->demand->sla_due_at ? $this->demand->sla_due_at->format('d/m/Y H:i') : 'Data não definida';
 
         $mailMessage = new MailMessage();
@@ -42,9 +42,9 @@ class DemandDeadlineNotification extends Notification
         switch ($this->type) {
             case 'tomorrow':
                 $mailMessage
-                    ->subject("⏳ Demanda vencendo AMANHÃ: #{$shortId} - {$this->demand->title}")
+                    ->subject("⏳ Demanda vencendo AMANHÃ: {$code} - {$this->demand->title}")
                     ->greeting('Olá, ' . explode(' ', $notifiable->name)[0] . '!')
-                    ->line("A demanda **{$this->demand->title}** (#{$shortId}) vencerá **amanhã**.")
+                    ->line("A demanda **{$this->demand->title}** ({$code}) vencerá **amanhã**.")
                     ->line("**Data limite (SLA):** {$slaFormatted}")
                     ->line('Este é um lembrete preventivo para que as atividades possam ser finalizadas dentro do prazo planejado.')
                     ->action('Abrir Demanda no Sistema', $demandUrl)
@@ -53,9 +53,9 @@ class DemandDeadlineNotification extends Notification
 
             case 'today':
                 $mailMessage
-                    ->subject("⏳ Atenção: Demanda vence HOJE: #{$shortId} - {$this->demand->title}")
+                    ->subject("⏳ Atenção: Demanda vence HOJE: {$code} - {$this->demand->title}")
                     ->greeting('Olá, ' . explode(' ', $notifiable->name)[0] . '!')
-                    ->line("A demanda **{$this->demand->title}** (#{$shortId}) **vence HOJE**.")
+                    ->line("A demanda **{$this->demand->title}** ({$code}) **vence HOJE**.")
                     ->line("**Data limite (SLA):** {$slaFormatted}")
                     ->line('Por favor, priorize o atendimento para evitar atrasos no cumprimento do SLA.')
                     ->action('Abrir Demanda no Sistema', $demandUrl)
@@ -66,9 +66,9 @@ class DemandDeadlineNotification extends Notification
             default:
                 $daysText = $this->daysOverdue > 1 ? "há {$this->daysOverdue} dias" : 'há 1 dia';
                 $mailMessage
-                    ->subject("⚠️ Demanda VENCIDA ({$daysText}): #{$shortId} - {$this->demand->title}")
+                    ->subject("⚠️ Demanda VENCIDA ({$daysText}): {$code} - {$this->demand->title}")
                     ->greeting('Olá, ' . explode(' ', $notifiable->name)[0] . '!')
-                    ->line("A demanda **{$this->demand->title}** (#{$shortId}) está **VENCIDA** {$daysText}.")
+                    ->line("A demanda **{$this->demand->title}** ({$code}) está **VENCIDA** {$daysText}.")
                     ->line("**Data de vencimento original:** {$slaFormatted}")
                     ->line('Ela continua aberta e pendente no sistema. Solicitamos atenção para concluir o atendimento ou atualizar a situação com urgência.')
                     ->action('Abrir Demanda no Sistema', $demandUrl)

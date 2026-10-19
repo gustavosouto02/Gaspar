@@ -33,12 +33,12 @@ class DemandActivityNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $demandUrl = DemandResource::getUrl('edit', ['record' => $this->demand]);
-        $shortId = strtoupper(substr($this->demand->id, 0, 8));
+        $code = $this->demand->code ?: '#' . strtoupper(substr($this->demand->id, 0, 8));
 
         return (new MailMessage)
-            ->subject('Atualização na Demanda #' . $shortId . ' - ' . $this->demand->title)
+            ->subject('Atualização na Demanda ' . $code . ' - ' . $this->demand->title)
             ->greeting('Olá, ' . explode(' ', $notifiable->name)[0] . '!')
-            ->line('Houve uma nova atividade na demanda: **' . $this->demand->title . '** (#' . $shortId . ')')
+            ->line('Houve uma nova atividade na demanda: **' . $this->demand->title . '** (' . $code . ')')
             ->line('**Detalhe:** ' . $this->activityMessage)
             ->action('Abrir Demanda no Sistema', $demandUrl)
             ->line('Link direto para acesso: ' . $demandUrl)

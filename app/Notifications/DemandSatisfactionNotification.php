@@ -32,12 +32,12 @@ class DemandSatisfactionNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         $demandUrl = DemandResource::getUrl('view', ['record' => $this->demand]);
-        $shortId = strtoupper(substr($this->demand->id, 0, 8));
+        $code = $this->demand->code ?: '#' . strtoupper(substr($this->demand->id, 0, 8));
         
         return (new MailMessage)
-            ->subject('Pesquisa de Satisfação: Demanda #' . $shortId . ' - ' . $this->demand->title)
+            ->subject('Pesquisa de Satisfação: Demanda ' . $code . ' - ' . $this->demand->title)
             ->greeting('Olá, ' . explode(' ', $notifiable->name)[0] . '!')
-            ->line('A demanda **' . $this->demand->title . '** (#' . $shortId . ') foi concluída.')
+            ->line('A demanda **' . $this->demand->title . '** (' . $code . ') foi concluída.')
             ->line('Gostaríamos muito de saber como foi a sua experiência com o atendimento.')
             ->action('Avaliar Atendimento', $demandUrl)
             ->line('Leva apenas um minuto e nos ajuda a melhorar cada vez mais!');

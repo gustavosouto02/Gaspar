@@ -44,7 +44,7 @@ class DemandPdfController extends Controller
                 'defaultFont'          => 'sans-serif',
             ]);
 
-        $shortId = strtoupper(substr($demand->id, 0, 8));
+        $shortId = $demand->code ?? strtoupper(substr($demand->id, 0, 8));
         $filename = "demanda-{$shortId}.pdf";
 
         if ($request->has('download')) {

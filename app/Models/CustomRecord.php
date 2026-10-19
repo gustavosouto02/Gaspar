@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\HasSequentialCode;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,9 +12,13 @@ use Illuminate\Support\Str;
 
 class CustomRecord extends Model
 {
-    use HasFactory, HasUuids, SoftDeletes;
+    use HasFactory, HasUuids, SoftDeletes, HasSequentialCode;
+
+    protected string $sequentialCodePrefix = 'REC';
+    protected string $sequentialCodeColumn = 'code';
 
     protected $fillable = [
+        'code',
         'custom_record_type_id',
         'created_by',
         'data_json',
