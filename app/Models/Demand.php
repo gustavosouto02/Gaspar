@@ -74,15 +74,20 @@ class Demand extends Model
         });
 
         static::updating(function (Demand $demand) {
-            // Transição automática para Avaliada quando a nota de avaliação é informada
+            // Transição automática para Avaliada quando a nota de avaliação é informada e a demanda está encerrada
             if ($demand->isDirty('satisfaction_rating') && ! empty($demand->satisfaction_rating)) {
-                $evaluatedStatus = ProcessStatus::findBySystemKey('evaluated');
-                if ($evaluatedStatus) {
-                    $demand->process_status_id = $evaluatedStatus->id;
-                    $demand->status = \App\Enums\DemandStatusEnum::EVALUATED;
-                }
-                if (empty($demand->satisfaction_evaluated_at)) {
-                    $demand->satisfaction_evaluated_at = now();
+                $isClosed = $demand->status === \App\Enums\DemandStatusEnum::CLOSED
+                    || $demand->processStatus?->isClosed();
+
+                if ($isClosed) {
+                    $evaluatedStatus = ProcessStatus::findBySystemKey('evaluated');
+                    if ($evaluatedStatus) {
+                        $demand->process_status_id = $evaluatedStatus->id;
+                        $demand->status = \App\Enums\DemandStatusEnum::EVALUATED;
+                    }
+                    if (empty($demand->satisfaction_evaluated_at)) {
+                        $demand->satisfaction_evaluated_at = now();
+                    }
                 }
             }
         });

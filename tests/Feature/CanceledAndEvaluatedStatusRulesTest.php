@@ -180,4 +180,98 @@ class CanceledAndEvaluatedStatusRulesTest extends TestCase
 
         $service->execute($demand, $transition, $this->admin);
     }
+
+    public function test_evaluating_a_demand_that_is_not_closed_does_not_transition_to_evaluated(): void
+    {
+        $demand = Demand::create([
+            'title'             => 'Demanda Aberta',
+            'entity_id'         => $this->entity->id,
+            'process_status_id' => $this->statusNova->id,
+            'client_id'         => $this->client->id,
+            'requested_by'      => $this->requester->id,
+            'created_by'        => $this->requester->id,
+            'status'            => DemandStatusEnum::ACTIVE,
+        ]);
+
+        $demand->update([
+            'satisfaction_rating' => SatisfactionRatingEnum::GREAT,
+        ]);
+
+        $demand->refresh();
+
+        // Não deve transicionar para Avaliada se a demanda não estava encerrada
+        $this->assertEquals($this->statusNova->id, $demand->process_status_id);
+        $this->assertEquals(DemandStatusEnum::ACTIVE, $demand->status);
+    }
+
+    public function test_unauthorized_user_cannot_cancel_demand_via_service(): void
+    {
+        $transition = new StatusTransition([
+            'entity_id'      => $this->entity->id,
+            'from_status_id' => $this->statusNova->id,
+            'to_status_id'   => $this->statusCancelada->id,
+            'label'          => 'Cancelar',
+        ]);
+        $transition->saveQuietly();
+
+        $demand = Demand::create([
+            'title'             => 'Demanda Teste Cancelamento Não Autorizado',
+            'entity_id'         => $this->entity->id,
+            'process_status_id' => $this->statusNova->id,
+            'client_id'         => $this->client->id,
+            'requested_by'      => $this->requester->id,
+            'created_by'        => $this->requester->id,
+            'status'            => DemandStatusEnum::ACTIVE,
+        ]);
+
+        $service = app(DemandTransitionService::class);
+
+        $this->expectException(DemandTransitionException::class);
+        $this->expectExceptionMessage('Apenas o demandante ou um administrador podem cancelar esta demanda.');
+
+        $service->execute($demand, $transition, $this->otherUser);
+    }
+
+    public function test_requester_and_admin_can_cancel_demand_via_service(): void
+    {
+        $transition = new StatusTransition([
+            'entity_id'      => $this->entity->id,
+            'from_status_id' => $this->statusNova->id,
+            'to_status_id'   => $this->statusCancelada->id,
+            'label'          => 'Cancelar',
+        ]);
+        $transition->saveQuietly();
+
+        $demandRequester = Demand::create([
+            'title'             => 'Demanda Cancelada Pelo Demandante',
+            'entity_id'         => $this->entity->id,
+            'process_status_id' => $this->statusNova->id,
+            'client_id'         => $this->client->id,
+            'requested_by'      => $this->requester->id,
+            'created_by'        => $this->requester->id,
+            'status'            => DemandStatusEnum::ACTIVE,
+        ]);
+
+        $demandAdmin = Demand::create([
+            'title'             => 'Demanda Cancelada Pelo Admin',
+            'entity_id'         => $this->entity->id,
+            'process_status_id' => $this->statusNova->id,
+            'client_id'         => $this->client->id,
+            'requested_by'      => $this->requester->id,
+            'created_by'        => $this->requester->id,
+            'status'            => DemandStatusEnum::ACTIVE,
+        ]);
+
+        $service = app(DemandTransitionService::class);
+
+        // Demandante cancela sua própria demanda
+        $service->execute($demandRequester, $transition, $this->requester);
+        $demandRequester->refresh();
+        $this->assertEquals($this->statusCancelada->id, $demandRequester->process_status_id);
+
+        // Admin cancela demanda de outro usuário
+        $service->execute($demandAdmin, $transition, $this->admin);
+        $demandAdmin->refresh();
+        $this->assertEquals($this->statusCancelada->id, $demandAdmin->process_status_id);
+    }
 }

@@ -474,11 +474,30 @@ class DemandResource extends Resource
                         }
 
                         $canceledStatus = \App\Models\ProcessStatus::findBySystemKey('canceled');
+                        $oldStatusId = $record->process_status_id;
+                        $oldStatusName = $record->processStatus?->name ?? '—';
+                        $newStatusName = $canceledStatus?->name ?? 'Cancelada';
 
                         $record->update([
                             'status'            => \App\Enums\DemandStatusEnum::CANCELED->value,
                             'completed_at'      => now(),
                             'process_status_id' => $canceledStatus ? $canceledStatus->id : $record->process_status_id,
+                        ]);
+
+                        \App\Models\ActivityLog::create([
+                            'user_id'        => auth()->id(),
+                            'event'          => 'transition',
+                            'auditable_type' => \App\Models\Demand::class,
+                            'auditable_id'   => (string) $record->id,
+                            'old_values'     => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
+                            'new_values'     => [
+                                'process_status_id'   => $canceledStatus?->id ?? $oldStatusId,
+                                'status_name'         => $newStatusName,
+                                'action'              => 'Cancelamento da Demanda',
+                            ],
+                            'ip_address'     => request()->ip(),
+                            'user_agent'     => request()->userAgent(),
+                            'created_at'     => now(),
                         ]);
 
                         \Filament\Notifications\Notification::make()->title('Demanda cancelada com sucesso!')->success()->send();
@@ -508,11 +527,32 @@ class DemandResource extends Resource
                                 if ($record->processStatus?->isCanceled() || $record->processStatus?->isClosed() || $record->processStatus?->isEvaluated()) {
                                     continue;
                                 }
+                                $oldStatusId = $record->process_status_id;
+                                $oldStatusName = $record->processStatus?->name ?? '—';
+                                $newStatusName = $canceledStatus?->name ?? 'Cancelada';
+
                                 $record->update([
                                     'status'            => \App\Enums\DemandStatusEnum::CANCELED->value,
                                     'completed_at'      => now(),
                                     'process_status_id' => $canceledStatus ? $canceledStatus->id : $record->process_status_id,
                                 ]);
+
+                                \App\Models\ActivityLog::create([
+                                    'user_id'        => auth()->id(),
+                                    'event'          => 'transition',
+                                    'auditable_type' => \App\Models\Demand::class,
+                                    'auditable_id'   => (string) $record->id,
+                                    'old_values'     => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
+                                    'new_values'     => [
+                                        'process_status_id'   => $canceledStatus?->id ?? $oldStatusId,
+                                        'status_name'         => $newStatusName,
+                                        'action'              => 'Cancelamento da Demanda',
+                                    ],
+                                    'ip_address'     => request()->ip(),
+                                    'user_agent'     => request()->userAgent(),
+                                    'created_at'     => now(),
+                                ]);
+
                                 $canceledCount++;
                             }
                             \Filament\Notifications\Notification::make()->title("{$canceledCount} demanda(s) cancelada(s) com sucesso!")->success()->send();
