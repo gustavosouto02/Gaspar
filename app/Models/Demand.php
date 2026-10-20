@@ -72,6 +72,20 @@ class Demand extends Model
                 }
             }
         });
+
+        static::updating(function (Demand $demand) {
+            // Transição automática para Avaliada quando a nota de avaliação é informada
+            if ($demand->isDirty('satisfaction_rating') && ! empty($demand->satisfaction_rating)) {
+                $evaluatedStatus = ProcessStatus::findBySystemKey('evaluated');
+                if ($evaluatedStatus) {
+                    $demand->process_status_id = $evaluatedStatus->id;
+                    $demand->status = \App\Enums\DemandStatusEnum::EVALUATED;
+                }
+                if (empty($demand->satisfaction_evaluated_at)) {
+                    $demand->satisfaction_evaluated_at = now();
+                }
+            }
+        });
     }
 
     /** Processo (CustomEntity) */

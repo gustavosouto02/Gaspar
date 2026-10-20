@@ -86,6 +86,11 @@ trait HasDemandHeaderActions
                 });
         }
 
+        // Se a demanda já está cancelada ou avaliada, não possui mais transições de fluxo
+        if ($record->processStatus?->isCanceled() || $record->processStatus?->isEvaluated()) {
+            return $actions;
+        }
+
         // Carrega as transições disponíveis a partir da situação atual
         $transitions = StatusTransition::with(['toStatus'])
             ->where('entity_id', $record->entity_id)
@@ -97,6 +102,11 @@ trait HasDemandHeaderActions
             ->get();
 
         foreach ($transitions as $transition) {
+            // Cancelada e Avaliada não são opções de transição manual do fluxo
+            if ($transition->toStatus?->isCanceled() || $transition->toStatus?->isEvaluated()) {
+                continue;
+            }
+
             if (! $transition->canBeTriggeredBy($user, $record)) {
                 continue;
             }
@@ -282,6 +292,9 @@ trait HasDemandHeaderActions
                 }
 
                 $canceledStatus = \App\Models\ProcessStatus::findBySystemKey('canceled');
+                $oldStatusId = $record->process_status_id;
+                $oldStatusName = $record->processStatus?->name ?? '—';
+                $newStatusName = $canceledStatus?->name ?? 'Cancelada';
 
                 $record->update([
                     'status' => \App\Enums\DemandStatusEnum::CANCELED->value,
@@ -289,12 +302,31 @@ trait HasDemandHeaderActions
                     'process_status_id' => $canceledStatus ? $canceledStatus->id : $record->process_status_id,
                 ]);
 
+                \App\Models\ActivityLog::create([
+                    'user_id'        => auth()->id(),
+                    'event'          => 'transition',
+                    'auditable_type' => \App\Models\Demand::class,
+                    'auditable_id'   => (string) $record->id,
+                    'old_values'     => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
+                    'new_values'     => [
+                        'process_status_id'   => $canceledStatus?->id ?? $oldStatusId,
+                        'status_name'         => $newStatusName,
+                        'action'              => 'Cancelamento da Demanda',
+                    ],
+                    'ip_address'     => request()->ip(),
+                    'user_agent'     => request()->userAgent(),
+                    'created_at'     => now(),
+                ]);
+
                 Notification::make()->title('Demanda cancelada com sucesso!')->success()->send();
                 $this->redirect(static::getResource()::getUrl('index'));
             })
             ->visible(fn () => 
-                auth()->user()->user_role === \App\Enums\UserRoleEnum::ADMIN
-                || $record->requested_by === auth()->id()
+                ! $record->processStatus?->isCanceled()
+                && ! $record->processStatus?->isClosed()
+                && ! $record->processStatus?->isEvaluated()
+                && (auth()->user()->user_role === \App\Enums\UserRoleEnum::ADMIN
+                    || $record->requested_by === auth()->id())
             );
         $actions[] = Actions\Action::make('export_pdf')
             ->label('Exportar PDF')

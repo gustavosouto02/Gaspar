@@ -463,10 +463,32 @@ class DemandResource extends Resource
                     ->requiresConfirmation()
                     ->modalHeading('Cancelar Demanda')
                     ->modalDescription('Tem certeza que deseja cancelar esta demanda? Ela continuará salva, mas seu status será alterado para Cancelada.')
-                    ->action(fn (Demand $record) => $record->update(['status' => \App\Enums\DemandStatusEnum::CANCELED->value, 'completed_at' => now()]))
+                    ->action(function (Demand $record) {
+                        if ($record->hasPendingChildren()) {
+                            \Filament\Notifications\Notification::make()
+                                ->title('Não é possível cancelar a demanda')
+                                ->body('Esta demanda possui subdemandas pendentes. Conclua ou cancele-as primeiro.')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
+                        $canceledStatus = \App\Models\ProcessStatus::findBySystemKey('canceled');
+
+                        $record->update([
+                            'status'            => \App\Enums\DemandStatusEnum::CANCELED->value,
+                            'completed_at'      => now(),
+                            'process_status_id' => $canceledStatus ? $canceledStatus->id : $record->process_status_id,
+                        ]);
+
+                        \Filament\Notifications\Notification::make()->title('Demanda cancelada com sucesso!')->success()->send();
+                    })
                     ->visible(fn (Demand $record) => 
-                        auth()->user()->user_role === \App\Enums\UserRoleEnum::ADMIN
-                        || $record->requested_by === auth()->id()
+                        ! $record->processStatus?->isCanceled()
+                        && ! $record->processStatus?->isClosed()
+                        && ! $record->processStatus?->isEvaluated()
+                        && (auth()->user()->user_role === \App\Enums\UserRoleEnum::ADMIN
+                            || $record->requested_by === auth()->id())
                     ),
             ])
             ->bulkActions([
@@ -476,7 +498,25 @@ class DemandResource extends Resource
                         ->icon('heroicon-o-x-circle')
                         ->color('danger')
                         ->requiresConfirmation()
-                        ->action(fn (\Illuminate\Database\Eloquent\Collection $records) => $records->each(fn ($record) => $record->update(['status' => \App\Enums\DemandStatusEnum::CANCELED->value, 'completed_at' => now()])))
+                        ->action(function (\Illuminate\Database\Eloquent\Collection $records) {
+                            $canceledStatus = \App\Models\ProcessStatus::findBySystemKey('canceled');
+                            $canceledCount = 0;
+                            foreach ($records as $record) {
+                                if ($record->hasPendingChildren()) {
+                                    continue;
+                                }
+                                if ($record->processStatus?->isCanceled() || $record->processStatus?->isClosed() || $record->processStatus?->isEvaluated()) {
+                                    continue;
+                                }
+                                $record->update([
+                                    'status'            => \App\Enums\DemandStatusEnum::CANCELED->value,
+                                    'completed_at'      => now(),
+                                    'process_status_id' => $canceledStatus ? $canceledStatus->id : $record->process_status_id,
+                                ]);
+                                $canceledCount++;
+                            }
+                            \Filament\Notifications\Notification::make()->title("{$canceledCount} demanda(s) cancelada(s) com sucesso!")->success()->send();
+                        })
                         ->visible(fn () => auth()->user()->user_role === \App\Enums\UserRoleEnum::ADMIN),
                 ]),
             ])

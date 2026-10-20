@@ -45,9 +45,10 @@ class StatusTransitionsRelationManager extends RelationManager
     {
         $entity = $this->getOwnerRecord();
 
-        // A Condicional (gateway) nunca é situação de origem, mas pode ser destino
-        $fromStatusOptions = $entity->processStatuses()->withoutConditional()->pluck('name', 'process_statuses.id')->toArray();
-        $toStatusOptions   = $entity->processStatuses()->pluck('name', 'process_statuses.id')->toArray();
+        // A Condicional (gateway), Cancelada e Avaliada nunca são situações de origem
+        $fromStatusOptions = $entity->processStatuses()->withoutSpecialSystemStatuses()->pluck('name', 'process_statuses.id')->toArray();
+        // Cancelada e Avaliada não são opções de destino manual de transição no fluxo do processo
+        $toStatusOptions   = $entity->processStatuses()->withoutUnmanualTransitions()->pluck('name', 'process_statuses.id')->toArray();
         $roleOptions = [
             '__requester__' => 'Demandante (Quem abriu a demanda)',
             '__assignee__'  => 'Responsável (Executor atual)',
@@ -70,10 +71,10 @@ class StatusTransitionsRelationManager extends RelationManager
         }
 
         // Situações elegíveis como resultado de uma regra ou do "senão":
-        // as do processo, exceto a Condicional e a situação de origem da transição
+        // as do processo, exceto Condicional, Cancelada, Avaliada e a situação de origem da transição
         $thenStatusOptions = function (?string $fromStatusId) use ($entity): array {
             return $entity->processStatuses()
-                ->withoutConditional()
+                ->withoutSpecialSystemStatuses()
                 ->when($fromStatusId, fn ($q) => $q->where('process_statuses.id', '!=', $fromStatusId))
                 ->pluck('name', 'process_statuses.id')
                 ->toArray();

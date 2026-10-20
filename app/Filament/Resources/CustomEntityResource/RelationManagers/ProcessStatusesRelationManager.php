@@ -28,7 +28,7 @@ class ProcessStatusesRelationManager extends RelationManager
             ->schema([
                 Forms\Components\Select::make('process_status_id')
                     ->label('Situação')
-                    ->options(ProcessStatus::all()->pluck('name', 'id'))
+                    ->options(ProcessStatus::withoutSpecialSystemStatuses()->pluck('name', 'id'))
                     ->searchable()
                     ->required()
                     ->placeholder('Selecione uma situação já cadastrada...'),
@@ -64,7 +64,7 @@ class ProcessStatusesRelationManager extends RelationManager
                     ->modalHeading('Vincular Situação')
                     ->modalSubmitActionLabel('Vincular')
                     ->preloadRecordSelect()
-                    ->recordSelectOptionsQuery(fn ($query) => $query->orderBy('name'))
+                    ->recordSelectOptionsQuery(fn ($query) => $query->withoutSpecialSystemStatuses()->orderBy('name'))
                     ->form(fn (Tables\Actions\AttachAction $action) => [
                         $action->getRecordSelect()
                             ->label('Situação')

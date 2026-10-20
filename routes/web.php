@@ -27,7 +27,7 @@ Route::middleware([\App\Http\Middleware\EnsureAdmin::class])->group(function () 
         return 'Sistema atualizado, cache limpo, migrações sincronizadas e fila processada com sucesso!';
     })->name('admin.update-system');
 
-    Route::post('/trigger-deadlines', function () {
+    Route::match(['get', 'post'], '/trigger-deadlines', function () {
         \Illuminate\Support\Facades\Artisan::call('app:check-demand-deadlines', ['--force' => true]);
         $deadlinesOutput = \Illuminate\Support\Facades\Artisan::output();
 
@@ -42,7 +42,7 @@ Route::middleware([\App\Http\Middleware\EnsureAdmin::class])->group(function () 
         ]);
     })->name('admin.trigger-deadlines');
 
-    Route::post('/test-email', function (\Illuminate\Http\Request $request) {
+    Route::match(['get', 'post'], '/test-email', function (\Illuminate\Http\Request $request) {
         $to = $request->input('to', $request->query('to', auth()->user()?->email ?? config('mail.from.address')));
         try {
             \Illuminate\Support\Facades\Mail::raw("Olá! Este é um e-mail de teste disparado com sucesso pelo Gaspar através do servidor SMTP configurado em " . now()->format('d/m/Y H:i:s') . ".\n\nSe você recebeu este e-mail, as configurações de SMTP estão 100% corretas e ativas!", function ($message) use ($to) {
