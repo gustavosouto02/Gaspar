@@ -38,10 +38,9 @@ class DemandActivityNotification extends Notification
         return (new MailMessage)
             ->subject('Atualização na Demanda ' . $code . ' - ' . $this->demand->title)
             ->greeting('Olá, ' . explode(' ', $notifiable->name)[0] . '!')
-            ->line('Houve uma nova atividade na demanda: **' . $this->demand->title . '** (' . $code . ')')
+            ->line('Houve uma nova atividade na demanda: **' . $this->demand->title . '** ([' . $code . '](' . $demandUrl . '))')
             ->line('**Detalhe:** ' . $this->activityMessage)
-            ->action('Abrir Demanda no Sistema', $demandUrl)
-            ->line('Link direto para acesso: ' . $demandUrl)
+            ->action('Acessar demanda', $demandUrl)
             ->line('Obrigado por usar o sistema Gaspar!');
     }
 

@@ -129,6 +129,7 @@
             border-radius: 16px;
             padding: 2rem;
             box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
         }
 
         /* Seções do formulário */
@@ -170,17 +171,21 @@
         .form-grid {
             display: grid;
             gap: 0.875rem;
+            width: 100%;
         }
 
         .form-grid-row {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 0.875rem;
+            width: 100%;
         }
 
         .form-group {
             display: flex;
             flex-direction: column;
+            min-width: 0;
+            width: 100%;
         }
 
         .form-group label {
@@ -192,6 +197,10 @@
 
         .form-group input,
         .form-group select {
+            width: 100%;
+            max-width: 100%;
+            min-width: 0;
+            box-sizing: border-box;
             background: var(--bg-input);
             border: 1px solid var(--border-color);
             border-radius: 8px;
@@ -201,6 +210,7 @@
             color: var(--text-primary);
             transition: border-color 0.2s, box-shadow 0.2s;
             outline: none;
+            -webkit-appearance: none;
         }
 
         .form-group select {
@@ -212,6 +222,9 @@
             background-position: right 0.75rem center;
             background-size: 18px;
             padding-right: 2.25rem;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            overflow: hidden;
         }
 
         .form-group select option {
@@ -524,7 +537,7 @@
                             <div class="form-group">
                                 <label for="mail_encryption">Segurança / Criptografia</label>
                                 <select id="mail_encryption" name="mail_encryption">
-                                    <option value="ssl" {{ old('mail_encryption', 'ssl') === 'ssl' ? 'selected' : '' }}>SSL / SMTPS (Porta 465 - Recomendado)</option>
+                                    <option value="ssl" {{ old('mail_encryption', 'ssl') === 'ssl' ? 'selected' : '' }}>SSL / SMTPS (Porta 465)</option>
                                     <option value="tls" {{ old('mail_encryption', 'tls') === 'tls' ? 'selected' : '' }}>TLS / STARTTLS (Porta 587)</option>
                                     <option value="none" {{ old('mail_encryption') === 'none' ? 'selected' : '' }}>Nenhuma</option>
                                 </select>
