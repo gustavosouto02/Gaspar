@@ -36,7 +36,7 @@ class ProjectResource extends Resource
                                     ->schema([
                                         Forms\Components\Placeholder::make('id_label')
                                             ->label('Projeto número:')
-                                            ->content(fn ($record) => $record ? '#' . strtoupper(substr($record->id, 0, 8)) : 'NOVO'),
+                                            ->content(fn ($record) => $record ? ($record->number ?? '#' . strtoupper(substr($record->id, 0, 8))) : 'NOVO'),
 
                                         Forms\Components\Placeholder::make('created_at_label')
                                             ->label('Data de criação:')
@@ -181,13 +181,15 @@ class ProjectResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('id')
+                Tables\Columns\TextColumn::make('number')
                     ->label('Número')
-                    ->searchable(),
+                    ->searchable()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Título')
                     ->searchable(query: fn ($query, string $search) => $query->where(fn ($q) => 
                         $q->where('name', 'like', "%{$search}%")
+                          ->orWhere('number', 'like', "%{$search}%")
                           ->orWhere('description', 'like', "%{$search}%")
                           ->orWhere('custom_data', 'like', "%{$search}%")
                     )),

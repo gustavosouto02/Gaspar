@@ -51,12 +51,15 @@ class DemandReports extends Page implements HasForms, HasTable
     private function getTableColumns(): array
     {
         $columns = [
-            Tables\Columns\TextColumn::make('id')
-                ->label('Demanda')
-                ->formatStateUsing(fn ($state) => '#' . strtoupper(substr($state, 0, 8)))
+            Tables\Columns\TextColumn::make('code')
+                ->label('Código')
+                ->formatStateUsing(fn ($state, $record) => $state ?? '#' . strtoupper(substr($record->id, 0, 8)))
                 ->searchable(query: function ($query, string $search) {
                     $clean = ltrim(trim($search), '#');
-                    return $clean !== '' ? $query->where('id', 'like', "{$clean}%") : $query;
+                    return $clean !== '' ? $query->where(function ($q) use ($clean) {
+                        $q->where('code', 'like', "%{$clean}%")
+                          ->orWhere('id', 'like', "{$clean}%");
+                    }) : $query;
                 })
                 ->sortable()
                 ->toggleable(),
@@ -182,11 +185,11 @@ class DemandReports extends Page implements HasForms, HasTable
                         // UTF-8 BOM para o Excel abrir corretamente
                         fputs($csv, $bom =(chr(0xEF) . chr(0xBB) . chr(0xBF)));
                         
-                        fputcsv($csv, ['ID', 'Título', 'Situação', 'Status', 'Prioridade', 'Responsável', 'Prazo', 'Aberta Em'], ';');
+                        fputcsv($csv, ['Código', 'Título', 'Situação', 'Status', 'Prioridade', 'Responsável', 'Prazo', 'Aberta Em'], ';');
 
                         $livewire->getFilteredTableQuery()->each(function ($demand) use ($csv) {
                             fputcsv($csv, [
-                                '#' . strtoupper(substr($demand->id, 0, 8)),
+                                $demand->code ?? '#' . strtoupper(substr($demand->id, 0, 8)),
                                 $demand->title,
                                 $demand->processStatus?->name ?? '—',
                                 $demand->status instanceof \App\Enums\DemandStatusEnum ? $demand->status->label() : $demand->status,

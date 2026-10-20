@@ -2,9 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use App\Concerns\HasCustomFields;
+use App\Concerns\HasSequentialCode;
 use App\Concerns\LogsActivity;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -13,7 +14,10 @@ use Illuminate\Support\Str;
 
 class Project extends Model
 {
-    use HasFactory, HasUuids, LogsActivity, HasCustomFields;
+    use HasFactory, HasUuids, LogsActivity, HasCustomFields, HasSequentialCode;
+
+    protected string $sequentialCodePrefix = 'PRJ';
+    protected string $sequentialCodeColumn = 'number';
 
     protected $fillable = [
         'client_id',

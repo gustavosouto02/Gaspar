@@ -33,17 +33,17 @@ class DemandNotificationTest extends TestCase
         $notification = new DemandActivityNotification($this->demand, 'Atividade de teste');
         $mail = $notification->toMail($this->user);
 
-        $shortId = strtoupper(substr($this->demand->id, 0, 8));
+        $code = $this->demand->code ?: '#' . strtoupper(substr($this->demand->id, 0, 8));
         $demandUrl = DemandResource::getUrl('edit', ['record' => $this->demand]);
 
         $this->assertSame('Acessar demanda', $mail->actionText);
         $this->assertSame($demandUrl, $mail->actionUrl);
-        $this->assertContains("Houve uma nova atividade na demanda: **{$this->demand->title}** ([#{$shortId}]({$demandUrl}))", $mail->introLines);
+        $this->assertContains("Houve uma nova atividade na demanda: **{$this->demand->title}** ([{$code}]({$demandUrl}))", $mail->introLines);
     }
 
     public function test_demand_deadline_notifications_have_acessar_demanda_and_linked_short_id(): void
     {
-        $shortId = strtoupper(substr($this->demand->id, 0, 8));
+        $code = $this->demand->code ?: '#' . strtoupper(substr($this->demand->id, 0, 8));
         $demandUrl = DemandResource::getUrl('edit', ['record' => $this->demand]);
 
         foreach (['tomorrow', 'today', 'overdue'] as $type) {
@@ -53,7 +53,7 @@ class DemandNotificationTest extends TestCase
             $this->assertSame('Acessar demanda', $mail->actionText);
             $this->assertSame($demandUrl, $mail->actionUrl);
 
-            $expectedSubstring = "[#{$shortId}]({$demandUrl})";
+            $expectedSubstring = "[{$code}]({$demandUrl})";
             $firstLine = $mail->introLines[0];
             $this->assertStringContainsString($expectedSubstring, $firstLine);
         }
@@ -64,11 +64,11 @@ class DemandNotificationTest extends TestCase
         $notification = new DemandSatisfactionNotification($this->demand);
         $mail = $notification->toMail($this->user);
 
-        $shortId = strtoupper(substr($this->demand->id, 0, 8));
+        $code = $this->demand->code ?: '#' . strtoupper(substr($this->demand->id, 0, 8));
         $demandUrl = DemandResource::getUrl('view', ['record' => $this->demand]);
 
         $this->assertSame('Avaliar Atendimento', $mail->actionText);
         $this->assertSame($demandUrl, $mail->actionUrl);
-        $this->assertContains("A demanda **{$this->demand->title}** ([#{$shortId}]({$demandUrl})) foi concluída.", $mail->introLines);
+        $this->assertContains("A demanda **{$this->demand->title}** ([{$code}]({$demandUrl})) foi concluída.", $mail->introLines);
     }
 }

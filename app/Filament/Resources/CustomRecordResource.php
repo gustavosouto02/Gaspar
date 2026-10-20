@@ -94,6 +94,12 @@ class CustomRecordResource extends Resource
         }
 
         $schema = [];
+        if ($form->getRecord()) {
+            $schema[] = Forms\Components\Placeholder::make('code_placeholder')
+                ->label('Código do Registro:')
+                ->content(fn ($record) => $record?->code ?? '-');
+        }
+
         if ($typeId) {
             $type = \App\Models\CustomRecordType::with('fields')->find($typeId);
             if ($type) {
@@ -142,7 +148,12 @@ class CustomRecordResource extends Resource
         $livewire = $table->getLivewire();
         $typeId = property_exists($livewire, 'type_id') ? $livewire->type_id : static::getTypeId();
         
-        $columns = [];
+        $columns = [
+            Tables\Columns\TextColumn::make('code')
+                ->label('Código')
+                ->searchable()
+                ->sortable(),
+        ];
 
         if ($typeId) {
             $type = \App\Models\CustomRecordType::with('fields')->find($typeId);

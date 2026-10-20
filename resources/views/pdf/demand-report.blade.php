@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Demanda #{{ strtoupper(substr($demand->id, 0, 8)) }} - {{ $demand->title }}</title>
+    <title>Demanda {{ $demand->code ?? '#' . strtoupper(substr($demand->id, 0, 8)) }} - {{ $demand->title }}</title>
     <style>
         @page {
             margin: 28px 32px 35px 32px;
@@ -201,7 +201,7 @@
                     </div>
                 </td>
                 <td class="header-meta" style="width: 30%;">
-                    <div class="demand-badge-id">#{{ strtoupper(substr($demand->id, 0, 8)) }}</div>
+                    <div class="demand-badge-id">{{ $demand->code ?? '#' . strtoupper(substr($demand->id, 0, 8)) }}</div>
                     <div class="emission-date">Emissão: {{ now()->format('d/m/Y H:i:s') }}</div>
                     <div style="font-size: 8.5px; color: #94a3b8; word-break: break-all;">UUID: {{ $demand->id }}</div>
                 </td>
@@ -447,7 +447,7 @@
             <tbody>
                 @foreach($demand->children as $child)
                 <tr>
-                    <td><strong>#{{ strtoupper(substr($child->id, 0, 8)) }}</strong></td>
+                    <td><strong>{{ $child->code ?? '#' . strtoupper(substr($child->id, 0, 8)) }}</strong></td>
                     <td>{{ $child->title }}</td>
                     <td>{{ $child->processStatus?->name ?? '—' }}</td>
                     <td>{{ $child->assignee?->name ?? 'Não atribuído' }}</td>

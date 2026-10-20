@@ -49,7 +49,7 @@
                         @endif
 
                         <span class="text-xs text-gray-500 dark:text-gray-400">
-                            #{{ strtoupper(substr($demand->id, 0, 8)) }} · {{ $demand->entity?->full_display_name ?? '—' }}
+                            {{ $demand->code ?? '#' . strtoupper(substr($demand->id, 0, 8)) }} · {{ $demand->entity?->full_display_name ?? '—' }}
                         </span>
 
                         @if ($demand->parent_demand_id && $demand->parent)
