@@ -4,18 +4,26 @@ namespace App\Filament\Resources;
 
 use App\Enums\DemandPriorityEnum;
 use App\Enums\DemandStatusEnum;
+use App\Enums\FieldPermissionEnum;
+use App\Enums\FieldTypeEnum;
 use App\Enums\ProcessStatusColorEnum;
+use App\Enums\UserRoleEnum;
 use App\Filament\Resources\DemandResource\Pages;
-use App\Filament\Resources\DemandResource\RelationManagers;
+use App\Models\ActivityLog;
 use App\Models\CustomEntity;
 use App\Models\Demand;
 use App\Models\ProcessStatus;
+use App\Models\User;
+use App\Services\FieldPermissionResolver;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\HtmlString;
 
 class DemandResource extends Resource
 {
@@ -47,14 +55,14 @@ class DemandResource extends Resource
                                     ->schema([
                                         Forms\Components\Placeholder::make('parent_link')
                                             ->label('Demanda Mãe:')
-                                            ->content(fn ($record) => $record?->parent_demand_id 
-                                                ? new \Illuminate\Support\HtmlString('<a href="'.DemandResource::getUrl('edit', ['record' => $record->parent_demand_id]).'" class="text-primary-600 underline font-semibold">Acessar Demanda Mãe: ' . e($record->parent?->title) . ' (' . ($record->parent?->code ?? '#' . strtoupper(substr($record->parent_demand_id, 0, 8))) . ')</a>') 
+                                            ->content(fn ($record) => $record?->parent_demand_id
+                                                ? new HtmlString('<a href="'.DemandResource::getUrl('edit', ['record' => $record->parent_demand_id]).'" class="text-primary-600 underline font-semibold">Acessar Demanda Mãe: '.e($record->parent?->title).' ('.($record->parent?->code ?? '#'.strtoupper(substr($record->parent_demand_id, 0, 8))).')</a>')
                                                 : '-')
                                             ->visible(fn ($record) => (bool) $record?->parent_demand_id),
 
                                         Forms\Components\Placeholder::make('id_label')
                                             ->label('Demanda número:')
-                                            ->content(fn ($record) => $record ? ($record->code ?? '#' . strtoupper(substr($record->id, 0, 8))) : 'NOVA'),
+                                            ->content(fn ($record) => $record ? ($record->code ?? '#'.strtoupper(substr($record->id, 0, 8))) : 'NOVA'),
 
                                         Forms\Components\Placeholder::make('created_at_label')
                                             ->label('Data de criação:')
@@ -63,14 +71,14 @@ class DemandResource extends Resource
                                         Forms\Components\Select::make('entity_id')
                                             ->label('Processo:')
                                             ->default(request()->query('entity_id'))
-                                            ->options(fn () => \App\Models\CustomEntity::with('macroprocess')->where('is_active', true)->get()->pluck('full_display_name', 'id'))
+                                            ->options(fn () => CustomEntity::with('macroprocess')->where('is_active', true)->get()->pluck('full_display_name', 'id'))
                                             ->searchable()
                                             ->required()
                                             ->disabled(fn (string $operation) => $operation === 'edit')
                                             ->live()
                                             ->afterStateUpdated(function (Forms\Set $set, $state) {
                                                 if ($state) {
-                                                    $entity = \App\Models\CustomEntity::find($state);
+                                                    $entity = CustomEntity::find($state);
                                                     if ($entity) {
                                                         // Tenta buscar a situação "Nova"
                                                         $nova = $entity->processStatuses()->where('system_key', 'new')->first();
@@ -91,9 +99,14 @@ class DemandResource extends Resource
                                             ->label('Situação:')
                                             ->options(function (Get $get) {
                                                 $entityId = $get('entity_id');
-                                                if (! $entityId) return [];
-                                                $entity = \App\Models\CustomEntity::find($entityId);
-                                                if (! $entity) return [];
+                                                if (! $entityId) {
+                                                    return [];
+                                                }
+                                                $entity = CustomEntity::find($entityId);
+                                                if (! $entity) {
+                                                    return [];
+                                                }
+
                                                 return $entity->processStatuses()->withoutConditional()->pluck('name', 'process_statuses.id');
                                             })
                                             ->disabled()
@@ -136,19 +149,21 @@ class DemandResource extends Resource
                                     ->schema([
                                         Forms\Components\Placeholder::make('sla_due_at_label')
                                             ->label('Prazo de atendimento:')
-                                            ->content(function ($record, Forms\Get $get) {
+                                            ->content(function ($record, Get $get) {
                                                 if ($record && $record->sla_due_at) {
                                                     $isClosed = in_array($record->status?->value, ['CLOSED', 'EVALUATED']);
                                                     $vencido = $record->sla_due_at->isPast() && ! $isClosed;
-                                                    return $record->sla_due_at->format('d/m/Y H:i') . ($vencido ? ' (Vencido)' : '');
+
+                                                    return $record->sla_due_at->format('d/m/Y H:i').($vencido ? ' (Vencido)' : '');
                                                 }
 
                                                 $entityId = $get('entity_id') ?? $record?->entity_id;
                                                 if ($entityId) {
-                                                    $entity = \App\Models\CustomEntity::find($entityId);
+                                                    $entity = CustomEntity::find($entityId);
                                                     if ($entity && $entity->sla_hours) {
                                                         $dias = round($entity->sla_hours / 24, 1);
                                                         $previsao = now()->addHours($entity->sla_hours)->format('d/m/Y H:i');
+
                                                         return "{$entity->sla_hours}h (~{$dias} dias) — Previsão: {$previsao}";
                                                     }
                                                 }
@@ -208,7 +223,7 @@ class DemandResource extends Resource
                             ->label('Registrar Subdemanda')
                             ->icon('heroicon-m-plus')
                             ->color('warning')
-                            ->url(fn ($record) => $record ? \App\Filament\Resources\DemandResource::getUrl('create', ['parent_demand_id' => $record->id]) : null)
+                            ->url(fn ($record) => $record ? DemandResource::getUrl('create', ['parent_demand_id' => $record->id]) : null),
                     ])
                     ->schema([
                         Forms\Components\ViewField::make('demand_subdemands')
@@ -230,12 +245,12 @@ class DemandResource extends Resource
 
                 Forms\Components\Hidden::make('created_by')
                     ->default(fn () => auth()->id()),
-                    
+
                 Forms\Components\Hidden::make('status')
-                    ->default(\App\Enums\DemandStatusEnum::ACTIVE->value),
-                    
+                    ->default(DemandStatusEnum::ACTIVE->value),
+
                 Forms\Components\Hidden::make('priority')
-                    ->default(\App\Enums\DemandPriorityEnum::MEDIUM->value),
+                    ->default(DemandPriorityEnum::MEDIUM->value),
 
                 Forms\Components\Hidden::make('parent_demand_id')
                     ->default(request()->query('parent_demand_id')),
@@ -248,13 +263,13 @@ class DemandResource extends Resource
      * Quando situação e usuário são informados, aplica a matriz de permissões
      * de campos (obrigatório/opcional/somente leitura/oculto).
      */
-    public static function buildDynamicFieldSchema(?string $entityId, ?string $processStatusId = null, ?\App\Models\User $user = null): array
+    public static function buildDynamicFieldSchema(?string $entityId, ?string $processStatusId = null, ?User $user = null): array
     {
         if (! $entityId) {
             return [];
         }
 
-        $entity = \App\Models\CustomEntity::find($entityId);
+        $entity = CustomEntity::find($entityId);
         if (! $entity) {
             return [];
         }
@@ -270,33 +285,33 @@ class DemandResource extends Resource
             ];
         }
 
-        $permissions  = null;
-        $statusRecord = $processStatusId ? \App\Models\ProcessStatus::find($processStatusId) : null;
+        $permissions = null;
+        $statusRecord = $processStatusId ? ProcessStatus::find($processStatusId) : null;
 
         if ($statusRecord && $user) {
-            $permissions = app(\App\Services\FieldPermissionResolver::class)->resolve($entity, $statusRecord, $user);
+            $permissions = app(FieldPermissionResolver::class)->resolve($entity, $statusRecord, $user);
         }
 
         $schema = [];
         foreach ($fields as $field) {
-            $key       = "field_data.{$field->key}";
+            $key = "field_data.{$field->key}";
             $component = match ($field->field_type) {
-                \App\Enums\FieldTypeEnum::TEXT     => Forms\Components\TextInput::make($key),
-                \App\Enums\FieldTypeEnum::TEXTAREA => Forms\Components\Textarea::make($key)->rows(3),
-                \App\Enums\FieldTypeEnum::NUMBER   => Forms\Components\TextInput::make($key)->numeric(),
-                \App\Enums\FieldTypeEnum::CURRENCY => Forms\Components\TextInput::make($key)->prefix('R$')->numeric(),
-                \App\Enums\FieldTypeEnum::DATE     => Forms\Components\DatePicker::make($key),
-                \App\Enums\FieldTypeEnum::SELECT   => Forms\Components\Select::make($key)
+                FieldTypeEnum::TEXT => Forms\Components\TextInput::make($key),
+                FieldTypeEnum::TEXTAREA => Forms\Components\Textarea::make($key)->rows(3),
+                FieldTypeEnum::NUMBER => Forms\Components\TextInput::make($key)->numeric(),
+                FieldTypeEnum::CURRENCY => Forms\Components\TextInput::make($key)->prefix('R$')->numeric(),
+                FieldTypeEnum::DATE => Forms\Components\DatePicker::make($key),
+                FieldTypeEnum::SELECT => Forms\Components\Select::make($key)
                     ->options($field->options_json
                         ? array_combine($field->options_json, $field->options_json)
                         : []),
-                \App\Enums\FieldTypeEnum::RADIO    => Forms\Components\Radio::make($key)
+                FieldTypeEnum::RADIO => Forms\Components\Radio::make($key)
                     ->options($field->options_json
                         ? array_combine($field->options_json, $field->options_json)
                         : []),
-                \App\Enums\FieldTypeEnum::CHECKBOX => Forms\Components\Toggle::make($key),
-                \App\Enums\FieldTypeEnum::EMAIL    => Forms\Components\TextInput::make($key)->email(),
-                default                            => Forms\Components\TextInput::make($key),
+                FieldTypeEnum::CHECKBOX => Forms\Components\Toggle::make($key),
+                FieldTypeEnum::EMAIL => Forms\Components\TextInput::make($key)->email(),
+                default => Forms\Components\TextInput::make($key),
             };
 
             $component->label($field->name);
@@ -305,14 +320,14 @@ class DemandResource extends Resource
                 // Sem situação/usuário resolvidos, mantém o comportamento original
                 $component->required($field->is_required);
             } else {
-                match ($permissions[$field->id] ?? \App\Enums\FieldPermissionEnum::OPTIONAL) {
-                    \App\Enums\FieldPermissionEnum::HIDDEN => $component->hidden(),
-                    \App\Enums\FieldPermissionEnum::READONLY => $component->disabled()->dehydrated(false),
+                match ($permissions[$field->id] ?? FieldPermissionEnum::OPTIONAL) {
+                    FieldPermissionEnum::HIDDEN => $component->hidden(),
+                    FieldPermissionEnum::READONLY => $component->disabled()->dehydrated(false),
                     // Rascunho ("Salvar" na criação ou edição de rascunho) ignora a obrigatoriedade
-                    \App\Enums\FieldPermissionEnum::REQUIRED => $component->required(
+                    FieldPermissionEnum::REQUIRED => $component->required(
                         fn ($livewire) => ! method_exists($livewire, 'isSavingDraft') || ! $livewire->isSavingDraft()
                     ),
-                    \App\Enums\FieldPermissionEnum::OPTIONAL => $component->required(false),
+                    FieldPermissionEnum::OPTIONAL => $component->required(false),
                 };
             }
 
@@ -395,7 +410,7 @@ class DemandResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('entity_id')
                     ->label('Processo')
-                    ->options(fn () => \App\Models\CustomEntity::with('macroprocess')->get()->pluck('full_display_name', 'id'))
+                    ->options(fn () => CustomEntity::with('macroprocess')->get()->pluck('full_display_name', 'id'))
                     ->searchable(),
 
                 Tables\Filters\SelectFilter::make('process_status_id')
@@ -465,49 +480,50 @@ class DemandResource extends Resource
                     ->modalDescription('Tem certeza que deseja cancelar esta demanda? Ela continuará salva, mas seu status será alterado para Cancelada.')
                     ->action(function (Demand $record) {
                         if ($record->hasPendingChildren()) {
-                            \Filament\Notifications\Notification::make()
+                            Notification::make()
                                 ->title('Não é possível cancelar a demanda')
                                 ->body('Esta demanda possui subdemandas pendentes. Conclua ou cancele-as primeiro.')
                                 ->danger()
                                 ->send();
+
                             return;
                         }
 
-                        $canceledStatus = \App\Models\ProcessStatus::findBySystemKey('canceled');
+                        $canceledStatus = ProcessStatus::findBySystemKey('canceled');
                         $oldStatusId = $record->process_status_id;
                         $oldStatusName = $record->processStatus?->name ?? '—';
                         $newStatusName = $canceledStatus?->name ?? 'Cancelada';
 
                         $record->update([
-                            'status'            => \App\Enums\DemandStatusEnum::CANCELED->value,
-                            'completed_at'      => now(),
+                            'status' => DemandStatusEnum::CANCELED->value,
+                            'completed_at' => now(),
                             'process_status_id' => $canceledStatus ? $canceledStatus->id : $record->process_status_id,
                         ]);
 
-                        \App\Models\ActivityLog::create([
-                            'user_id'        => auth()->id(),
-                            'event'          => 'transition',
-                            'auditable_type' => \App\Models\Demand::class,
-                            'auditable_id'   => (string) $record->id,
-                            'old_values'     => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
-                            'new_values'     => [
-                                'process_status_id'   => $canceledStatus?->id ?? $oldStatusId,
-                                'status_name'         => $newStatusName,
-                                'action'              => 'Cancelamento da Demanda',
+                        ActivityLog::create([
+                            'user_id' => auth()->id(),
+                            'event' => 'transition',
+                            'auditable_type' => Demand::class,
+                            'auditable_id' => (string) $record->id,
+                            'old_values' => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
+                            'new_values' => [
+                                'process_status_id' => $canceledStatus?->id ?? $oldStatusId,
+                                'status_name' => $newStatusName,
+                                'action' => 'Cancelamento da Demanda',
                             ],
-                            'ip_address'     => request()->ip(),
-                            'user_agent'     => request()->userAgent(),
-                            'created_at'     => now(),
+                            'ip_address' => request()->ip(),
+                            'user_agent' => request()->userAgent(),
+                            'created_at' => now(),
                         ]);
 
-                        \Filament\Notifications\Notification::make()->title('Demanda cancelada com sucesso!')->success()->send();
+                        Notification::make()->title('Demanda cancelada com sucesso!')->success()->send();
                     })
-                    ->visible(fn (Demand $record) => 
-                        ! $record->processStatus?->isCanceled()
-                        && ! $record->processStatus?->isClosed()
-                        && ! $record->processStatus?->isEvaluated()
-                        && (auth()->user()->user_role === \App\Enums\UserRoleEnum::ADMIN
-                            || $record->requested_by === auth()->id())
+                    ->visible(
+                        fn (Demand $record) => ! $record->processStatus?->isCanceled()
+                            && ! $record->processStatus?->isClosed()
+                            && ! $record->processStatus?->isEvaluated()
+                            && (auth()->user()->user_role === UserRoleEnum::ADMIN
+                                || $record->requested_by === auth()->id())
                     ),
             ])
             ->bulkActions([
@@ -517,8 +533,8 @@ class DemandResource extends Resource
                         ->icon('heroicon-o-x-circle')
                         ->color('danger')
                         ->requiresConfirmation()
-                        ->action(function (\Illuminate\Database\Eloquent\Collection $records) {
-                            $canceledStatus = \App\Models\ProcessStatus::findBySystemKey('canceled');
+                        ->action(function (Collection $records) {
+                            $canceledStatus = ProcessStatus::findBySystemKey('canceled');
                             $canceledCount = 0;
                             foreach ($records as $record) {
                                 if ($record->hasPendingChildren()) {
@@ -532,32 +548,32 @@ class DemandResource extends Resource
                                 $newStatusName = $canceledStatus?->name ?? 'Cancelada';
 
                                 $record->update([
-                                    'status'            => \App\Enums\DemandStatusEnum::CANCELED->value,
-                                    'completed_at'      => now(),
+                                    'status' => DemandStatusEnum::CANCELED->value,
+                                    'completed_at' => now(),
                                     'process_status_id' => $canceledStatus ? $canceledStatus->id : $record->process_status_id,
                                 ]);
 
-                                \App\Models\ActivityLog::create([
-                                    'user_id'        => auth()->id(),
-                                    'event'          => 'transition',
-                                    'auditable_type' => \App\Models\Demand::class,
-                                    'auditable_id'   => (string) $record->id,
-                                    'old_values'     => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
-                                    'new_values'     => [
-                                        'process_status_id'   => $canceledStatus?->id ?? $oldStatusId,
-                                        'status_name'         => $newStatusName,
-                                        'action'              => 'Cancelamento da Demanda',
+                                ActivityLog::create([
+                                    'user_id' => auth()->id(),
+                                    'event' => 'transition',
+                                    'auditable_type' => Demand::class,
+                                    'auditable_id' => (string) $record->id,
+                                    'old_values' => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
+                                    'new_values' => [
+                                        'process_status_id' => $canceledStatus?->id ?? $oldStatusId,
+                                        'status_name' => $newStatusName,
+                                        'action' => 'Cancelamento da Demanda',
                                     ],
-                                    'ip_address'     => request()->ip(),
-                                    'user_agent'     => request()->userAgent(),
-                                    'created_at'     => now(),
+                                    'ip_address' => request()->ip(),
+                                    'user_agent' => request()->userAgent(),
+                                    'created_at' => now(),
                                 ]);
 
                                 $canceledCount++;
                             }
-                            \Filament\Notifications\Notification::make()->title("{$canceledCount} demanda(s) cancelada(s) com sucesso!")->success()->send();
+                            Notification::make()->title("{$canceledCount} demanda(s) cancelada(s) com sucesso!")->success()->send();
                         })
-                        ->visible(fn () => auth()->user()->user_role === \App\Enums\UserRoleEnum::ADMIN),
+                        ->visible(fn () => auth()->user()->user_role === UserRoleEnum::ADMIN),
                 ]),
             ])
             ->recordUrl(fn (Demand $record): string => Pages\ViewDemand::getUrl(['record' => $record]));
@@ -573,10 +589,10 @@ class DemandResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'  => Pages\ListDemands::route('/'),
+            'index' => Pages\ListDemands::route('/'),
             'create' => Pages\CreateDemand::route('/create'),
-            'view'   => Pages\ViewDemand::route('/{record}'),
-            'edit'   => Pages\EditDemand::route('/{record}/edit'),
+            'view' => Pages\ViewDemand::route('/{record}'),
+            'edit' => Pages\EditDemand::route('/{record}/edit'),
         ];
     }
 }

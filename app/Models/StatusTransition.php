@@ -13,6 +13,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * @property DemandButtonEnum $label
+ */
 class StatusTransition extends Model
 {
     use HasFactory, HasUuids, LogsActivity;

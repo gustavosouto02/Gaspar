@@ -4,34 +4,41 @@ namespace App\Filament\Pages;
 
 use App\Enums\DemandPriorityEnum;
 use App\Enums\DemandStatusEnum;
+use App\Enums\FieldTypeEnum;
 use App\Enums\ProcessStatusColorEnum;
+use App\Filament\Resources\DemandResource;
+use App\Models\CustomEntity;
+use App\Models\CustomField;
 use App\Models\Demand;
+use App\Models\SavedReport;
+use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
+use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Tables;
 use Filament\Tables\Concerns\InteractsWithTable;
 use Filament\Tables\Contracts\HasTable;
 use Filament\Tables\Table;
-use Filament\Forms;
+use Livewire\Attributes\Url;
 
 class DemandReports extends Page implements HasForms, HasTable
 {
     use InteractsWithForms;
     use InteractsWithTable;
 
-    #[\Livewire\Attributes\Url]
+    #[Url]
     public $tableSearch = '';
 
     public ?array $data = [];
 
-    #[\Livewire\Attributes\Url]
+    #[Url]
     public ?string $saved_report_id = null;
 
     public function mount(): void
     {
         if ($this->saved_report_id) {
-            $report = \App\Models\SavedReport::where('user_id', auth()->id())
+            $report = SavedReport::where('user_id', auth()->id())
                 ->find($this->saved_report_id);
             if ($report && is_array($report->filters_json)) {
                 $this->tableFilters = $report->filters_json;
@@ -40,10 +47,13 @@ class DemandReports extends Page implements HasForms, HasTable
     }
 
     protected static ?string $navigationIcon = 'heroicon-o-document-chart-bar';
-    
+
     protected static ?string $navigationLabel = 'Relatório de Demandas';
+
     protected static ?string $title = 'Relatório de Demandas';
+
     protected static ?string $navigationGroup = 'Relatórios';
+
     protected static ?int $navigationSort = 1;
 
     protected static string $view = 'filament.pages.demand-reports';
@@ -53,12 +63,13 @@ class DemandReports extends Page implements HasForms, HasTable
         $columns = [
             Tables\Columns\TextColumn::make('code')
                 ->label('Código')
-                ->formatStateUsing(fn ($state, $record) => $state ?? '#' . strtoupper(substr($record->id, 0, 8)))
+                ->formatStateUsing(fn ($state, $record) => $state ?? '#'.strtoupper(substr($record->id, 0, 8)))
                 ->searchable(query: function ($query, string $search) {
                     $clean = ltrim(trim($search), '#');
+
                     return $clean !== '' ? $query->where(function ($q) use ($clean) {
                         $q->where('code', 'like', "%{$clean}%")
-                          ->orWhere('id', 'like', "{$clean}%");
+                            ->orWhere('id', 'like', "{$clean}%");
                     }) : $query;
                 })
                 ->sortable()
@@ -123,22 +134,23 @@ class DemandReports extends Page implements HasForms, HasTable
 
         // Se houver um processo selecionado no filtro, adiciona as colunas dele
         $entityId = $this->tableFilters['entity_id']['value'] ?? null;
-        if (!empty($entityId)) {
-            $customFields = \App\Models\CustomField::whereHas('customEntities', function ($q) use ($entityId) {
+        if (! empty($entityId)) {
+            $customFields = CustomField::whereHas('customEntities', function ($q) use ($entityId) {
                 $q->where('custom_entities.id', $entityId);
             })->get();
-            
+
             foreach ($customFields as $field) {
-                $columns[] = Tables\Columns\TextColumn::make('field_' . $field->id)
+                $columns[] = Tables\Columns\TextColumn::make('field_'.$field->id)
                     ->label($field->name)
                     ->getStateUsing(function (Demand $record) use ($field) {
                         $fv = $record->fieldValues->firstWhere('custom_field_id', $field->id);
                         if (blank($fv?->value)) {
                             return '—';
                         }
-                        if ($field->field_type === \App\Enums\FieldTypeEnum::CURRENCY && is_numeric($fv->value)) {
-                            return 'R$ ' . number_format((float) $fv->value, 2, ',', '.');
+                        if ($field->field_type === FieldTypeEnum::CURRENCY && is_numeric($fv->value)) {
+                            return 'R$ '.number_format((float) $fv->value, 2, ',', '.');
                         }
+
                         return $fv->value;
                     })
                     ->toggleable(isToggledHiddenByDefault: true); // Campos customizados vêm ocultos por padrão
@@ -151,12 +163,13 @@ class DemandReports extends Page implements HasForms, HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->query(fn () => Demand::query()
-                ->with(['fieldValues', 'requester', 'assignee', 'processStatus'])
-                ->when(
-                    !empty($this->tableFilters['entity_id']['value']),
-                    fn ($q) => $q->where('entity_id', $this->tableFilters['entity_id']['value'])
-                )
+            ->query(
+                fn () => Demand::query()
+                    ->with(['fieldValues', 'requester', 'assignee', 'processStatus'])
+                    ->when(
+                        ! empty($this->tableFilters['entity_id']['value']),
+                        fn ($q) => $q->where('entity_id', $this->tableFilters['entity_id']['value'])
+                    )
             )
             ->columns($this->getTableColumns())
             ->defaultSort('created_at', 'desc')
@@ -170,12 +183,12 @@ class DemandReports extends Page implements HasForms, HasTable
                             ->required(),
                     ])
                     ->action(function (array $data) {
-                        \App\Models\SavedReport::create([
+                        SavedReport::create([
                             'user_id' => auth()->id(),
                             'name' => $data['name'],
                             'filters_json' => $this->tableFilters ?? [],
                         ]);
-                        \Filament\Notifications\Notification::make()->title('Consulta salva com sucesso!')->success()->send();
+                        Notification::make()->title('Consulta salva com sucesso!')->success()->send();
                     }),
                 Tables\Actions\Action::make('export_csv')
                     ->label('Exportar CSV')
@@ -183,17 +196,17 @@ class DemandReports extends Page implements HasForms, HasTable
                     ->action(function ($livewire) {
                         $csv = fopen('php://temp', 'w');
                         // UTF-8 BOM para o Excel abrir corretamente
-                        fputs($csv, $bom =(chr(0xEF) . chr(0xBB) . chr(0xBF)));
-                        
+                        fwrite($csv, $bom = (chr(0xEF).chr(0xBB).chr(0xBF)));
+
                         fputcsv($csv, ['Código', 'Título', 'Situação', 'Status', 'Prioridade', 'Responsável', 'Prazo', 'Aberta Em'], ';');
 
                         $livewire->getFilteredTableQuery()->each(function ($demand) use ($csv) {
                             fputcsv($csv, [
-                                $demand->code ?? '#' . strtoupper(substr($demand->id, 0, 8)),
+                                $demand->code ?? '#'.strtoupper(substr($demand->id, 0, 8)),
                                 $demand->title,
                                 $demand->processStatus?->name ?? '—',
-                                $demand->status instanceof \App\Enums\DemandStatusEnum ? $demand->status->label() : $demand->status,
-                                $demand->priority instanceof \App\Enums\DemandPriorityEnum ? $demand->priority->label() : $demand->priority,
+                                $demand->status instanceof DemandStatusEnum ? $demand->status->label() : $demand->status,
+                                $demand->priority instanceof DemandPriorityEnum ? $demand->priority->label() : $demand->priority,
                                 $demand->current_responsibles ?? '—',
                                 $demand->sla_due_at ? $demand->sla_due_at->format('d/m/Y') : '—',
                                 $demand->created_at ? $demand->created_at->format('d/m/Y H:i') : '—',
@@ -207,12 +220,12 @@ class DemandReports extends Page implements HasForms, HasTable
                         return response()->streamDownload(function () use ($content) {
                             echo $content;
                         }, 'relatorio_demandas.csv');
-                    })
+                    }),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('entity_id')
                     ->label('Processo')
-                    ->options(fn () => \App\Models\CustomEntity::with('macroprocess')->get()->pluck('full_display_name', 'id'))
+                    ->options(fn () => CustomEntity::with('macroprocess')->get()->pluck('full_display_name', 'id'))
                     ->searchable()
                     ->placeholder('Todos'),
 
@@ -284,12 +297,12 @@ class DemandReports extends Page implements HasForms, HasTable
                 Tables\Actions\Action::make('view')
                     ->label('Abrir')
                     ->icon('heroicon-o-eye')
-                    ->url(fn (Demand $record) => \App\Filament\Resources\DemandResource::getUrl('view', ['record' => $record])),
+                    ->url(fn (Demand $record) => DemandResource::getUrl('view', ['record' => $record])),
                 Tables\Actions\Action::make('edit')
                     ->label('Editar')
                     ->icon('heroicon-o-pencil-square')
                     ->color('warning')
-                    ->url(fn (Demand $record) => \App\Filament\Resources\DemandResource::getUrl('edit', ['record' => $record]))
+                    ->url(fn (Demand $record) => DemandResource::getUrl('edit', ['record' => $record]))
                     ->visible(fn (Demand $record) => auth()->user()->can('update', $record)),
                 Tables\Actions\Action::make('pdf')
                     ->label('PDF')
@@ -301,6 +314,6 @@ class DemandReports extends Page implements HasForms, HasTable
             ->bulkActions([
                 // Vazio
             ])
-            ->recordUrl(fn (Demand $record) => \App\Filament\Resources\DemandResource::getUrl('view', ['record' => $record]));
+            ->recordUrl(fn (Demand $record) => DemandResource::getUrl('view', ['record' => $record]));
     }
 }

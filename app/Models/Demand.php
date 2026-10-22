@@ -6,18 +6,27 @@ use App\Concerns\HasSequentialCode;
 use App\Concerns\LogsActivity;
 use App\Enums\DemandPriorityEnum;
 use App\Enums\DemandStatusEnum;
+use App\Enums\SatisfactionRatingEnum;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
+/**
+ * @property Carbon|null $last_deadline_alert_date
+ * @property Carbon|null $sla_due_at
+ * @property Carbon|null $completed_at
+ */
 class Demand extends Model
 {
-    use HasFactory, HasUuids, LogsActivity, HasSequentialCode;
+    use HasFactory, HasSequentialCode, HasUuids, LogsActivity;
 
     protected string $sequentialCodePrefix = 'DEM';
+
     protected string $sequentialCodeColumn = 'code';
 
     protected $fillable = [
@@ -45,15 +54,15 @@ class Demand extends Model
     ];
 
     protected $casts = [
-        'status'                    => DemandStatusEnum::class,
-        'priority'                  => DemandPriorityEnum::class,
-        'satisfaction_rating'       => \App\Enums\SatisfactionRatingEnum::class,
+        'status' => DemandStatusEnum::class,
+        'priority' => DemandPriorityEnum::class,
+        'satisfaction_rating' => SatisfactionRatingEnum::class,
         'satisfaction_evaluated_at' => 'datetime',
-        'sla_due_at'                => 'datetime',
-        'last_deadline_alert_date'  => 'date',
-        'started_at'                => 'datetime',
-        'completed_at'              => 'datetime',
-        'attachments'               => 'array',
+        'sla_due_at' => 'datetime',
+        'last_deadline_alert_date' => 'date',
+        'started_at' => 'datetime',
+        'completed_at' => 'datetime',
+        'attachments' => 'array',
     ];
 
     public function newUniqueId(): string
@@ -76,14 +85,14 @@ class Demand extends Model
         static::updating(function (Demand $demand) {
             // Transição automática para Avaliada quando a nota de avaliação é informada e a demanda está encerrada
             if ($demand->isDirty('satisfaction_rating') && ! empty($demand->satisfaction_rating)) {
-                $isClosed = $demand->status === \App\Enums\DemandStatusEnum::CLOSED
+                $isClosed = $demand->status === DemandStatusEnum::CLOSED
                     || $demand->processStatus?->isClosed();
 
                 if ($isClosed) {
                     $evaluatedStatus = ProcessStatus::findBySystemKey('evaluated');
                     if ($evaluatedStatus) {
                         $demand->process_status_id = $evaluatedStatus->id;
-                        $demand->status = \App\Enums\DemandStatusEnum::EVALUATED;
+                        $demand->status = DemandStatusEnum::EVALUATED;
                     }
                     if (empty($demand->satisfaction_evaluated_at)) {
                         $demand->satisfaction_evaluated_at = now();
@@ -175,13 +184,14 @@ class Demand extends Model
     {
         if (! $this->process_status_id) {
             $this->updateQuietly(['assigned_to' => null]);
+
             return;
         }
 
         $transitions = StatusTransition::where('entity_id', $this->entity_id)
             ->where(function ($q) {
                 $q->whereNull('from_status_id')
-                  ->orWhere('from_status_id', $this->process_status_id);
+                    ->orWhere('from_status_id', $this->process_status_id);
             })
             ->where('to_status_id', '!=', $this->process_status_id)
             ->get();
@@ -192,20 +202,21 @@ class Demand extends Model
         if ($transitions->isEmpty()) {
             $updates['assigned_to'] = null;
             if ($this->status !== DemandStatusEnum::COMPLETED) {
-                $updates['status']       = DemandStatusEnum::COMPLETED;
+                $updates['status'] = DemandStatusEnum::COMPLETED;
                 $updates['completed_at'] = now();
             }
             $this->updateQuietly($updates);
+
             return;
         } else {
             // Se houver transições e estava concluída, reabre
             if ($this->status === DemandStatusEnum::COMPLETED) {
-                $updates['status']       = DemandStatusEnum::ACTIVE;
+                $updates['status'] = DemandStatusEnum::ACTIVE;
                 $updates['completed_at'] = null;
             }
         }
 
-        $roleIds        = [];
+        $roleIds = [];
         $allowRequester = false;
 
         foreach ($transitions as $transition) {
@@ -226,7 +237,10 @@ class Demand extends Model
             if ($this->requested_by !== $this->assigned_to) {
                 $updates['assigned_to'] = $this->requested_by;
             }
-            if (! empty($updates)) $this->updateQuietly($updates);
+            if (! empty($updates)) {
+                $this->updateQuietly($updates);
+            }
+
             return;
         }
 
@@ -249,7 +263,7 @@ class Demand extends Model
     }
 
     /**
-     * Verifica se o usuário logado tem permissão para disparar alguma 
+     * Verifica se o usuário logado tem permissão para disparar alguma
      * transição a partir da situação atual da demanda.
      */
     public function canBeTransitionedBy(User $user): bool
@@ -261,7 +275,7 @@ class Demand extends Model
         $transitions = StatusTransition::where('entity_id', $this->entity_id)
             ->where(function ($q) {
                 $q->whereNull('from_status_id')
-                  ->orWhere('from_status_id', $this->process_status_id);
+                    ->orWhere('from_status_id', $this->process_status_id);
             })
             ->get();
 
@@ -275,7 +289,7 @@ class Demand extends Model
     }
 
     /**
-     * Retorna uma string descrevendo quem são os responsáveis atuais 
+     * Retorna uma string descrevendo quem são os responsáveis atuais
      * com base nas transições de status da etapa atual.
      */
     public function getCurrentResponsiblesAttribute(): string
@@ -287,7 +301,7 @@ class Demand extends Model
         $transitions = StatusTransition::where('entity_id', $this->entity_id)
             ->where(function ($q) {
                 $q->whereNull('from_status_id')
-                  ->orWhere('from_status_id', $this->process_status_id);
+                    ->orWhere('from_status_id', $this->process_status_id);
             })
             ->get();
 
@@ -304,10 +318,10 @@ class Demand extends Model
                 return 'Qualquer membro do processo';
             }
             if (in_array('__requester__', $roles)) {
-                $labels->push('Demandante (' . ($this->requester?->name ?? '?') . ')');
+                $labels->push('Demandante ('.($this->requester?->name ?? '?').')');
             }
             if (in_array('__assignee__', $roles)) {
-                $labels->push('Responsável atual (' . ($this->assignee?->name ?? '?') . ')');
+                $labels->push('Responsável atual ('.($this->assignee?->name ?? '?').')');
             }
             $staticRoleIds = array_merge($staticRoleIds, array_diff($roles, ['__requester__', '__assignee__']));
         }
@@ -323,7 +337,7 @@ class Demand extends Model
                     ->where('entity_id', $this->entity_id)
                     ->where('process_role_id', $role->id)
                     ->get();
-                
+
                 if ($members->isEmpty()) {
                     $labels->push("{$role->name} (Sem membros atribuídos)");
                 } else {
@@ -345,45 +359,45 @@ class Demand extends Model
         return $query->where(function ($q) use ($user) {
             $userId = $user->id;
             $q->where('requested_by', $userId)
-              ->orWhere('assigned_to', $userId)
-              ->orWhereExists(function ($query) use ($userId) {
-                  $query->select(\Illuminate\Support\Facades\DB::raw(1))
-                      ->from('status_transitions')
-                      ->whereColumn('status_transitions.entity_id', 'demands.entity_id')
-                      ->where(function ($q2) {
-                          $q2->whereColumn('status_transitions.from_status_id', 'demands.process_status_id')
-                             ->orWhereNull('status_transitions.from_status_id');
-                      })
-                      ->where(function ($q3) use ($userId) {
-                          $isSqlite = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'sqlite';
-                          if ($isSqlite) {
-                              $q3->whereNull('status_transitions.allowed_role_ids')
-                                 ->orWhere('status_transitions.allowed_role_ids', '[]')
-                                 ->orWhere('status_transitions.allowed_role_ids', '')
-                                 ->orWhereRaw("status_transitions.allowed_role_ids LIKE '%\"__requester__\"%' AND demands.requested_by = ?", [$userId])
-                                 ->orWhereRaw("status_transitions.allowed_role_ids LIKE '%\"__assignee__\"%' AND demands.assigned_to = ?", [$userId])
-                                 ->orWhereExists(function ($q4) use ($userId) {
-                                     $q4->select(\Illuminate\Support\Facades\DB::raw(1))
-                                         ->from('process_members')
-                                         ->whereColumn('process_members.entity_id', 'status_transitions.entity_id')
-                                         ->where('process_members.user_id', $userId)
-                                         ->whereRaw("status_transitions.allowed_role_ids LIKE '%' || process_members.process_role_id || '%'");
-                                 });
-                          } else {
-                              $q3->whereNull('status_transitions.allowed_role_ids')
-                                 ->orWhereRaw("JSON_LENGTH(status_transitions.allowed_role_ids) = 0")
-                                 ->orWhereRaw("JSON_CONTAINS(status_transitions.allowed_role_ids, '\"__requester__\"') AND demands.requested_by = ?", [$userId])
-                                 ->orWhereRaw("JSON_CONTAINS(status_transitions.allowed_role_ids, '\"__assignee__\"') AND demands.assigned_to = ?", [$userId])
-                                 ->orWhereExists(function ($q4) use ($userId) {
-                                      $q4->select(\Illuminate\Support\Facades\DB::raw(1))
-                                          ->from('process_members')
-                                          ->whereColumn('process_members.entity_id', 'status_transitions.entity_id')
-                                          ->where('process_members.user_id', $userId)
-                                          ->whereRaw('JSON_CONTAINS(status_transitions.allowed_role_ids, JSON_QUOTE(process_members.process_role_id))');
-                                  });
-                          }
-                      });
-              });
+                ->orWhere('assigned_to', $userId)
+                ->orWhereExists(function ($query) use ($userId) {
+                    $query->select(DB::raw(1))
+                        ->from('status_transitions')
+                        ->whereColumn('status_transitions.entity_id', 'demands.entity_id')
+                        ->where(function ($q2) {
+                            $q2->whereColumn('status_transitions.from_status_id', 'demands.process_status_id')
+                                ->orWhereNull('status_transitions.from_status_id');
+                        })
+                        ->where(function ($q3) use ($userId) {
+                            $isSqlite = DB::connection()->getDriverName() === 'sqlite';
+                            if ($isSqlite) {
+                                $q3->whereNull('status_transitions.allowed_role_ids')
+                                    ->orWhere('status_transitions.allowed_role_ids', '[]')
+                                    ->orWhere('status_transitions.allowed_role_ids', '')
+                                    ->orWhereRaw("status_transitions.allowed_role_ids LIKE '%\"__requester__\"%' AND demands.requested_by = ?", [$userId])
+                                    ->orWhereRaw("status_transitions.allowed_role_ids LIKE '%\"__assignee__\"%' AND demands.assigned_to = ?", [$userId])
+                                    ->orWhereExists(function ($q4) use ($userId) {
+                                        $q4->select(DB::raw(1))
+                                            ->from('process_members')
+                                            ->whereColumn('process_members.entity_id', 'status_transitions.entity_id')
+                                            ->where('process_members.user_id', $userId)
+                                            ->whereRaw("status_transitions.allowed_role_ids LIKE '%' || process_members.process_role_id || '%'");
+                                    });
+                            } else {
+                                $q3->whereNull('status_transitions.allowed_role_ids')
+                                    ->orWhereRaw('JSON_LENGTH(status_transitions.allowed_role_ids) = 0')
+                                    ->orWhereRaw("JSON_CONTAINS(status_transitions.allowed_role_ids, '\"__requester__\"') AND demands.requested_by = ?", [$userId])
+                                    ->orWhereRaw("JSON_CONTAINS(status_transitions.allowed_role_ids, '\"__assignee__\"') AND demands.assigned_to = ?", [$userId])
+                                    ->orWhereExists(function ($q4) use ($userId) {
+                                        $q4->select(DB::raw(1))
+                                            ->from('process_members')
+                                            ->whereColumn('process_members.entity_id', 'status_transitions.entity_id')
+                                            ->where('process_members.user_id', $userId)
+                                            ->whereRaw('JSON_CONTAINS(status_transitions.allowed_role_ids, JSON_QUOTE(process_members.process_role_id))');
+                                    });
+                            }
+                        });
+                });
         });
     }
 
@@ -434,21 +448,21 @@ class Demand extends Model
         return $query->where(function ($q) use ($search, $clean) {
             // 1. Título e Descrição
             $q->where('demands.title', 'like', "%{$search}%")
-              ->orWhere('demands.description', 'like', "%{$search}%");
+                ->orWhere('demands.description', 'like', "%{$search}%");
 
             // 2. Código e ID da Demanda
             if ($clean !== '') {
                 $q->orWhere('demands.code', 'like', "%{$clean}%")
-                  ->orWhere('demands.id', 'like', "%{$clean}%");
+                    ->orWhere('demands.id', 'like', "%{$clean}%");
             }
 
             // 3. Processo e Macroprocesso (Nome e Sigla)
             $q->orWhereHas('entity', function ($eq) use ($search) {
                 $eq->where('name', 'like', "%{$search}%")
-                   ->orWhereHas('macroprocess', function ($mq) use ($search) {
-                       $mq->where('acronym', 'like', "%{$search}%")
-                          ->orWhere('name', 'like', "%{$search}%");
-                   });
+                    ->orWhereHas('macroprocess', function ($mq) use ($search) {
+                        $mq->where('acronym', 'like', "%{$search}%")
+                            ->orWhere('name', 'like', "%{$search}%");
+                    });
             });
 
             // 4. Situação
@@ -459,13 +473,13 @@ class Demand extends Model
             // 5. Cliente (Nome e campos adicionais custom_data)
             $q->orWhereHas('client', function ($cq) use ($search) {
                 $cq->where('name', 'like', "%{$search}%")
-                   ->orWhere('custom_data', 'like', "%{$search}%");
+                    ->orWhere('custom_data', 'like', "%{$search}%");
             });
 
             // 6. Projeto (Nome, Número e campos adicionais custom_data)
             $q->orWhereHas('project', function ($pq) use ($search, $clean) {
                 $pq->where('name', 'like', "%{$search}%")
-                   ->orWhere('custom_data', 'like', "%{$search}%");
+                    ->orWhere('custom_data', 'like', "%{$search}%");
                 if ($clean !== '') {
                     $pq->orWhere('number', 'like', "%{$clean}%");
                 }
@@ -474,10 +488,10 @@ class Demand extends Model
             // 7. Solicitante ou Responsável
             $q->orWhereHas('requester', function ($rq) use ($search) {
                 $rq->where('name', 'like', "%{$search}%")
-                   ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%");
             })->orWhereHas('assignee', function ($aq) use ($search) {
                 $aq->where('name', 'like', "%{$search}%")
-                   ->orWhere('email', 'like', "%{$search}%");
+                    ->orWhere('email', 'like', "%{$search}%");
             });
 
             // 8. Campos Customizados da Demanda (Valores e Nomes dos Campos)
@@ -496,4 +510,3 @@ class Demand extends Model
         });
     }
 }
-

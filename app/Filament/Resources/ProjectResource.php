@@ -2,26 +2,29 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\ProjectResource\Pages;
-use App\Filament\Resources\ProjectResource\RelationManagers;
 use App\Filament\Resources\Concerns\CustomFieldsRelationManager;
+use App\Filament\Resources\ProjectResource\Pages;
+use App\Models\ProcessStatus;
 use App\Models\Project;
+use App\Models\User;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class ProjectResource extends Resource
 {
     protected static ?string $model = Project::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-briefcase';
+
     protected static ?string $navigationLabel = 'Projetos';
+
     protected static ?string $modelLabel = 'Projeto';
+
     protected static ?string $pluralModelLabel = 'Projetos';
+
     protected static ?string $navigationGroup = 'Cadastros';
 
     public static function form(Form $form): Form
@@ -36,7 +39,7 @@ class ProjectResource extends Resource
                                     ->schema([
                                         Forms\Components\Placeholder::make('id_label')
                                             ->label('Projeto número:')
-                                            ->content(fn ($record) => $record ? ($record->number ?? '#' . strtoupper(substr($record->id, 0, 8))) : 'NOVO'),
+                                            ->content(fn ($record) => $record ? ($record->number ?? '#'.strtoupper(substr($record->id, 0, 8))) : 'NOVO'),
 
                                         Forms\Components\Placeholder::make('created_at_label')
                                             ->label('Data de criação:')
@@ -44,12 +47,12 @@ class ProjectResource extends Resource
 
                                         Forms\Components\Select::make('process_status_id')
                                             ->label('Situação:')
-                                            ->options(fn () => \App\Models\ProcessStatus::orderBy('name')->pluck('name', 'id'))
+                                            ->options(fn () => ProcessStatus::orderBy('name')->pluck('name', 'id'))
                                             ->searchable()
                                             ->preload()
                                             ->required()
                                             ->placeholder('Selecione a situação...'),
-                                            
+
                                         Forms\Components\Select::make('client_id')
                                             ->label('Cliente:')
                                             ->relationship('client', 'name')
@@ -67,7 +70,7 @@ class ProjectResource extends Resource
                                         Forms\Components\Placeholder::make('end_date_forecast_label')
                                             ->label('Previsão de conclusão:')
                                             ->content(fn ($record) => $record && $record->end_date_forecast ? $record->end_date_forecast->format('d/m/Y') : '-'),
-                                            
+
                                         Forms\Components\Placeholder::make('updated_at_label')
                                             ->label('Última atualização:')
                                             ->content(fn ($record) => $record ? $record->updated_at->format('d/m/Y') : '-'),
@@ -84,7 +87,7 @@ class ProjectResource extends Resource
                                             ->content(fn ($record) => $record && $record->sponsor_evaluation ? $record->sponsor_evaluation : '-'),
                                     ]),
                             ]),
-                            
+
                         Forms\Components\TextInput::make('name')
                             ->label('Título:')
                             ->required()
@@ -96,23 +99,23 @@ class ProjectResource extends Resource
                     ->schema([
                         Forms\Components\Select::make('contact_name')
                             ->label('Contato')
-                            ->options(\App\Models\User::pluck('name', 'name'))
+                            ->options(User::pluck('name', 'name'))
                             ->searchable(),
                         Forms\Components\Select::make('manager_name')
                             ->label('Gerente')
-                            ->options(\App\Models\User::pluck('name', 'name'))
+                            ->options(User::pluck('name', 'name'))
                             ->searchable(),
                         Forms\Components\Select::make('sponsor_name')
                             ->label('Sponsor')
-                            ->options(\App\Models\User::pluck('name', 'name'))
+                            ->options(User::pluck('name', 'name'))
                             ->searchable(),
                         Forms\Components\Select::make('scrum_master_name')
                             ->label('Scrum Master')
-                            ->options(\App\Models\User::pluck('name', 'name'))
+                            ->options(User::pluck('name', 'name'))
                             ->searchable(),
                         Forms\Components\Select::make('product_owner_name')
                             ->label('Product Owner')
-                            ->options(\App\Models\User::pluck('name', 'name'))
+                            ->options(User::pluck('name', 'name'))
                             ->searchable(),
                     ])->columns(2),
 
@@ -153,7 +156,7 @@ class ProjectResource extends Resource
                             ->label('Registrar Demanda')
                             ->icon('heroicon-m-plus')
                             ->color('warning')
-                            ->url(fn ($record) => $record ? \App\Filament\Resources\DemandResource::getUrl('create', ['project_id' => $record->id]) : null)
+                            ->url(fn ($record) => $record ? DemandResource::getUrl('create', ['project_id' => $record->id]) : null),
                     ])
                     ->schema([
                         Forms\Components\ViewField::make('project_demands')
@@ -187,11 +190,11 @@ class ProjectResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Título')
-                    ->searchable(query: fn ($query, string $search) => $query->where(fn ($q) => 
-                        $q->where('name', 'like', "%{$search}%")
-                          ->orWhere('number', 'like', "%{$search}%")
-                          ->orWhere('description', 'like', "%{$search}%")
-                          ->orWhere('custom_data', 'like', "%{$search}%")
+                    ->searchable(query: fn ($query, string $search) => $query->where(
+                        fn ($q) => $q->where('name', 'like', "%{$search}%")
+                            ->orWhere('number', 'like', "%{$search}%")
+                            ->orWhere('description', 'like', "%{$search}%")
+                            ->orWhere('custom_data', 'like', "%{$search}%")
                     )),
                 Tables\Columns\TextColumn::make('client.name')
                     ->label('Cliente')

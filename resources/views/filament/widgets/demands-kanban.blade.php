@@ -1,5 +1,6 @@
 @php
     use App\Enums\DemandPriorityEnum;
+    use App\Enums\DemandStatusEnum;
     use App\Filament\Resources\DemandResource;
 
     $columns = $widget->getKanbanColumns(collect($records ?? $widget->getTableRecords())->values());
@@ -41,7 +42,7 @@
                             @endif
                         </div>
 
-                        @if ($demand->requested_by === auth()->id() && empty($demand->satisfaction_rating) && ($demand->status === \App\Enums\DemandStatusEnum::CLOSED || $demand->processStatus?->isClosed()))
+                        @if ($demand->requested_by === auth()->id() && empty($demand->satisfaction_rating) && ($demand->status === DemandStatusEnum::CLOSED || $demand->processStatus?->isClosed()))
                             <span class="flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
                                 <x-heroicon-m-star class="h-4 w-4 shrink-0 text-amber-500" />
                                 Aguardando sua avaliação
