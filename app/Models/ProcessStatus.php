@@ -87,6 +87,30 @@ class ProcessStatus extends Model
         });
     }
 
+    /**
+     * Exclui situações especiais que não podem ser origem ou destino manual de regras
+     * ("Condicional", "Cancelada" e "Avaliada")
+     */
+    public function scopeWithoutSpecialSystemStatuses($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNull('process_statuses.system_key')
+                ->orWhereNotIn('process_statuses.system_key', ['conditional', 'canceled', 'evaluated']);
+        });
+    }
+
+    /**
+     * Exclui situações que não podem ser destino manual de transição no fluxo do processo
+     * ("Cancelada" e "Avaliada")
+     */
+    public function scopeWithoutUnmanualTransitions($query)
+    {
+        return $query->where(function ($q) {
+            $q->whereNull('process_statuses.system_key')
+                ->orWhereNotIn('process_statuses.system_key', ['canceled', 'evaluated']);
+        });
+    }
+
     public static function findBySystemKey(string $key): ?self
     {
         return static::query()->systemKey($key)->first();

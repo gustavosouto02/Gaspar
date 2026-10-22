@@ -37,17 +37,37 @@ class StatusTransition extends Model
         // Gateways encadeados não são suportados: o "senão" nunca pode
         // apontar para a própria situação Condicional
         static::saving(function (StatusTransition $transition) {
+            // Não permite que transições manuais apontem para situações 'canceled' ou 'evaluated'
+            if ($transition->to_status_id) {
+                $toStatus = ProcessStatus::find($transition->to_status_id);
+                if ($toStatus && in_array($toStatus->system_key, ['canceled', 'evaluated'])) {
+                    throw ValidationException::withMessages([
+                        'to_status_id' => "A situação '{$toStatus->name}' não pode ser configurada como destino de transição.",
+                    ]);
+                }
+            }
+
+            if ($transition->from_status_id) {
+                $fromStatus = ProcessStatus::find($transition->from_status_id);
+                if ($fromStatus && in_array($fromStatus->system_key, ['canceled', 'evaluated'])) {
+                    throw ValidationException::withMessages([
+                        'from_status_id' => "A situação '{$fromStatus->name}' não pode ser configurada como origem de transição.",
+                    ]);
+                }
+            }
+
             if (! $transition->default_to_status_id) {
                 return;
             }
 
-            $isConditional = ProcessStatus::whereKey($transition->default_to_status_id)
-                ->where('system_key', 'conditional')
-                ->exists();
+            $defaultStatus = ProcessStatus::find($transition->default_to_status_id);
+            if ($defaultStatus && in_array($defaultStatus->system_key, ['conditional', 'canceled', 'evaluated'])) {
+                $msg = $defaultStatus->system_key === 'conditional'
+                    ? 'O "senão" não pode apontar para a situação Condicional (gateways encadeados não são suportados).'
+                    : "O \"senão\" não pode apontar para a situação '{$defaultStatus->name}'.";
 
-            if ($isConditional) {
                 throw ValidationException::withMessages([
-                    'default_to_status_id' => 'O "senão" não pode apontar para a situação Condicional (gateways encadeados não são suportados).',
+                    'default_to_status_id' => $msg,
                 ]);
             }
         });

@@ -37,6 +37,11 @@ class DemandTransitionService
             throw new DemandTransitionException('A situação de destino desta transição não existe mais.');
         }
 
+        $currentStatus = $demand->processStatus;
+        if ($currentStatus && ($currentStatus->isCanceled() || $currentStatus->isEvaluated())) {
+            throw new DemandTransitionException("Não é possível realizar transições em uma demanda já finalizada ({$currentStatus->name}).");
+        }
+
         // Gateway: a Condicional nunca recebe a demanda; a tabela de decisão
         // resolve a situação real antes de qualquer gravação
         $matchedRule = null;
@@ -46,6 +51,17 @@ class DemandTransitionService
 
             $target = ProcessStatus::findOrFail($decision->toStatusId);
             $matchedRule = $decision->matchedRule;
+        }
+
+        if ($target->isEvaluated()) {
+            throw new DemandTransitionException('A situação "Avaliada" é atribuída automaticamente após a avaliação do atendimento pelo demandante.');
+        }
+
+        if ($target->isCanceled()) {
+            $canCancel = $user->user_role === \App\Enums\UserRoleEnum::ADMIN || $demand->requested_by === $user->id;
+            if (! $canCancel) {
+                throw new DemandTransitionException('Apenas o demandante ou um administrador podem cancelar esta demanda.');
+            }
         }
 
         // Verifica se a transição vai encerrar a demanda e se pode ser concluída
