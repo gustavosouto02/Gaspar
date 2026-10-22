@@ -176,6 +176,14 @@ class Demand extends Model
             ->exists();
     }
 
+    /** Verifica se há subdemandas pendentes (ativas ou em rascunho) */
+    public function hasPendingChildren(): bool
+    {
+        return $this->children()
+            ->whereIn('status', [DemandStatusEnum::ACTIVE->value, DemandStatusEnum::DRAFT->value])
+            ->exists();
+    }
+
     /**
      * Auto-atribui o responsável (assigned_to) com base na situação atual
      * e nos papéis permitidos para as próximas transições.
