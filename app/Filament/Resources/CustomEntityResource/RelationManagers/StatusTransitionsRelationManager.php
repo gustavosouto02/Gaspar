@@ -2,9 +2,11 @@
 
 namespace App\Filament\Resources\CustomEntityResource\RelationManagers;
 
+use App\Enums\DemandButtonEnum;
 use App\Enums\FieldTypeEnum;
 use App\Enums\RuleOperatorEnum;
 use App\Models\CustomField;
+use App\Models\ProcessMember;
 use App\Models\ProcessRole;
 use App\Models\ProcessStatus;
 use App\Models\StatusTransition;
@@ -51,19 +53,19 @@ class StatusTransitionsRelationManager extends RelationManager
         $toStatusOptions   = $entity->processStatuses()->withoutUnmanualTransitions()->pluck('name', 'process_statuses.id')->toArray();
         $roleOptions = [
             '__requester__' => 'Demandante (Quem abriu a demanda)',
-            '__assignee__'  => 'Responsável (Executor atual)',
+            '__assignee__' => 'Responsável (Executor atual)',
         ];
 
         // Busca todos os papéis e verifica se há usuários atrelados a eles neste processo
-        $allRoles = \App\Models\ProcessRole::orderBy('name')->get();
+        $allRoles = ProcessRole::orderBy('name')->get();
         foreach ($allRoles as $role) {
-            $roleMembers = \App\Models\ProcessMember::with('user')
+            $roleMembers = ProcessMember::with('user')
                 ->where('entity_id', $entity->id)
                 ->where('process_role_id', $role->id)
                 ->get();
 
             if ($roleMembers->isNotEmpty()) {
-                $userNames = $roleMembers->map(fn($m) => $m->user?->name)->filter()->unique()->implode(', ');
+                $userNames = $roleMembers->map(fn ($m) => $m->user?->name)->filter()->unique()->implode(', ');
                 $roleOptions[$role->id] = "{$role->name} ({$userNames})";
             } else {
                 $roleOptions[$role->id] = "{$role->name}";
@@ -95,12 +97,13 @@ class StatusTransitionsRelationManager extends RelationManager
                 ->required()
                 ->live(),
 
-            Forms\Components\TextInput::make('label')
+            Forms\Components\Select::make('label')
                 ->label('Texto do botão')
+                ->options(DemandButtonEnum::options())
+                ->default(DemandButtonEnum::ENVIAR->value)
                 ->required()
-                ->maxLength(100)
-                ->placeholder('Ex: Aprovar, Rejeitar, Encaminhar...')
-                ->helperText('Este texto aparecerá como botão de ação na demanda'),
+                ->in(array_keys(DemandButtonEnum::options()))
+                ->helperText('Selecione se o botão de ação na demanda será Salvar ou Enviar'),
 
             Forms\Components\Select::make('allowed_role_ids')
                 ->label('Papéis que podem disparar')
@@ -190,6 +193,7 @@ class StatusTransitionsRelationManager extends RelationManager
                                         unset($item['value_single'], $item['value_list'], $item['value_min'], $item['value_max']);
                                         $clean[$key] = $item;
                                     }
+
                                     return $clean;
                                 }),
 
@@ -335,15 +339,15 @@ class StatusTransitionsRelationManager extends RelationManager
     {
         try {
             $conditions = array_values($state['conditions'] ?? []);
-            $first      = $conditions[0] ?? null;
+            $first = $conditions[0] ?? null;
 
             if (! $first || empty($first['field_id']) || empty($first['operator'])) {
                 return 'Nova regra';
             }
 
             $fieldName = CustomField::find($first['field_id'])?->name ?? '?';
-            $operator  = RuleOperatorEnum::tryFrom($first['operator']);
-            $value     = $first['value'] ?? $first['value_single'] ?? null;
+            $operator = RuleOperatorEnum::tryFrom($first['operator']);
+            $value = $first['value'] ?? $first['value_single'] ?? null;
 
             if ($value === null && (isset($first['value_min']) || isset($first['value_max']))) {
                 $value = sprintf('%s e %s', $first['value_min'] ?? '?', $first['value_max'] ?? '?');
@@ -405,7 +409,7 @@ class StatusTransitionsRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('label')
                     ->label('Botão de ação')
                     ->badge()
-                    ->color('success'),
+                    ->color(fn (StatusTransition $record) => $record->label instanceof DemandButtonEnum ? $record->label->filamentColor() : 'success'),
 
                 Tables\Columns\TextColumn::make('allowed_role_ids')
                     ->label('Papéis permitidos')
@@ -431,11 +435,11 @@ class StatusTransitionsRelationManager extends RelationManager
                             static $cachedMembersByEntity = [];
 
                             if ($cachedRoles === null) {
-                                $cachedRoles = \App\Models\ProcessRole::all()->keyBy('id');
+                                $cachedRoles = ProcessRole::all()->keyBy('id');
                             }
 
                             if (! isset($cachedMembersByEntity[$record->entity_id])) {
-                                $cachedMembersByEntity[$record->entity_id] = \App\Models\ProcessMember::with('user')
+                                $cachedMembersByEntity[$record->entity_id] = ProcessMember::with('user')
                                     ->where('entity_id', $record->entity_id)
                                     ->get()
                                     ->groupBy('process_role_id');

@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\DemandButtonEnum;
 use App\Enums\DemandStatusEnum;
 use App\Enums\FieldPermissionEnum;
 use App\Enums\FieldTypeEnum;
@@ -98,7 +99,7 @@ class DemandTransitionServiceTest extends TestCase
             'from_status_id' => $this->newStatus->id,
             'to_status_id' => $this->conditionalStatus->id,
             'default_to_status_id' => $this->validationStatus->id,
-            'label' => 'Encaminhar',
+            'label' => DemandButtonEnum::ENVIAR->value,
         ]);
 
         TransitionRule::create([
@@ -207,7 +208,7 @@ class DemandTransitionServiceTest extends TestCase
             'entity_id' => $this->entity->id,
             'from_status_id' => $this->newStatus->id,
             'to_status_id' => $this->approvalStatus->id,
-            'label' => 'Aprovar',
+            'label' => DemandButtonEnum::SALVAR->value,
         ]);
 
         $this->expectException(DemandTransitionException::class);
@@ -230,7 +231,7 @@ class DemandTransitionServiceTest extends TestCase
             'entity_id' => $this->entity->id,
             'from_status_id' => $this->newStatus->id,
             'to_status_id' => $this->approvalStatus->id,
-            'label' => 'Aprovar',
+            'label' => DemandButtonEnum::SALVAR->value,
         ]);
 
         $target = $this->service->execute($demand, $transition, $this->user);

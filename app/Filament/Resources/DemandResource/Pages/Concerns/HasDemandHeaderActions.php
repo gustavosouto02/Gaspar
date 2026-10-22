@@ -2,14 +2,24 @@
 
 namespace App\Filament\Resources\DemandResource\Pages\Concerns;
 
+use App\Enums\DemandButtonEnum;
+use App\Enums\DemandStatusEnum;
 use App\Enums\ProcessStatusColorEnum;
+use App\Enums\SatisfactionRatingEnum;
+use App\Enums\UserRoleEnum;
 use App\Exceptions\DemandTransitionException;
+use App\Filament\Resources\DemandResource\Pages\EditDemand;
 use App\Models\ActivityLog;
+use App\Models\Demand;
+use App\Models\ProcessStatus;
 use App\Models\StatusTransition;
 use App\Notifications\DemandActivityNotification;
 use App\Services\DemandTransitionService;
 use Filament\Actions;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 trait HasDemandHeaderActions
@@ -30,8 +40,8 @@ trait HasDemandHeaderActions
         if (! $record) {
             return $parentActions;
         }
-        
-        $user   = auth()->user();
+
+        $user = auth()->user();
 
         if ($record->requested_by === $user->id && empty($record->satisfaction_rating) && $record->processStatus?->isClosed()) {
             $actions[] = Actions\Action::make('rate_demand')
@@ -39,43 +49,43 @@ trait HasDemandHeaderActions
                 ->icon('heroicon-m-star')
                 ->color('warning')
                 ->form([
-                    \Filament\Forms\Components\Select::make('satisfaction_rating')
+                    Select::make('satisfaction_rating')
                         ->label('Nota de Avaliação')
-                        ->options(\App\Enums\SatisfactionRatingEnum::options())
+                        ->options(SatisfactionRatingEnum::options())
                         ->required(),
-                    \Filament\Forms\Components\Textarea::make('satisfaction_comment')
+                    Textarea::make('satisfaction_comment')
                         ->label('Comentário')
                         ->rows(3),
                 ])
                 ->action(function (array $data) use ($record) {
-                    $avaliadaStatus = \App\Models\ProcessStatus::findBySystemKey('evaluated');
+                    $avaliadaStatus = ProcessStatus::findBySystemKey('evaluated');
                     $oldStatusId = $record->process_status_id;
                     $oldStatusName = $record->processStatus?->name ?? '—';
                     $newStatusName = $avaliadaStatus?->name ?? 'Avaliada';
-                    
+
                     $record->update([
                         'satisfaction_rating' => $data['satisfaction_rating'],
                         'satisfaction_comment' => $data['satisfaction_comment'],
                         'satisfaction_evaluated_at' => now(),
                         'process_status_id' => $avaliadaStatus ? $avaliadaStatus->id : $record->process_status_id,
-                        'status' => \App\Enums\DemandStatusEnum::EVALUATED,
+                        'status' => DemandStatusEnum::EVALUATED,
                     ]);
 
-                    \App\Models\ActivityLog::create([
-                        'user_id'        => auth()->id(),
-                        'event'          => 'transition',
-                        'auditable_type' => \App\Models\Demand::class,
-                        'auditable_id'   => (string) $record->id,
-                        'old_values'     => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
-                        'new_values'     => [
-                            'process_status_id'   => $avaliadaStatus?->id ?? $oldStatusId,
-                            'status_name'         => $newStatusName,
-                            'action'              => 'Avaliação de Atendimento',
+                    ActivityLog::create([
+                        'user_id' => auth()->id(),
+                        'event' => 'transition',
+                        'auditable_type' => Demand::class,
+                        'auditable_id' => (string) $record->id,
+                        'old_values' => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
+                        'new_values' => [
+                            'process_status_id' => $avaliadaStatus?->id ?? $oldStatusId,
+                            'status_name' => $newStatusName,
+                            'action' => 'Avaliação de Atendimento',
                             'satisfaction_rating' => $data['satisfaction_rating'],
                         ],
-                        'ip_address'     => request()->ip(),
-                        'user_agent'     => request()->userAgent(),
-                        'created_at'     => now(),
+                        'ip_address' => request()->ip(),
+                        'user_agent' => request()->userAgent(),
+                        'created_at' => now(),
                     ]);
 
                     Notification::make()->title('Avaliação enviada com sucesso!')->success()->send();
@@ -96,7 +106,7 @@ trait HasDemandHeaderActions
             ->where('entity_id', $record->entity_id)
             ->where(function ($q) use ($record) {
                 $q->whereNull('from_status_id')
-                  ->orWhere('from_status_id', $record->process_status_id);
+                    ->orWhere('from_status_id', $record->process_status_id);
             })
             ->orderBy('display_order')
             ->get();
@@ -115,9 +125,11 @@ trait HasDemandHeaderActions
                 ? (ProcessStatusColorEnum::tryFrom($transition->toStatus->color)?->filamentColor() ?? 'primary')
                 : 'primary';
 
-            $label = $transition->toStatus?->isClosed() ? 'Encerrar demanda' : $transition->label;
+            $label = $transition->label instanceof DemandButtonEnum
+                ? $transition->label->value
+                : ($transition->label ?? DemandButtonEnum::ENVIAR->value);
 
-            $actions[] = Actions\Action::make('transition_' . Str::slug($transition->id))
+            $actions[] = Actions\Action::make('transition_'.Str::slug($transition->id))
                 ->label($label)
                 ->color($color)
                 ->icon('heroicon-o-arrow-right-circle')
@@ -125,14 +137,15 @@ trait HasDemandHeaderActions
                 ->modalHeading("Confirmar: {$label}")
                 ->modalDescription(function () use ($transition) {
                     $from = $transition->fromStatus?->name ?? 'Qualquer';
-                    $to   = $transition->toStatus?->name ?? '?';
+                    $to = $transition->toStatus?->name ?? '?';
+
                     return "Mover de \"{$from}\" para \"{$to}\"?";
                 })
                 ->modalSubmitActionLabel('Confirmar')
                 ->action(function () use ($record, $transition, $user) {
                     // Na edição, o usuário pode ter digitado valores sem salvar:
                     // persiste o form antes, pois o serviço lê os valores do banco
-                    if ($this instanceof \App\Filament\Resources\DemandResource\Pages\EditDemand) {
+                    if ($this instanceof EditDemand) {
                         $this->save(shouldRedirect: false, shouldSendSavedNotification: false);
                     }
 
@@ -145,6 +158,7 @@ trait HasDemandHeaderActions
                             ->body($e->getMessage())
                             ->danger()
                             ->send();
+
                         return;
                     }
 
@@ -163,7 +177,7 @@ trait HasDemandHeaderActions
 
         // --- BOTÃO DINÂMICO DE DEVOLVER / RETORNAR ---
         // Verifica qual foi a última situação desta demanda antes da atual
-        $lastTransitionLog = ActivityLog::where('auditable_type', \App\Models\Demand::class)
+        $lastTransitionLog = ActivityLog::where('auditable_type', Demand::class)
             ->where('auditable_id', (string) $record->id)
             ->where('event', 'transition')
             ->orderByDesc('created_at')
@@ -172,7 +186,7 @@ trait HasDemandHeaderActions
         // Se encontrou histórico e a situação atual é o destino dessa última transição
         $isClosedOrEvaluated = $record->processStatus?->isClosed() || $record->processStatus?->isEvaluated();
         $isAssigneeOrAdmin = $user->isAdmin() || (string) $record->assigned_to === (string) $user->id;
-        
+
         if (! $isClosedOrEvaluated && $isAssigneeOrAdmin && $lastTransitionLog && isset($lastTransitionLog->old_values['process_status_id']) && $record->process_status_id != $lastTransitionLog->old_values['process_status_id']) {
             $previousStatusId = $lastTransitionLog->old_values['process_status_id'];
             $previousStatusName = $lastTransitionLog->old_values['status_name'] ?? 'Situação Anterior';
@@ -186,18 +200,18 @@ trait HasDemandHeaderActions
                 $transitionUsed = StatusTransition::where('entity_id', $record->entity_id)
                     ->where(function ($q) use ($previousStatusId) {
                         $q->where('from_status_id', $previousStatusId)
-                          ->orWhereNull('from_status_id');
+                            ->orWhereNull('from_status_id');
                     })
                     ->where(function ($q) use ($record) {
                         $q->where('to_status_id', $record->process_status_id)
-                          ->orWhere('default_to_status_id', $record->process_status_id)
-                          ->orWhere(function ($condQ) use ($record) {
-                              $condQ->whereHas('toStatus', fn ($s) => $s->where('system_key', 'conditional'))
+                            ->orWhere('default_to_status_id', $record->process_status_id)
+                            ->orWhere(function ($condQ) use ($record) {
+                                $condQ->whereHas('toStatus', fn ($s) => $s->where('system_key', 'conditional'))
                                     ->where(function ($matchQ) use ($record) {
                                         $matchQ->where('default_to_status_id', $record->process_status_id)
-                                               ->orWhereHas('rules', fn ($r) => $r->where('to_status_id', $record->process_status_id));
+                                            ->orWhereHas('rules', fn ($r) => $r->where('to_status_id', $record->process_status_id));
                                     });
-                          });
+                            });
                     })
                     ->first();
             }
@@ -210,7 +224,7 @@ trait HasDemandHeaderActions
                     ->color('warning')
                     ->icon('heroicon-o-arrow-uturn-left')
                     ->requiresConfirmation()
-                    ->modalHeading("Devolver Demanda")
+                    ->modalHeading('Devolver Demanda')
                     ->modalDescription("Isso fará a demanda voltar para a situação \"{$previousStatusName}\" e será reatribuída ao responsável anterior.")
                     ->modalSubmitActionLabel('Confirmar Retorno')
                     ->action(function () use ($record, $user, $previousStatusId, $previousStatusName, $previousUserId) {
@@ -221,6 +235,7 @@ trait HasDemandHeaderActions
                                 ->body('Esta demanda possui subdemandas pendentes (ativas ou em rascunho). Conclua ou cancele-as primeiro.')
                                 ->danger()
                                 ->send();
+
                             return;
                         }
 
@@ -228,7 +243,7 @@ trait HasDemandHeaderActions
                         $oldStatusName = $record->processStatus?->name ?? '—';
 
                         $record->process_status_id = $previousStatusId;
-                        
+
                         if ($previousUserId) {
                             $record->assigned_to = $previousUserId;
                         }
@@ -240,15 +255,15 @@ trait HasDemandHeaderActions
 
                         // Registra no audit log o retorno
                         ActivityLog::create([
-                            'user_id'        => $user->id,
-                            'event'          => 'transition',
-                            'auditable_type' => \App\Models\Demand::class,
-                            'auditable_id'   => (string) $record->id,
-                            'old_values'     => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
-                            'new_values'     => ['process_status_id' => $previousStatusId, 'status_name' => $previousStatusName, 'action' => 'Retorno Retroativo'],
-                            'ip_address'     => request()->ip(),
-                            'user_agent'     => request()->userAgent(),
-                            'created_at'     => now(),
+                            'user_id' => $user->id,
+                            'event' => 'transition',
+                            'auditable_type' => Demand::class,
+                            'auditable_id' => (string) $record->id,
+                            'old_values' => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
+                            'new_values' => ['process_status_id' => $previousStatusId, 'status_name' => $previousStatusName, 'action' => 'Retorno Retroativo'],
+                            'ip_address' => request()->ip(),
+                            'user_agent' => request()->userAgent(),
+                            'created_at' => now(),
                         ]);
 
                         // Dispara notificações
@@ -260,7 +275,7 @@ trait HasDemandHeaderActions
                                 $record->requester->notify(new DemandActivityNotification($record, "A demanda foi devolvida para: {$previousStatusName}"));
                             }
                         } catch (\Throwable $e) {
-                            \Illuminate\Support\Facades\Log::warning("Falha ao enviar notificação de devolução da demanda: {$e->getMessage()}");
+                            Log::warning("Falha ao enviar notificação de devolução da demanda: {$e->getMessage()}");
                         }
 
                         Notification::make()->title("Demanda devolvida para: {$previousStatusName}")->success()->send();
@@ -288,6 +303,7 @@ trait HasDemandHeaderActions
                         ->body('Esta demanda possui subdemandas pendentes (ativas ou em rascunho). Conclua ou cancele-as primeiro.')
                         ->danger()
                         ->send();
+
                     return;
                 }
 
@@ -297,7 +313,7 @@ trait HasDemandHeaderActions
                 $newStatusName = $canceledStatus?->name ?? 'Cancelada';
 
                 $record->update([
-                    'status' => \App\Enums\DemandStatusEnum::CANCELED->value,
+                    'status' => DemandStatusEnum::CANCELED->value,
                     'completed_at' => now(),
                     'process_status_id' => $canceledStatus ? $canceledStatus->id : $record->process_status_id,
                 ]);
