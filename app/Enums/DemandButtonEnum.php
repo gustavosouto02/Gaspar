@@ -60,12 +60,3 @@ enum DemandButtonEnum: string implements HasLabel
         return null;
     }
 }
-
-// Aliases para máxima compatibilidade semântica
-if (! class_exists('App\Enums\DemandButtonActionEnum', false)) {
-    class_alias(DemandButtonEnum::class, 'App\Enums\DemandButtonActionEnum');
-}
-
-if (! class_exists('App\Enums\DemandActionEnum', false)) {
-    class_alias(DemandButtonEnum::class, 'App\Enums\DemandActionEnum');
-}

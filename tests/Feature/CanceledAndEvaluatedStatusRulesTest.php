@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\DemandButtonEnum;
 use App\Enums\DemandStatusEnum;
 use App\Enums\SatisfactionRatingEnum;
 use App\Enums\UserRoleEnum;
@@ -102,7 +103,7 @@ class CanceledAndEvaluatedStatusRulesTest extends TestCase
             'entity_id'        => $this->entity->id,
             'from_status_id'   => $this->statusNova->id,
             'to_status_id'     => $this->statusCancelada->id,
-            'label'            => 'Cancelar',
+            'label'            => DemandButtonEnum::ENVIAR->value,
             'allowed_role_ids' => ['__requester__'],
             'display_order'    => 1,
         ]);
@@ -116,7 +117,7 @@ class CanceledAndEvaluatedStatusRulesTest extends TestCase
             'entity_id'        => $this->entity->id,
             'from_status_id'   => $this->statusEncerrada->id,
             'to_status_id'     => $this->statusAvaliada->id,
-            'label'            => 'Avaliar',
+            'label'            => DemandButtonEnum::SALVAR->value,
             'allowed_role_ids' => ['__requester__'],
             'display_order'    => 1,
         ]);
@@ -158,7 +159,7 @@ class CanceledAndEvaluatedStatusRulesTest extends TestCase
             'entity_id'      => $this->entity->id,
             'from_status_id' => $this->statusEncerrada->id,
             'to_status_id'   => $this->statusAvaliada->id,
-            'label'          => 'Forçar Avaliação',
+            'label'          => DemandButtonEnum::SALVAR->value,
         ]);
         // Salva sem eventos de validação para simular tentativa forçada
         $transition->saveQuietly();
@@ -210,7 +211,7 @@ class CanceledAndEvaluatedStatusRulesTest extends TestCase
             'entity_id'      => $this->entity->id,
             'from_status_id' => $this->statusNova->id,
             'to_status_id'   => $this->statusCancelada->id,
-            'label'          => 'Cancelar',
+            'label'          => DemandButtonEnum::ENVIAR->value,
         ]);
         $transition->saveQuietly();
 
@@ -238,7 +239,7 @@ class CanceledAndEvaluatedStatusRulesTest extends TestCase
             'entity_id'      => $this->entity->id,
             'from_status_id' => $this->statusNova->id,
             'to_status_id'   => $this->statusCancelada->id,
-            'label'          => 'Cancelar',
+            'label'          => DemandButtonEnum::ENVIAR->value,
         ]);
         $transition->saveQuietly();
 
