@@ -2,9 +2,12 @@
 
 namespace App\Services;
 
+use App\Enums\DemandButtonEnum;
+use App\Enums\DemandStatusEnum;
 use App\Enums\FieldPermissionEnum;
 use App\Exceptions\DemandTransitionException;
 use App\Models\ActivityLog;
+use App\Models\CustomEntity;
 use App\Models\CustomField;
 use App\Models\Demand;
 use App\Models\ProcessStatus;
@@ -12,14 +15,14 @@ use App\Models\StatusTransition;
 use App\Models\User;
 use App\Notifications\DemandActivityNotification;
 use App\Notifications\DemandSatisfactionNotification;
+use Illuminate\Support\Facades\Log;
 
 class DemandTransitionService
 {
     public function __construct(
         private readonly TransitionDecisionEvaluator $decisionEvaluator,
         private readonly FieldPermissionResolver $permissionResolver,
-    ) {
-    }
+    ) {}
 
     /**
      * Executa a transição de situação da demanda e devolve a situação final aplicada.
@@ -41,7 +44,7 @@ class DemandTransitionService
         if ($target->isConditional()) {
             $decision = $this->decisionEvaluator->resolve($transition, $demand);
 
-            $target      = ProcessStatus::findOrFail($decision->toStatusId);
+            $target = ProcessStatus::findOrFail($decision->toStatusId);
             $matchedRule = $decision->matchedRule;
         }
 
@@ -53,15 +56,15 @@ class DemandTransitionService
         // Campos obrigatórios da situação ATUAL precisam estar preenchidos
         $this->assertRequiredFieldsFilled($demand, $user);
 
-        $oldStatusId   = $demand->process_status_id;
+        $oldStatusId = $demand->process_status_id;
         $oldStatusName = $demand->processStatus?->name ?? '—';
 
         // Executa a transição
         $demand->process_status_id = $target->id;
 
         // Se estava em rascunho, ativa ao avançar no fluxo
-        if ($demand->status === \App\Enums\DemandStatusEnum::DRAFT) {
-            $demand->status = \App\Enums\DemandStatusEnum::ACTIVE;
+        if ($demand->status === DemandStatusEnum::DRAFT) {
+            $demand->status = DemandStatusEnum::ACTIVE;
         }
 
         // Registra o início do atendimento na primeira transição
@@ -71,14 +74,14 @@ class DemandTransitionService
 
         // Se o prazo SLA ainda não foi calculado e o processo possui sla_hours
         if (empty($demand->sla_due_at)) {
-            $entity = $demand->entity ?? \App\Models\CustomEntity::find($demand->entity_id);
+            $entity = $demand->entity ?? CustomEntity::find($demand->entity_id);
             if ($entity && $entity->sla_hours) {
                 $demand->sla_due_at = ($demand->started_at ?? now())->copy()->addHours($entity->sla_hours);
             }
         }
 
         if ($target->isClosed()) {
-            $demand->status = \App\Enums\DemandStatusEnum::CLOSED;
+            $demand->status = DemandStatusEnum::CLOSED;
             $demand->completed_at = now();
         }
         $demand->save(); // save first so autoAssign sees new status
@@ -86,20 +89,25 @@ class DemandTransitionService
 
         // Registra no audit log
         ActivityLog::create([
-            'user_id'        => $user->id,
-            'event'          => 'transition',
+            'user_id' => $user->id,
+            'event' => 'transition',
             'auditable_type' => Demand::class,
-            'auditable_id'   => (string) $demand->id,
-            'old_values'     => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
-            'new_values'     => array_merge(
-                ['process_status_id' => $target->id, 'status_name' => $target->name, 'action' => $transition->label, 'transition_id' => $transition->id],
+            'auditable_id' => (string) $demand->id,
+            'old_values' => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
+            'new_values' => array_merge(
+                [
+                    'process_status_id' => $target->id,
+                    'status_name' => $target->name,
+                    'action' => $transition->label instanceof DemandButtonEnum ? $transition->label->value : $transition->label,
+                    'transition_id' => $transition->id,
+                ],
                 $transition->toStatus?->isConditional()
                     ? ['via' => 'Condicional', 'rule_order' => $matchedRule?->rule_order]
                     : [],
             ),
-            'ip_address'     => request()->ip(),
-            'user_agent'     => request()->userAgent(),
-            'created_at'     => now(),
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
+            'created_at' => now(),
         ]);
 
         // Dispara notificações com proteção contra falha de SMTP
@@ -114,7 +122,7 @@ class DemandTransitionService
                 $demand->requester->notify(new DemandSatisfactionNotification($demand));
             }
         } catch (\Throwable $e) {
-            \Illuminate\Support\Facades\Log::warning("Falha ao enviar notificação de transição de demanda: {$e->getMessage()}");
+            Log::warning("Falha ao enviar notificação de transição de demanda: {$e->getMessage()}");
         }
 
         return $target;
@@ -129,7 +137,7 @@ class DemandTransitionService
     private function assertRequiredFieldsFilled(Demand $demand, User $user): void
     {
         $currentStatus = $demand->processStatus;
-        $entity        = $demand->entity;
+        $entity = $demand->entity;
 
         if (! $currentStatus || ! $entity) {
             return;

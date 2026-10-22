@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\DemandButtonEnum;
 use App\Enums\DemandPriorityEnum;
 use App\Enums\DemandStatusEnum;
 use App\Enums\FieldPermissionEnum;
@@ -22,7 +23,6 @@ use App\Models\StatusTransition;
 use App\Models\TransitionRule;
 use App\Models\User;
 use Illuminate\Database\Seeder;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class AquiProcessSeeder extends Seeder
@@ -41,10 +41,10 @@ class AquiProcessSeeder extends Seeder
         $admin = User::updateOrCreate(
             ['email' => 'admin@gaspar.com'],
             [
-                'name'      => 'Administrador Gaspar',
-                'password'  => Hash::make('admin'),
+                'name' => 'Administrador Gaspar',
+                'password' => Hash::make('admin'),
                 'user_role' => UserRoleEnum::ADMIN,
-                'phone'     => '(11) 98888-0000',
+                'phone' => '(11) 98888-0000',
                 'is_active' => true,
             ]
         );
@@ -52,10 +52,10 @@ class AquiProcessSeeder extends Seeder
         $jose = User::updateOrCreate(
             ['email' => 'adinilson.martins@inct.org.br'],
             [
-                'name'      => 'José demandante',
-                'password'  => $defaultPassword,
+                'name' => 'José demandante',
+                'password' => $defaultPassword,
                 'user_role' => UserRoleEnum::EXECUTOR,
-                'phone'     => '(11) 98888-0001',
+                'phone' => '(11) 98888-0001',
                 'is_active' => true,
             ]
         );
@@ -63,10 +63,10 @@ class AquiProcessSeeder extends Seeder
         $manoel = User::updateOrCreate(
             ['email' => 'adinilson.martins@gmail.com'],
             [
-                'name'      => 'Manoel licitador',
-                'password'  => $defaultPassword,
+                'name' => 'Manoel licitador',
+                'password' => $defaultPassword,
                 'user_role' => UserRoleEnum::EXECUTOR,
-                'phone'     => '(11) 98888-0002',
+                'phone' => '(11) 98888-0002',
                 'is_active' => true,
             ]
         );
@@ -74,10 +74,10 @@ class AquiProcessSeeder extends Seeder
         $joao = User::updateOrCreate(
             ['email' => 'nil@estudandomais.com.br'],
             [
-                'name'      => 'João aprovador',
-                'password'  => $defaultPassword,
+                'name' => 'João aprovador',
+                'password' => $defaultPassword,
                 'user_role' => UserRoleEnum::EXECUTOR,
-                'phone'     => '(11) 98888-0003',
+                'phone' => '(11) 98888-0003',
                 'is_active' => true,
             ]
         );
@@ -85,10 +85,10 @@ class AquiProcessSeeder extends Seeder
         $tiao = User::updateOrCreate(
             ['email' => 'adinilson.martins@inct.org'],
             [
-                'name'      => 'Tião aprova alto',
-                'password'  => $defaultPassword,
+                'name' => 'Tião aprova alto',
+                'password' => $defaultPassword,
                 'user_role' => UserRoleEnum::EXECUTOR,
-                'phone'     => '(11) 98888-0004',
+                'phone' => '(11) 98888-0004',
                 'is_active' => true,
             ]
         );
@@ -96,10 +96,10 @@ class AquiProcessSeeder extends Seeder
         $maria = User::updateOrCreate(
             ['email' => 'nil@pierconsultoria.com.br'],
             [
-                'name'      => 'Maria adquirente',
-                'password'  => $defaultPassword,
+                'name' => 'Maria adquirente',
+                'password' => $defaultPassword,
                 'user_role' => UserRoleEnum::EXECUTOR,
-                'phone'     => '(11) 98888-0005',
+                'phone' => '(11) 98888-0005',
                 'is_active' => true,
             ]
         );
@@ -107,10 +107,10 @@ class AquiProcessSeeder extends Seeder
         $joana = User::updateOrCreate(
             ['email' => 'plataforma@inct.org.br'],
             [
-                'name'      => 'Joana quitadora',
-                'password'  => $defaultPassword,
+                'name' => 'Joana quitadora',
+                'password' => $defaultPassword,
                 'user_role' => UserRoleEnum::EXECUTOR,
-                'phone'     => '(11) 98888-0006',
+                'phone' => '(11) 98888-0006',
                 'is_active' => true,
             ]
         );
@@ -121,7 +121,7 @@ class AquiProcessSeeder extends Seeder
         $clienteInct = Client::updateOrCreate(
             ['name' => 'INCT'],
             [
-                'email'     => 'adinilson.martins@inct.org.br',
+                'email' => 'adinilson.martins@inct.org.br',
                 'is_active' => true,
             ]
         );
@@ -129,14 +129,14 @@ class AquiProcessSeeder extends Seeder
         $projeto = Project::updateOrCreate(
             ['number' => 'PRJ-INCT-001'],
             [
-                'name'                => 'Apoio Institucional e Aquisições INCT',
-                'description'         => 'Projeto de apoio a compras, cotações e contratações do INCT.',
-                'client_id'           => $clienteInct->id,
-                'is_active'           => true,
+                'name' => 'Apoio Institucional e Aquisições INCT',
+                'description' => 'Projeto de apoio a compras, cotações e contratações do INCT.',
+                'client_id' => $clienteInct->id,
+                'is_active' => true,
                 'start_date_forecast' => now()->startOfYear(),
-                'end_date_forecast'   => now()->endOfYear(),
-                'budget'              => 200000.00,
-                'spent'               => 15000.00,
+                'end_date_forecast' => now()->endOfYear(),
+                'budget' => 200000.00,
+                'spent' => 15000.00,
             ]
         );
 
@@ -146,11 +146,11 @@ class AquiProcessSeeder extends Seeder
         $macroprocesso = Macroprocess::updateOrCreate(
             ['name' => 'AQUI - Aquisições'],
             [
-                'acronym'              => 'AQUI',
-                'description'          => 'Aquisições, compras e contratação de serviços avulsos',
+                'acronym' => 'AQUI',
+                'description' => 'Aquisições, compras e contratação de serviços avulsos',
                 'value_chain_function' => 'Apoio',
-                'is_active'            => true,
-                'created_by'           => $admin->id,
+                'is_active' => true,
+                'created_by' => $admin->id,
             ]
         );
 
@@ -158,11 +158,11 @@ class AquiProcessSeeder extends Seeder
             ['name' => 'AQUI - Contratação de serviços avulsos'],
             [
                 'macroprocess_id' => $macroprocesso->id,
-                'description'     => 'Processo de contratação de serviços avulsos e cotações',
-                'purpose'         => 'Apoio',
-                'sla_hours'       => 120,
-                'is_active'       => true,
-                'created_by'      => $admin->id,
+                'description' => 'Processo de contratação de serviços avulsos e cotações',
+                'purpose' => 'Apoio',
+                'sla_hours' => 120,
+                'is_active' => true,
+                'created_by' => $admin->id,
             ]
         );
 
@@ -170,12 +170,12 @@ class AquiProcessSeeder extends Seeder
         // 4. PAPÉIS DE PROCESSO (Process Roles)
         // -------------------------------------------------------------
         $papeis = [
-            'Demandante'     => ['color' => 'gray',   'desc' => 'Quem abre e acompanha a solicitação'],
-            'Licitador'      => ['color' => 'blue',   'desc' => 'Responsável pela cotação/licitação'],
-            'Aprovador'      => ['color' => 'yellow', 'desc' => 'Aprova contratações de valor regular'],
+            'Demandante' => ['color' => 'gray',   'desc' => 'Quem abre e acompanha a solicitação'],
+            'Licitador' => ['color' => 'blue',   'desc' => 'Responsável pela cotação/licitação'],
+            'Aprovador' => ['color' => 'yellow', 'desc' => 'Aprova contratações de valor regular'],
             'Aprovador alto' => ['color' => 'gray',   'desc' => 'Aprova contratações de valor alto'],
-            'Adquirente'     => ['color' => 'green',  'desc' => 'Efetiva a contratação do serviço'],
-            'Quitador'       => ['color' => 'yellow', 'desc' => 'Realiza a quitação e encerra'],
+            'Adquirente' => ['color' => 'green',  'desc' => 'Efetiva a contratação do serviço'],
+            'Quitador' => ['color' => 'yellow', 'desc' => 'Realiza a quitação e encerra'],
         ];
 
         $rolesMapeados = [];
@@ -183,10 +183,10 @@ class AquiProcessSeeder extends Seeder
             $rolesMapeados[$nome] = ProcessRole::updateOrCreate(
                 ['name' => $nome],
                 [
-                    'color'       => $dados['color'],
+                    'color' => $dados['color'],
                     'description' => $dados['desc'],
-                    'is_active'   => true,
-                    'created_by'  => $admin->id,
+                    'is_active' => true,
+                    'created_by' => $admin->id,
                 ]
             );
         }
@@ -204,8 +204,8 @@ class AquiProcessSeeder extends Seeder
         ProcessMember::where('entity_id', $processo->id)->delete();
         foreach ($membros as [$userId, $roleId]) {
             ProcessMember::create([
-                'entity_id'       => $processo->id,
-                'user_id'         => $userId,
+                'entity_id' => $processo->id,
+                'user_id' => $userId,
                 'process_role_id' => $roleId,
             ]);
         }
@@ -215,40 +215,40 @@ class AquiProcessSeeder extends Seeder
         // -------------------------------------------------------------
         $camposDefinidos = [
             [
-                'name'          => 'Preço',
-                'key'           => 'preco',
-                'field_type'    => FieldTypeEnum::NUMBER,
-                'placeholder'   => 'Informe o valor da aquisição',
-                'is_required'   => true,
+                'name' => 'Preço',
+                'key' => 'preco',
+                'field_type' => FieldTypeEnum::NUMBER,
+                'placeholder' => 'Informe o valor da aquisição',
+                'is_required' => true,
                 'default_value' => null,
-                'options_json'  => null,
+                'options_json' => null,
             ],
             [
-                'name'          => 'Fornecedor',
-                'key'           => 'fornecedor',
-                'field_type'    => FieldTypeEnum::TEXT,
-                'placeholder'   => 'Insira o nome do fornecedor',
-                'is_required'   => false,
+                'name' => 'Fornecedor',
+                'key' => 'fornecedor',
+                'field_type' => FieldTypeEnum::TEXT,
+                'placeholder' => 'Insira o nome do fornecedor',
+                'is_required' => false,
                 'default_value' => null,
-                'options_json'  => null,
+                'options_json' => null,
             ],
             [
-                'name'          => 'Fone do fornecedor',
-                'key'           => 'fone_do_fornecedor',
-                'field_type'    => FieldTypeEnum::TEXT,
-                'placeholder'   => 'Insira o contato do fornecedor',
-                'is_required'   => false,
+                'name' => 'Fone do fornecedor',
+                'key' => 'fone_do_fornecedor',
+                'field_type' => FieldTypeEnum::TEXT,
+                'placeholder' => 'Insira o contato do fornecedor',
+                'is_required' => false,
                 'default_value' => null,
-                'options_json'  => null,
+                'options_json' => null,
             ],
             [
-                'name'          => 'Aprovação',
-                'key'           => 'aprovacao',
-                'field_type'    => FieldTypeEnum::RADIO,
-                'placeholder'   => null,
-                'is_required'   => false,
+                'name' => 'Aprovação',
+                'key' => 'aprovacao',
+                'field_type' => FieldTypeEnum::RADIO,
+                'placeholder' => null,
+                'is_required' => false,
                 'default_value' => null,
-                'options_json'  => ['Não aprovado', 'Aprovado'],
+                'options_json' => ['Não aprovado', 'Aprovado'],
             ],
         ];
 
@@ -268,18 +268,18 @@ class AquiProcessSeeder extends Seeder
         // -------------------------------------------------------------
         // 6. SITUAÇÕES DO PROCESSO (Process Statuses)
         // -------------------------------------------------------------
-        $statusNova        = ProcessStatus::where('system_key', 'new')->firstOrFail();
-        $statusEncerrada   = ProcessStatus::where('system_key', 'closed')->firstOrFail();
-        $statusAvaliada    = ProcessStatus::where('system_key', 'evaluated')->firstOrFail();
-        $statusCancelada   = ProcessStatus::where('system_key', 'canceled')->firstOrFail();
+        $statusNova = ProcessStatus::where('system_key', 'new')->firstOrFail();
+        $statusEncerrada = ProcessStatus::where('system_key', 'closed')->firstOrFail();
+        $statusAvaliada = ProcessStatus::where('system_key', 'evaluated')->firstOrFail();
+        $statusCancelada = ProcessStatus::where('system_key', 'canceled')->firstOrFail();
         $statusCondicional = ProcessStatus::where('system_key', 'conditional')->firstOrFail();
 
         $situacoesCustom = [
-            'Licitando'      => ['color' => 'gray'],
-            'Adquirindo'     => ['color' => 'gray'],
-            'Aprovando'      => ['color' => 'red'],
+            'Licitando' => ['color' => 'gray'],
+            'Adquirindo' => ['color' => 'gray'],
+            'Aprovando' => ['color' => 'red'],
             'Aprovando alto' => ['color' => 'yellow'],
-            'Quitando'       => ['color' => 'yellow'],
+            'Quitando' => ['color' => 'yellow'],
         ];
 
         $statusMapeados = [];
@@ -287,8 +287,8 @@ class AquiProcessSeeder extends Seeder
             $statusMapeados[$nome] = ProcessStatus::updateOrCreate(
                 ['name' => $nome],
                 [
-                    'color'      => $dados['color'],
-                    'is_system'  => false,
+                    'color' => $dados['color'],
+                    'is_system' => false,
                     'system_key' => null,
                     'created_by' => $admin->id,
                 ]
@@ -298,15 +298,15 @@ class AquiProcessSeeder extends Seeder
         // Vincula as 10 situações na ordem exata vista na interface
         $processo->processStatuses()->detach();
         $todasSituacoes = [
-            1  => $statusMapeados['Licitando']->id,
-            2  => $statusMapeados['Adquirindo']->id,
-            3  => $statusMapeados['Aprovando']->id,
-            4  => $statusMapeados['Aprovando alto']->id,
-            5  => $statusMapeados['Quitando']->id,
-            6  => $statusNova->id,
-            7  => $statusEncerrada->id,
-            8  => $statusAvaliada->id,
-            9  => $statusCancelada->id,
+            1 => $statusMapeados['Licitando']->id,
+            2 => $statusMapeados['Adquirindo']->id,
+            3 => $statusMapeados['Aprovando']->id,
+            4 => $statusMapeados['Aprovando alto']->id,
+            5 => $statusMapeados['Quitando']->id,
+            6 => $statusNova->id,
+            7 => $statusEncerrada->id,
+            8 => $statusAvaliada->id,
+            9 => $statusCancelada->id,
             10 => $statusCondicional->id,
         ];
 
@@ -355,11 +355,11 @@ class AquiProcessSeeder extends Seeder
 
         foreach ($matriz as [$chave, $statusId, $permissao]) {
             FieldPermission::create([
-                'entity_id'         => $processo->id,
-                'custom_field_id'   => $camposMapeados[$chave]->id,
+                'entity_id' => $processo->id,
+                'custom_field_id' => $camposMapeados[$chave]->id,
                 'process_status_id' => $statusId,
-                'process_role_id'   => null,
-                'permission'        => $permissao,
+                'process_role_id' => null,
+                'permission' => $permissao,
             ]);
         }
 
@@ -370,37 +370,37 @@ class AquiProcessSeeder extends Seeder
 
         // 8.1 Nova -> Licitando
         StatusTransition::create([
-            'entity_id'        => $processo->id,
-            'from_status_id'   => $statusNova->id,
-            'to_status_id'     => $statusMapeados['Licitando']->id,
-            'label'            => 'Enviar para licitação',
-            'allow_return'     => false,
+            'entity_id' => $processo->id,
+            'from_status_id' => $statusNova->id,
+            'to_status_id' => $statusMapeados['Licitando']->id,
+            'label' => DemandButtonEnum::ENVIAR->value,
+            'allow_return' => false,
             'allowed_role_ids' => ['__requester__'],
-            'display_order'    => 1,
+            'display_order' => 1,
         ]);
 
         // 8.2 Licitando -> Condicional (Gateway por Faixas de Preço)
         $tLicitando = StatusTransition::create([
-            'entity_id'            => $processo->id,
-            'from_status_id'       => $statusMapeados['Licitando']->id,
-            'to_status_id'         => $statusCondicional->id,
+            'entity_id' => $processo->id,
+            'from_status_id' => $statusMapeados['Licitando']->id,
+            'to_status_id' => $statusCondicional->id,
             'default_to_status_id' => $statusMapeados['Adquirindo']->id,
-            'label'                => 'Concluir licitação',
-            'allow_return'         => true,
-            'allowed_role_ids'     => [$rolesMapeados['Licitador']->id],
-            'display_order'        => 2,
+            'label' => DemandButtonEnum::ENVIAR->value,
+            'allow_return' => true,
+            'allowed_role_ids' => [$rolesMapeados['Licitador']->id],
+            'display_order' => 2,
         ]);
 
         // Regra 1: Preço > 10.000 -> Aprovando alto
         TransitionRule::create([
             'status_transition_id' => $tLicitando->id,
-            'rule_order'           => 1,
-            'to_status_id'         => $statusMapeados['Aprovando alto']->id,
-            'conditions'           => [
+            'rule_order' => 1,
+            'to_status_id' => $statusMapeados['Aprovando alto']->id,
+            'conditions' => [
                 [
                     'field_id' => $camposMapeados['preco']->id,
                     'operator' => RuleOperatorEnum::GREATER->value,
-                    'value'    => '10000',
+                    'value' => '10000',
                 ],
             ],
         ]);
@@ -408,87 +408,87 @@ class AquiProcessSeeder extends Seeder
         // Regra 2: Preço > 2.000 -> Aprovando
         TransitionRule::create([
             'status_transition_id' => $tLicitando->id,
-            'rule_order'           => 2,
-            'to_status_id'         => $statusMapeados['Aprovando']->id,
-            'conditions'           => [
+            'rule_order' => 2,
+            'to_status_id' => $statusMapeados['Aprovando']->id,
+            'conditions' => [
                 [
                     'field_id' => $camposMapeados['preco']->id,
                     'operator' => RuleOperatorEnum::GREATER->value,
-                    'value'    => '2000',
+                    'value' => '2000',
                 ],
             ],
         ]);
 
         // 8.3 Aprovando -> Condicional (Gateway de Aprovação)
         $tAprovando = StatusTransition::create([
-            'entity_id'            => $processo->id,
-            'from_status_id'       => $statusMapeados['Aprovando']->id,
-            'to_status_id'         => $statusCondicional->id,
+            'entity_id' => $processo->id,
+            'from_status_id' => $statusMapeados['Aprovando']->id,
+            'to_status_id' => $statusCondicional->id,
             'default_to_status_id' => $statusMapeados['Adquirindo']->id,
-            'label'                => 'Registrar aprovação',
-            'allow_return'         => true,
-            'allowed_role_ids'     => [$rolesMapeados['Aprovador']->id],
-            'display_order'        => 3,
+            'label' => DemandButtonEnum::ENVIAR->value,
+            'allow_return' => true,
+            'allowed_role_ids' => [$rolesMapeados['Aprovador']->id],
+            'display_order' => 3,
         ]);
 
         TransitionRule::create([
             'status_transition_id' => $tAprovando->id,
-            'rule_order'           => 1,
-            'to_status_id'         => $statusMapeados['Licitando']->id,
-            'conditions'           => [
+            'rule_order' => 1,
+            'to_status_id' => $statusMapeados['Licitando']->id,
+            'conditions' => [
                 [
                     'field_id' => $camposMapeados['aprovacao']->id,
                     'operator' => RuleOperatorEnum::EQUALS->value,
-                    'value'    => 'Não aprovado',
+                    'value' => 'Não aprovado',
                 ],
             ],
         ]);
 
         // 8.4 Aprovando alto -> Condicional (Gateway de Aprovação)
         $tAprovandoAlto = StatusTransition::create([
-            'entity_id'            => $processo->id,
-            'from_status_id'       => $statusMapeados['Aprovando alto']->id,
-            'to_status_id'         => $statusCondicional->id,
+            'entity_id' => $processo->id,
+            'from_status_id' => $statusMapeados['Aprovando alto']->id,
+            'to_status_id' => $statusCondicional->id,
             'default_to_status_id' => $statusMapeados['Adquirindo']->id,
-            'label'                => 'Registrar aprovação',
-            'allow_return'         => true,
-            'allowed_role_ids'     => [$rolesMapeados['Aprovador alto']->id],
-            'display_order'        => 4,
+            'label' => DemandButtonEnum::ENVIAR->value,
+            'allow_return' => true,
+            'allowed_role_ids' => [$rolesMapeados['Aprovador alto']->id],
+            'display_order' => 4,
         ]);
 
         TransitionRule::create([
             'status_transition_id' => $tAprovandoAlto->id,
-            'rule_order'           => 1,
-            'to_status_id'         => $statusMapeados['Licitando']->id,
-            'conditions'           => [
+            'rule_order' => 1,
+            'to_status_id' => $statusMapeados['Licitando']->id,
+            'conditions' => [
                 [
                     'field_id' => $camposMapeados['aprovacao']->id,
                     'operator' => RuleOperatorEnum::EQUALS->value,
-                    'value'    => 'Não aprovado',
+                    'value' => 'Não aprovado',
                 ],
             ],
         ]);
 
         // 8.5 Adquirindo -> Quitando
         StatusTransition::create([
-            'entity_id'        => $processo->id,
-            'from_status_id'   => $statusMapeados['Adquirindo']->id,
-            'to_status_id'     => $statusMapeados['Quitando']->id,
-            'label'            => 'Confirmar aquisição',
-            'allow_return'     => true,
+            'entity_id' => $processo->id,
+            'from_status_id' => $statusMapeados['Adquirindo']->id,
+            'to_status_id' => $statusMapeados['Quitando']->id,
+            'label' => DemandButtonEnum::ENVIAR->value,
+            'allow_return' => true,
             'allowed_role_ids' => [$rolesMapeados['Adquirente']->id],
-            'display_order'    => 5,
+            'display_order' => 5,
         ]);
 
         // 8.6 Quitando -> Encerrada
         StatusTransition::create([
-            'entity_id'        => $processo->id,
-            'from_status_id'   => $statusMapeados['Quitando']->id,
-            'to_status_id'     => $statusEncerrada->id,
-            'label'            => 'Quitar',
-            'allow_return'     => true,
+            'entity_id' => $processo->id,
+            'from_status_id' => $statusMapeados['Quitando']->id,
+            'to_status_id' => $statusEncerrada->id,
+            'label' => DemandButtonEnum::ENVIAR->value,
+            'allow_return' => true,
             'allowed_role_ids' => [$rolesMapeados['Quitador']->id],
-            'display_order'    => 6,
+            'display_order' => 6,
         ]);
 
         // -------------------------------------------------------------
@@ -497,18 +497,18 @@ class AquiProcessSeeder extends Seeder
         Demand::where('entity_id', $processo->id)->delete();
 
         Demand::create([
-            'entity_id'         => $processo->id,
+            'entity_id' => $processo->id,
             'process_status_id' => $statusNova->id,
-            'client_id'         => $clienteInct->id,
-            'project_id'        => $projeto->id,
-            'requested_by'      => $admin->id,
-            'assigned_to'       => $admin->id,
-            'created_by'        => $admin->id,
-            'title'             => 'Aquisição de coffee break para a inauguração do bazar',
-            'status'            => DemandStatusEnum::ACTIVE,
-            'priority'          => DemandPriorityEnum::MEDIUM,
-            'sla_due_at'        => now()->addHours(120),
-            'started_at'        => now(),
+            'client_id' => $clienteInct->id,
+            'project_id' => $projeto->id,
+            'requested_by' => $admin->id,
+            'assigned_to' => $admin->id,
+            'created_by' => $admin->id,
+            'title' => 'Aquisição de coffee break para a inauguração do bazar',
+            'status' => DemandStatusEnum::ACTIVE,
+            'priority' => DemandPriorityEnum::MEDIUM,
+            'sla_due_at' => now()->addHours(120),
+            'started_at' => now(),
         ]);
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\DemandButtonEnum;
 use App\Models\CustomEntity;
 use App\Models\ProcessStatus;
 use App\Models\StatusTransition;
@@ -18,7 +19,7 @@ class StatusTransitionFactory extends Factory
             'entity_id' => CustomEntity::factory(),
             'from_status_id' => null,
             'to_status_id' => ProcessStatus::factory(),
-            'label' => fake()->words(2, true),
+            'label' => fake()->randomElement(DemandButtonEnum::cases())->value,
             'display_order' => 0,
         ];
     }

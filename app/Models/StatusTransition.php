@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\LogsActivity;
+use App\Enums\DemandButtonEnum;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -28,6 +29,7 @@ class StatusTransition extends Model
 
     protected $casts = [
         'allowed_role_ids' => 'array',
+        'label' => DemandButtonEnum::class,
     ];
 
     protected static function booted(): void
@@ -107,8 +109,12 @@ class StatusTransition extends Model
 
         // Sem restrição: qualquer membro do processo ou envolvido na demanda pode
         if (empty($allowedRoles)) {
-            if ($demand->requested_by === $user->id) return true;
-            if ($demand->assigned_to === $user->id) return true;
+            if ($demand->requested_by === $user->id) {
+                return true;
+            }
+            if ($demand->assigned_to === $user->id) {
+                return true;
+            }
 
             return ProcessMember::where('entity_id', $demand->entity_id)
                 ->where('user_id', $user->id)

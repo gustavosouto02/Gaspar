@@ -2,11 +2,18 @@
 
 namespace Tests\Feature;
 
+use App\Enums\DemandButtonEnum;
 use App\Enums\UserRoleEnum;
 use App\Filament\Resources\CustomEntityResource\Pages\CreateCustomEntity;
+use App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity;
+use App\Filament\Resources\CustomEntityResource\RelationManagers\FieldsRelationManager;
+use App\Filament\Resources\CustomEntityResource\RelationManagers\MembersRelationManager;
+use App\Filament\Resources\CustomEntityResource\RelationManagers\ProcessStatusesRelationManager;
+use App\Filament\Resources\CustomEntityResource\RelationManagers\StatusTransitionsRelationManager;
 use App\Filament\Resources\MacroprocessResource\Pages\CreateMacroprocess;
 use App\Models\CustomEntity;
 use App\Models\Macroprocess;
+use App\Models\ProcessStatus;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -148,37 +155,37 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
             'created_by' => $this->admin->id,
         ]);
 
-        Livewire::test(\App\Filament\Resources\CustomEntityResource\RelationManagers\MembersRelationManager::class, [
+        Livewire::test(MembersRelationManager::class, [
             'ownerRecord' => $entity,
-            'pageClass' => \App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity::class,
+            'pageClass' => EditCustomEntity::class,
         ])
             ->assertTableActionExists('create')
             ->assertSee('Vincular Papel');
 
-        Livewire::test(\App\Filament\Resources\CustomEntityResource\RelationManagers\FieldsRelationManager::class, [
+        Livewire::test(FieldsRelationManager::class, [
             'ownerRecord' => $entity,
-            'pageClass' => \App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity::class,
+            'pageClass' => EditCustomEntity::class,
         ])
             ->assertTableActionExists('attach')
             ->assertSee('Vincular Campo');
 
-        Livewire::test(\App\Filament\Resources\CustomEntityResource\RelationManagers\ProcessStatusesRelationManager::class, [
+        Livewire::test(ProcessStatusesRelationManager::class, [
             'ownerRecord' => $entity,
-            'pageClass' => \App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity::class,
+            'pageClass' => EditCustomEntity::class,
         ])
             ->assertTableActionExists('attach')
             ->assertSee('Vincular Situação');
 
-        Livewire::test(\App\Filament\Resources\CustomEntityResource\RelationManagers\StatusTransitionsRelationManager::class, [
+        Livewire::test(StatusTransitionsRelationManager::class, [
             'ownerRecord' => $entity,
-            'pageClass' => \App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity::class,
+            'pageClass' => EditCustomEntity::class,
         ])
             ->assertTableActionExists('create')
             ->assertSee('Adicionar Transição');
 
         $this->assertEquals(
             'Fluxo do Processo',
-            \App\Filament\Resources\CustomEntityResource\RelationManagers\StatusTransitionsRelationManager::getTitle($entity, \App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity::class)
+            StatusTransitionsRelationManager::getTitle($entity, EditCustomEntity::class)
         );
     }
 
@@ -205,22 +212,81 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
             'created_by' => $this->admin->id,
         ]);
 
-        $status = \App\Models\ProcessStatus::create([
+        $status = ProcessStatus::create([
             'name' => 'Em Análise Teste',
             'color' => 'blue',
             'is_system' => false,
         ]);
         $entity->processStatuses()->attach($status->id, ['display_order' => 1]);
 
-        Livewire::test(\App\Filament\Resources\CustomEntityResource\RelationManagers\StatusTransitionsRelationManager::class, [
+        Livewire::test(StatusTransitionsRelationManager::class, [
             'ownerRecord' => $entity,
-            'pageClass' => \App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity::class,
+            'pageClass' => EditCustomEntity::class,
         ])
             ->callTableAction('create', data: [
                 'to_status_id' => $status->id,
-                'label' => 'Encaminhar',
+                'label' => DemandButtonEnum::ENVIAR->value,
                 'allowed_role_ids' => [],
             ])
             ->assertHasTableActionErrors(['allowed_role_ids' => 'required']);
+    }
+
+    public function test_campo_label_na_transicao_deve_ser_salvar_ou_enviar_e_rejeita_customizado(): void
+    {
+        $macro = Macroprocess::create([
+            'name' => 'Macroprocesso Teste Enum',
+            'acronym' => 'MTE',
+            'value_chain_function' => 'Finalístico',
+            'description' => 'Descrição',
+            'is_active' => true,
+            'created_by' => $this->admin->id,
+        ]);
+
+        $entity = CustomEntity::create([
+            'name' => 'Processo Teste Enum',
+            'macroprocess_id' => $macro->id,
+            'purpose' => 'Finalístico',
+            'sla_hours' => 24,
+            'description' => 'Descrição',
+            'is_active' => true,
+            'created_by' => $this->admin->id,
+        ]);
+
+        $status = ProcessStatus::create([
+            'name' => 'Em Análise Enum',
+            'color' => 'blue',
+            'is_system' => false,
+        ]);
+        $entity->processStatuses()->attach($status->id, ['display_order' => 1]);
+
+        // Rejeita nome customizado como 'Aprovar' ou 'Customizado'
+        Livewire::test(StatusTransitionsRelationManager::class, [
+            'ownerRecord' => $entity,
+            'pageClass' => EditCustomEntity::class,
+        ])
+            ->callTableAction('create', data: [
+                'to_status_id' => $status->id,
+                'label' => 'Nome Customizado Invalido',
+                'allowed_role_ids' => ['__requester__'],
+            ])
+            ->assertHasTableActionErrors(['label']);
+
+        // Aceita 'Salvar' e 'Enviar'
+        Livewire::test(StatusTransitionsRelationManager::class, [
+            'ownerRecord' => $entity,
+            'pageClass' => EditCustomEntity::class,
+        ])
+            ->callTableAction('create', data: [
+                'to_status_id' => $status->id,
+                'label' => DemandButtonEnum::SALVAR->value,
+                'allowed_role_ids' => ['__requester__'],
+            ])
+            ->assertHasNoTableActionErrors();
+
+        $this->assertDatabaseHas('status_transitions', [
+            'entity_id' => $entity->id,
+            'to_status_id' => $status->id,
+            'label' => 'Salvar',
+        ]);
     }
 }
