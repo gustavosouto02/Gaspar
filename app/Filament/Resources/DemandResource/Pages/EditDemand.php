@@ -25,7 +25,7 @@ class EditDemand extends EditRecord
 
     public string $new_treatment = '';
 
-    public function addTreatment()
+    public function addTreatment(): void
     {
         if (empty(trim($this->new_treatment))) {
             return;

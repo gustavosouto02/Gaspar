@@ -214,6 +214,7 @@ class FilamentPagesSmokeTest extends TestCase
         ]);
 
         $this->assertTrue($this->demand->hasPendingChildren());
+        $this->assertFalse($this->demand->canBeCompleted());
 
         Livewire::test(EditDemand::class, ['record' => $this->demand->getKey()])
             ->callAction('cancelar');

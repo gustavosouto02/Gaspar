@@ -168,12 +168,10 @@ class Demand extends Model
         return $this->hasMany(DemandFieldValue::class);
     }
 
-    /** Verifica se a demanda pode ser concluída (sem subdemandas abertas) */
+    /** Verifica se a demanda pode ser concluída (sem subdemandas pendentes) */
     public function canBeCompleted(): bool
     {
-        return ! $this->children()
-            ->where('status', DemandStatusEnum::ACTIVE->value)
-            ->exists();
+        return ! $this->hasPendingChildren();
     }
 
     /** Verifica se há subdemandas pendentes (ativas ou em rascunho) */
