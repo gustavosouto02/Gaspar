@@ -124,7 +124,7 @@ No cPanel (ou via FTP), garanta que o servidor web possa escrever nos diretório
 4. Configure o **Provedor de E-mail (SMTP)**:
    - **Servidor SMTP:** ex: `smtp.titan.email`, `mail.seudominio.com.br` ou `smtp.gmail.com`
    - **Porta SMTP:** `465` (SSL) ou `587` (TLS)
-   - **Criptografia:** `SSL` (SMTPS), `TLS` ou Nenhuma
+   - **Criptografia:** `SSL` (SMTPS) ou `TLS`
    - **Nome do Remetente:** ex: `Sistema Gaspar`
    - **Conta / E-mail de Envio (Usuário):** conta criada no cPanel/Titan (ex: `no-reply@seudominio.com.br`)
    - **Senha do E-mail:** senha da conta de e-mail
@@ -132,7 +132,23 @@ No cPanel (ou via FTP), garanta que o servidor web possa escrever nos diretório
 5. Clique em **Instalar Gaspar**.
 > O assistente criará automaticamente o arquivo `.env` de produção com todas as configurações de banco e e-mail (sem necessidade de editar o `.env` manualmente), executará todas as migrações e criará a trava de segurança `installed.txt`.
 
-#### 5. Como Atualizar o Sistema em Produção
+#### 5. Recomendações e Teste de E-mail (SMTP)
+
+| Provedor | Servidor SMTP | Porta | Criptografia | Observações |
+|---|---|---|---|---|
+| **HostGator / Titan Mail** *(Homologado)* | `smtp.titan.email` | `465` | `SSL` | Usar e-mail completo e senha do Titan |
+| **cPanel Padrão / Webmail** | `mail.seudominio.com.br` | `465` ou `587` | `SSL` ou `TLS` | Exige certificado SSL ativo no domínio |
+| **Gmail / Google Workspace** | `smtp.gmail.com` | `587` | `TLS` | Requer gerar **Senha de App** de 16 dígitos no Google |
+
+> **✉️ Testando o envio de e-mails em tempo real:**
+> Após logar como Administrador, acesse diretamente no navegador:
+> ```
+> https://seusite.com.br/test-email
+> ```
+> Ou teste para um destinatário específico: `https://seusite.com.br/test-email?to=seuemail@dominio.com`
+> A tela informará imediatamente o resultado do teste ou o diagnóstico exato de erro caso o provedor rejeite a conexão.
+
+#### 6. Como Atualizar o Sistema em Produção
 Sempre que fizer novas alterações no código ou criar novas migrations:
 1. Gere um novo `gaspar.zip` com `./build.sh` e extraia no servidor sobrescrevendo os arquivos (o arquivo `.env` existente não será apagado).
 2. Acesse pelo navegador a URL especial de atualização:

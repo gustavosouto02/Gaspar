@@ -2,11 +2,16 @@
 
 namespace App\Filament\Resources\DemandResource\Pages;
 
+use App\Enums\DemandStatusEnum;
+use App\Enums\FieldPermissionEnum;
 use App\Filament\Resources\DemandResource;
 use App\Models\CustomEntity;
-use App\Models\CustomField;
 use App\Models\DemandFieldValue;
+use App\Notifications\DemandActivityNotification;
+use App\Services\FieldPermissionResolver;
+use Filament\Actions\Action;
 use Filament\Resources\Pages\CreateRecord;
+use Illuminate\Support\Facades\Log;
 
 class CreateDemand extends CreateRecord
 {
@@ -26,7 +31,7 @@ class CreateDemand extends CreateRecord
     /**
      * Botão principal: "Enviar para atendimento" — submissão oficial.
      */
-    protected function getCreateFormAction(): \Filament\Actions\Action
+    protected function getCreateFormAction(): Action
     {
         return parent::getCreateFormAction()
             ->label('Enviar para atendimento');
@@ -35,7 +40,7 @@ class CreateDemand extends CreateRecord
     /**
      * Esconde o "Criar e criar outro" padrão do Filament.
      */
-    protected function getCreateAnotherFormAction(): \Filament\Actions\Action
+    protected function getCreateAnotherFormAction(): Action
     {
         return parent::getCreateAnotherFormAction()->hidden();
     }
@@ -47,7 +52,7 @@ class CreateDemand extends CreateRecord
     {
         return [
             $this->getCreateFormAction(),
-            \Filament\Actions\Action::make('salvar')
+            Action::make('salvar')
                 ->label('Salvar')
                 ->color('gray')
                 ->action(function () {
@@ -84,9 +89,9 @@ class CreateDemand extends CreateRecord
         }
 
         if ($this->isDraft) {
-            $data['status'] = \App\Enums\DemandStatusEnum::DRAFT->value;
+            $data['status'] = DemandStatusEnum::DRAFT->value;
         } else {
-            $data['status'] = \App\Enums\DemandStatusEnum::ACTIVE->value;
+            $data['status'] = DemandStatusEnum::ACTIVE->value;
 
             // Calcula SLA somente ao enviar para atendimento
             if (! empty($data['entity_id']) && empty($data['sla_due_at'])) {
@@ -115,14 +120,14 @@ class CreateDemand extends CreateRecord
 
             try {
                 if ($record->assignee && $record->assignee->id !== auth()->id()) {
-                    $record->assignee->notify(new \App\Notifications\DemandActivityNotification($record, 'Uma nova demanda foi atribuída a você para atendimento.'));
+                    $record->assignee->notify(new DemandActivityNotification($record, 'Uma nova demanda foi atribuída a você para atendimento.'));
                 }
 
                 if ($record->requester) {
-                    $record->requester->notify(new \App\Notifications\DemandActivityNotification($record, 'Sua demanda foi cadastrada com sucesso e enviada para atendimento.'));
+                    $record->requester->notify(new DemandActivityNotification($record, 'Sua demanda foi cadastrada com sucesso e enviada para atendimento.'));
                 }
             } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning("Falha ao enviar notificação de criação de demanda: {$e->getMessage()}");
+                Log::warning("Falha ao enviar notificação de criação de demanda: {$e->getMessage()}");
             }
         }
     }
@@ -135,8 +140,10 @@ class CreateDemand extends CreateRecord
             return;
         }
 
-        $entity = \App\Models\CustomEntity::find($entityId);
-        if (! $entity) return;
+        $entity = CustomEntity::find($entityId);
+        if (! $entity) {
+            return;
+        }
         $fields = $entity->fields()->get()->keyBy('key');
 
         $blockedFieldIds = $this->blockedFieldIds($entity);
@@ -168,19 +175,19 @@ class CreateDemand extends CreateRecord
     private function blockedFieldIds(CustomEntity $entity): array
     {
         $status = $this->getRecord()->processStatus;
-        $user   = auth()->user();
+        $user = auth()->user();
 
         if (! $status || ! $user) {
             return [];
         }
 
-        $permissions = app(\App\Services\FieldPermissionResolver::class)->resolve($entity, $status, $user);
+        $permissions = app(FieldPermissionResolver::class)->resolve($entity, $status, $user);
 
         return array_keys(array_filter(
             $permissions,
-            fn (\App\Enums\FieldPermissionEnum $permission) => in_array($permission, [
-                \App\Enums\FieldPermissionEnum::READONLY,
-                \App\Enums\FieldPermissionEnum::HIDDEN,
+            fn (FieldPermissionEnum $permission) => in_array($permission, [
+                FieldPermissionEnum::READONLY,
+                FieldPermissionEnum::HIDDEN,
             ], true)
         ));
     }

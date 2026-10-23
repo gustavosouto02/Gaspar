@@ -127,6 +127,29 @@
             font-weight: 600;
             color: var(--text-main);
         }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0 1.5rem 0;
+            font-size: 0.95rem;
+        }
+
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background-color: #f1f5f9;
+            color: var(--text-main);
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background-color: #f8fafc;
+        }
     </style>
 </head>
 <body>
@@ -170,15 +193,75 @@
                 <li>O sistema detectará automaticamente que é o primeiro acesso e redirecionará você para o <strong>Assistente de Instalação</strong>.</li>
             </ol>
 
-            <h3>Passo 4: Configuração</h3>
+            <h3>Passo 4: Configuração no Assistente</h3>
             <ol>
                 <li><strong>Banco de Dados MySQL:</strong> Insira os dados de conexão (Host, Porta, Usuário, Senha e Nome do Banco). Se o banco não existir e seu usuário tiver privilégios, o sistema tentará criá-lo automaticamente.</li>
+                <li><strong>Provedor de E-mail (SMTP):</strong> O e-mail é fundamental para o Gaspar disparar notificações de novas demandas, tramitações, comentários, encerramento e alertas de prazos de SLA.
+                    <ul style="margin-top: 0.5rem;">
+                        <li><strong>Servidor SMTP:</strong> Endereço do servidor de saída (ex: <code>smtp.titan.email</code> ou <code>mail.seudominio.com.br</code>).</li>
+                        <li><strong>Porta e Criptografia:</strong> Escolha entre <strong>Porta 465 (SSL)</strong> ou <strong>Porta 587 (TLS)</strong>.</li>
+                        <li><strong>Conta / E-mail de Envio:</strong> Insira a conta de e-mail completa (ex: <code>contato@seudominio.com.br</code>). <em>Importante: essa conta deve estar previamente criada no cPanel/Titan.</em></li>
+                        <li><strong>Senha do E-mail:</strong> A senha exata configurada para a conta de e-mail.</li>
+                        <li><strong>Nome do Remetente:</strong> O nome que aparecerá para os usuários (ex: <code>Sistema Gaspar</code>).</li>
+                    </ul>
+                </li>
                 <li><strong>Administrador:</strong> Defina o Nome, E-mail e Senha do primeiro usuário Administrador do sistema.</li>
                 <li>Clique em <strong>Instalar Gaspar</strong>.</li>
             </ol>
             <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: -0.5rem; margin-bottom: 1.5rem; margin-left: 1.5rem;">
-                <em>O que acontece por baixo dos panos:</em> O sistema gera as chaves, cria o arquivo <code>.env</code>, constrói todas as tabelas do banco de dados e cria a trava de segurança (<code>installed.txt</code>).
+                <em>O que acontece por baixo dos panos:</em> O sistema gera as chaves de criptografia, cria o arquivo <code>.env</code> com as configurações informadas, constrói todas as tabelas do banco de dados e cria a trava de segurança (<code>installed.txt</code>).
             </p>
+
+            <h3>Passo 5: Recomendações e Teste do E-mail (SMTP)</h3>
+            <p style="margin-bottom: 0.75rem;">Para garantir que os e-mails cheguem imediatamente e não caiam na caixa de spam, consulte as configurações homologadas por provedor:</p>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th>Provedor</th>
+                        <th>Servidor SMTP</th>
+                        <th>Porta</th>
+                        <th>Segurança</th>
+                        <th>Observação</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>HostGator / Titan Mail</strong> (Recomendado)</td>
+                        <td><code>smtp.titan.email</code></td>
+                        <td><code>465</code></td>
+                        <td>SSL</td>
+                        <td>Autenticação com e-mail e senha do Titan</td>
+                    </tr>
+                    <tr>
+                        <td><strong>cPanel Padrão / Webmail</strong></td>
+                        <td><code>mail.seudominio.com.br</code></td>
+                        <td><code>465</code> ou <code>587</code></td>
+                        <td>SSL ou TLS</td>
+                        <td>Requer certificado SSL ativo no domínio</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Gmail / Google Workspace</strong></td>
+                        <td><code>smtp.gmail.com</code></td>
+                        <td><code>587</code></td>
+                        <td>TLS</td>
+                        <td>Requer <strong>Senha de App</strong> de 16 dígitos gerada na conta Google</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="alert alert-info">
+                <strong>✉️ Como Testar o Disparo de E-mail:</strong><br>
+                Após logar como <strong>Administrador</strong>, você pode validar a entrega acessando no navegador:<br>
+                <code>https://seusite.com.br/test-email</code> (ou informe o destinatário: <code>https://seusite.com.br/test-email?to=seu-email@dominio.com</code>).<br>
+                O sistema enviará uma mensagem de teste em tempo real informando na tela se a conexão foi bem-sucedida ou o erro exato retornado pelo servidor SMTP.
+            </div>
+
+            <div class="alert alert-info" style="background-color: #f8fafc; border-left-color: #64748b; color: #334155;">
+                <strong>🛡️ Boas Práticas para Evitar SPAM:</strong><br>
+                1. <strong>Conta Real:</strong> Use sempre um e-mail com o mesmo domínio do site (ex: <code>notificacoes@seudominio.com.br</code>). Provedores bloqueiam remetentes que não coincidem com o domínio autenticado.<br>
+                2. <strong>SPF e DKIM:</strong> No cPanel da sua hospedagem, acesse <em>"Entregabilidade de E-mail" (Email Deliverability)</em> e certifique-se de que os registros <strong>SPF</strong> e <strong>DKIM</strong> do domínio estão com status "Válido".
+            </div>
 
             <h2>🗑️ 2. Como Desinstalar o Sistema (Wipe Completo)</h2>
             <p style="margin-bottom: 1rem; color: var(--text-muted);">Se você precisar formatar o sistema, limpar todos os dados de testes ou refazer a instalação do zero, use o módulo de desinstalação seguro.</p>

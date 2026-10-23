@@ -2,18 +2,20 @@
 
 namespace App\Filament\Resources\DemandResource\Pages;
 
-use App\Enums\ProcessStatusColorEnum;
+use App\Enums\DemandStatusEnum;
+use App\Enums\FieldPermissionEnum;
 use App\Filament\Resources\DemandResource;
-use App\Models\ActivityLog;
-use App\Models\CustomField;
+use App\Filament\Resources\DemandResource\Pages\Concerns\HasDemandHeaderActions;
+use App\Filament\Resources\DemandResource\Widgets\DemandEvaluationWidget;
+use App\Models\CustomEntity;
+use App\Models\DemandComment;
 use App\Models\DemandFieldValue;
-use App\Models\StatusTransition;
-use Filament\Actions;
+use App\Notifications\DemandActivityNotification;
+use App\Services\FieldPermissionResolver;
+use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
-use Illuminate\Support\Str;
-
-use App\Filament\Resources\DemandResource\Pages\Concerns\HasDemandHeaderActions;
+use Illuminate\Support\Facades\Log;
 
 class EditDemand extends EditRecord
 {
@@ -23,11 +25,13 @@ class EditDemand extends EditRecord
 
     public string $new_treatment = '';
 
-    public function addTreatment()
+    public function addTreatment(): void
     {
-        if (empty(trim($this->new_treatment))) return;
+        if (empty(trim($this->new_treatment))) {
+            return;
+        }
 
-        \App\Models\DemandComment::create([
+        DemandComment::create([
             'demand_id' => $this->record->id,
             'user_id' => auth()->id(),
             'comment' => $this->new_treatment,
@@ -35,7 +39,7 @@ class EditDemand extends EditRecord
 
         $this->new_treatment = '';
 
-        \Filament\Notifications\Notification::make()
+        Notification::make()
             ->title('Tratamento adicionado com sucesso!')
             ->success()
             ->send();
@@ -64,7 +68,9 @@ class EditDemand extends EditRecord
     }
 
     private array $fieldData = [];
+
     private ?string $newTreatment = null;
+
     public bool $isSubmittingDraft = false;
 
     /**
@@ -74,7 +80,7 @@ class EditDemand extends EditRecord
      */
     public function isSavingDraft(): bool
     {
-        return $this->record->status === \App\Enums\DemandStatusEnum::DRAFT && ! $this->isSubmittingDraft;
+        return $this->record->status === DemandStatusEnum::DRAFT && ! $this->isSubmittingDraft;
     }
 
     /**
@@ -90,11 +96,11 @@ class EditDemand extends EditRecord
         unset($data['new_treatment']);
 
         if ($this->isSubmittingDraft) {
-            $data['status'] = \App\Enums\DemandStatusEnum::ACTIVE->value;
+            $data['status'] = DemandStatusEnum::ACTIVE->value;
 
             $entityId = $data['entity_id'] ?? $this->record->entity_id;
             if (! empty($entityId) && empty($this->record->sla_due_at)) {
-                $entity = \App\Models\CustomEntity::find($entityId);
+                $entity = CustomEntity::find($entityId);
                 if ($entity && $entity->sla_hours) {
                     $data['sla_due_at'] = now()->addHours($entity->sla_hours);
                 }
@@ -115,12 +121,12 @@ class EditDemand extends EditRecord
         );
 
         if ($this->newTreatment) {
-            \App\Models\DemandComment::create([
+            DemandComment::create([
                 'demand_id' => $this->getRecord()->id,
                 'user_id' => auth()->id(),
                 'comment' => $this->newTreatment,
             ]);
-            
+
             $this->form->fill(['new_treatment' => null] + $this->form->getState());
         }
 
@@ -131,14 +137,14 @@ class EditDemand extends EditRecord
 
             try {
                 if ($record->assignee && $record->assignee->id !== auth()->id()) {
-                    $record->assignee->notify(new \App\Notifications\DemandActivityNotification($record, 'Uma nova demanda foi enviada e atribuída a você.'));
+                    $record->assignee->notify(new DemandActivityNotification($record, 'Uma nova demanda foi enviada e atribuída a você.'));
                 }
 
                 if ($record->requester) {
-                    $record->requester->notify(new \App\Notifications\DemandActivityNotification($record, 'Sua demanda foi enviada para atendimento com sucesso.'));
+                    $record->requester->notify(new DemandActivityNotification($record, 'Sua demanda foi enviada para atendimento com sucesso.'));
                 }
             } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning("Falha ao enviar notificação de envio de demanda: {$e->getMessage()}");
+                Log::warning("Falha ao enviar notificação de envio de demanda: {$e->getMessage()}");
             }
         }
 
@@ -146,13 +152,13 @@ class EditDemand extends EditRecord
         $record = $this->getRecord()->fresh();
         if (
             $record->satisfaction_rating
-            && $record->status === \App\Enums\DemandStatusEnum::CLOSED
+            && $record->status === DemandStatusEnum::CLOSED
         ) {
             $record->updateQuietly([
-                'status' => \App\Enums\DemandStatusEnum::EVALUATED,
+                'status' => DemandStatusEnum::EVALUATED,
             ]);
 
-            \Filament\Notifications\Notification::make()
+            Notification::make()
                 ->title('Obrigado pela sua avaliação!')
                 ->body('A demanda foi marcada como Avaliada.')
                 ->success()
@@ -171,18 +177,18 @@ class EditDemand extends EditRecord
         $actions = [];
 
         // Se for um rascunho, adiciona o botão principal "Enviar para atendimento"
-        if ($this->record->status === \App\Enums\DemandStatusEnum::DRAFT) {
-            $actions[] = \Filament\Actions\Action::make('enviar_para_atendimento')
+        if ($this->record->status === DemandStatusEnum::DRAFT) {
+            $actions[] = Action::make('enviar_para_atendimento')
                 ->label('Enviar para atendimento')
                 ->color('primary')
                 ->action(function () {
                     $this->submitDraft();
-                    
-                    \Filament\Notifications\Notification::make()
+
+                    Notification::make()
                         ->title('Demanda enviada para atendimento!')
                         ->success()
                         ->send();
-                        
+
                     // Redireciona para atualizar a tela e botões
                     return redirect($this->getResource()::getUrl('edit', ['record' => $this->record]));
                 });
@@ -202,8 +208,10 @@ class EditDemand extends EditRecord
             return;
         }
 
-        $entity = \App\Models\CustomEntity::find($entityId);
-        if (! $entity) return;
+        $entity = CustomEntity::find($entityId);
+        if (! $entity) {
+            return;
+        }
         $fields = $entity->fields()->get()->keyBy('key');
 
         $blockedFieldIds = $this->blockedFieldIds($entity);
@@ -239,22 +247,22 @@ class EditDemand extends EditRecord
      *
      * @return array<string>
      */
-    private function blockedFieldIds(\App\Models\CustomEntity $entity): array
+    private function blockedFieldIds(CustomEntity $entity): array
     {
         $status = $this->getRecord()->processStatus;
-        $user   = auth()->user();
+        $user = auth()->user();
 
         if (! $status || ! $user) {
             return [];
         }
 
-        $permissions = app(\App\Services\FieldPermissionResolver::class)->resolve($entity, $status, $user);
+        $permissions = app(FieldPermissionResolver::class)->resolve($entity, $status, $user);
 
         return array_keys(array_filter(
             $permissions,
-            fn (\App\Enums\FieldPermissionEnum $permission) => in_array($permission, [
-                \App\Enums\FieldPermissionEnum::READONLY,
-                \App\Enums\FieldPermissionEnum::HIDDEN,
+            fn (FieldPermissionEnum $permission) => in_array($permission, [
+                FieldPermissionEnum::READONLY,
+                FieldPermissionEnum::HIDDEN,
             ], true)
         ));
     }
@@ -262,7 +270,7 @@ class EditDemand extends EditRecord
     protected function getFooterWidgets(): array
     {
         return [
-            \App\Filament\Resources\DemandResource\Widgets\DemandEvaluationWidget::class,
+            DemandEvaluationWidget::class,
         ];
     }
 }

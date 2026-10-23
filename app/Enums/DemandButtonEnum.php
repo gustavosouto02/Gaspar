@@ -4,6 +4,12 @@ namespace App\Enums;
 
 use Filament\Support\Contracts\HasLabel;
 
+/**
+ * Enum padronizado para botões de transição em demandas.
+ *
+ * @method static self from(string $value)
+ * @method static self tryFrom(string $value)
+ */
 enum DemandButtonEnum: string implements HasLabel
 {
     case SALVAR = 'Salvar';
