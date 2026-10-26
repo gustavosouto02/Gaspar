@@ -216,6 +216,51 @@ class ProcessoAquiE2ETest extends TestCase
         $this->assertTrue(in_array($response->status(), [200, 500])); // Autenticado, passa pelo middleware (retorna json)
     }
 
+    public function test_botao_exportar_pdf_aparece_em_demandas_avaliadas_e_canceladas(): void
+    {
+        $this->actingAs($this->admin);
+
+        foreach (['closed', 'evaluated', 'canceled'] as $systemKey) {
+            $demanda = Demand::factory()->create([
+                'entity_id' => $this->processo->id,
+                'process_status_id' => ProcessStatus::where('system_key', $systemKey)->firstOrFail()->id,
+                'requested_by' => $this->demandante->id,
+                'status' => DemandStatusEnum::CLOSED,
+                'completed_at' => now(),
+            ]);
+
+            \Livewire\Livewire::test(\App\Filament\Resources\DemandResource\Pages\ViewDemand::class, ['record' => $demanda->getRouteKey()])
+                ->assertActionVisible('export_pdf');
+
+            $this->get(route('demands.pdf', ['record' => $demanda->id]))->assertOk();
+        }
+    }
+
+    public function test_campos_customizados_aparecem_somente_leitura_na_visualizacao_do_processo(): void
+    {
+        $this->actingAs($this->admin);
+        $manager = \App\Filament\Resources\CustomEntityResource\RelationManagers\FieldsRelationManager::class;
+
+        $this->assertTrue($manager::canViewForRecord($this->processo, \App\Filament\Resources\CustomEntityResource\Pages\ViewCustomEntity::class));
+
+        \Livewire\Livewire::test($manager, [
+            'ownerRecord' => $this->processo,
+            'pageClass' => \App\Filament\Resources\CustomEntityResource\Pages\ViewCustomEntity::class,
+        ])
+            ->assertCanSeeTableRecords($this->processo->fields)
+            ->assertTableActionHidden('attach')
+            ->assertTableActionHidden('detach', $this->processo->fields->first());
+
+        \Livewire\Livewire::test($manager, [
+            'ownerRecord' => $this->processo,
+            'pageClass' => \App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity::class,
+        ])
+            ->assertTableActionVisible('attach');
+
+        $this->actingAs($this->demandante);
+        $this->assertFalse($manager::canViewForRecord($this->processo, \App\Filament\Resources\CustomEntityResource\Pages\ViewCustomEntity::class));
+    }
+
     public function test_rota_seed_aqui_eh_restrita_a_admin_e_executa_o_seeder(): void
     {
         $this->post('/seed-aqui')->assertStatus(403);
