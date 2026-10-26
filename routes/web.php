@@ -32,6 +32,41 @@ Route::middleware([EnsureAdmin::class])->group(function () {
         return 'Sistema atualizado, cache limpo, migrações sincronizadas e fila processada com sucesso!';
     })->name('admin.update-system');
 
+    // Permite rodar o seed do processo AQUI em hospedagens sem SSH (ex: HostGator).
+    // GET exibe a confirmação; POST executa, pois o seeder recria as demandas do processo.
+    Route::get('/seed-aqui', function () {
+        $csrf = csrf_token();
+        $action = route('admin.seed-aqui');
+
+        return response(<<<HTML
+            <h2>Seed do processo "AQUI - Contratação de serviços avulsos"</h2>
+            <p>Isto vai rodar as migrações pendentes e o AquiProcessSeeder.</p>
+            <p><strong>Atenção:</strong> as demandas, membros, permissões e transições do processo AQUI serão apagados e recriados,
+            e a senha de admin@gaspar.com voltará para <code>admin</code>.</p>
+            <form method="POST" action="{$action}">
+                <input type="hidden" name="_token" value="{$csrf}">
+                <button type="submit">Confirmar e rodar o seed</button>
+            </form>
+            HTML);
+    })->name('admin.seed-aqui.confirm');
+
+    Route::post('/seed-aqui', function () {
+        Artisan::call('migrate', ['--force' => true]);
+        $migrateOutput = Artisan::output();
+
+        Artisan::call('db:seed', ['--class' => 'Database\\Seeders\\AquiProcessSeeder', '--force' => true]);
+        $seedOutput = Artisan::output();
+
+        Artisan::call('optimize:clear');
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Migrações aplicadas e seed do processo AQUI executado com sucesso.',
+            'migrate' => $migrateOutput,
+            'seed' => $seedOutput,
+        ]);
+    })->name('admin.seed-aqui');
+
     Route::match(['get', 'post'], '/trigger-deadlines', function () {
         Artisan::call('app:check-demand-deadlines', ['--force' => true]);
         $deadlinesOutput = Artisan::output();

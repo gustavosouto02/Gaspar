@@ -216,6 +216,23 @@ class ProcessoAquiE2ETest extends TestCase
         $this->assertTrue(in_array($response->status(), [200, 500])); // Autenticado, passa pelo middleware (retorna json)
     }
 
+    public function test_rota_seed_aqui_eh_restrita_a_admin_e_executa_o_seeder(): void
+    {
+        $this->post('/seed-aqui')->assertStatus(403);
+
+        $this->actingAs($this->demandante);
+        $this->get('/seed-aqui')->assertStatus(403);
+        $this->post('/seed-aqui')->assertStatus(403);
+
+        $this->actingAs($this->admin);
+        $this->get('/seed-aqui')->assertOk()->assertSee('Confirmar e rodar o seed');
+
+        Demand::query()->delete();
+
+        $this->post('/seed-aqui')->assertOk()->assertJson(['status' => 'success']);
+        $this->assertTrue(Demand::exists());
+    }
+
     public function test_bloqueia_conclusao_quando_possui_subdemandas_pendentes(): void
     {
         $statusQuitando = ProcessStatus::where('name', 'Quitando')->firstOrFail();
