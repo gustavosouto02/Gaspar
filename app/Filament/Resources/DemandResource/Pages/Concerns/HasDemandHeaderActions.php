@@ -242,6 +242,11 @@ trait HasDemandHeaderActions
                         $oldStatusId = $record->process_status_id;
                         $oldStatusName = $record->processStatus?->name ?? '—';
 
+                        $previousStatus = ProcessStatus::find($previousStatusId);
+                        $discardedFields = $previousStatus
+                            ? app(DemandTransitionService::class)->discardValuesFromLaterSteps($record, $previousStatus)
+                            : [];
+
                         $record->process_status_id = $previousStatusId;
 
                         if ($previousUserId) {
@@ -260,7 +265,10 @@ trait HasDemandHeaderActions
                             'auditable_type' => Demand::class,
                             'auditable_id' => (string) $record->id,
                             'old_values' => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
-                            'new_values' => ['process_status_id' => $previousStatusId, 'status_name' => $previousStatusName, 'action' => 'Retorno Retroativo'],
+                            'new_values' => array_merge(
+                                ['process_status_id' => $previousStatusId, 'status_name' => $previousStatusName, 'action' => 'Retorno Retroativo'],
+                                $discardedFields ? ['discarded_fields' => $discardedFields] : [],
+                            ),
                             'ip_address' => request()->ip(),
                             'user_agent' => request()->userAgent(),
                             'created_at' => now(),

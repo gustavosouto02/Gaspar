@@ -76,4 +76,47 @@ class FieldPermissionResolver
 
         return $permissions;
     }
+
+    /**
+     * Permissões que cada campo pode assumir na situação, para qualquer
+     * usuário não ADMIN: as linhas dos papéis mais a que vale para quem não
+     * tem linha de papel (genérica ou fallback)
+     *
+     * @return array<string, array<FieldPermissionEnum>> mapa custom_field_id => permissões possíveis
+     */
+    public function possiblePermissions(CustomEntity $entity, ProcessStatus $status): array
+    {
+        $fields = $entity->fields()->get();
+
+        $rows = FieldPermission::where('entity_id', $entity->id)
+            ->where('process_status_id', $status->id)
+            ->get()
+            ->groupBy('custom_field_id');
+
+        $isFinalStatus = $status->isClosed() || $status->isEvaluated() || $status->isCanceled();
+
+        $permissions = [];
+
+        foreach ($fields as $field) {
+            $fieldRows = $rows->get($field->id, collect());
+            $generic   = $fieldRows->whereNull('process_role_id')->first();
+
+            $base = match (true) {
+                (bool) $generic => $generic->permission,
+                $isFinalStatus => FieldPermissionEnum::READONLY,
+                $field->is_required => FieldPermissionEnum::REQUIRED,
+                default => FieldPermissionEnum::OPTIONAL,
+            };
+
+            $permissions[$field->id] = $fieldRows
+                ->whereNotNull('process_role_id')
+                ->pluck('permission')
+                ->push($base)
+                ->unique()
+                ->values()
+                ->all();
+        }
+
+        return $permissions;
+    }
 }
