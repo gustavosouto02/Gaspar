@@ -97,7 +97,10 @@ trait HasDemandHeaderActions
         }
 
         // Se a demanda já está cancelada ou avaliada, não possui mais transições de fluxo
+        // (o PDF continua disponível para consulta do histórico)
         if ($record->processStatus?->isCanceled() || $record->processStatus?->isEvaluated()) {
+            $actions[] = $this->makeExportPdfAction($record);
+
             return $actions;
         }
 
@@ -352,13 +355,21 @@ trait HasDemandHeaderActions
                     && (auth()->user()->user_role === UserRoleEnum::ADMIN
                         || $record->requested_by === auth()->id())
             );
-        $actions[] = Actions\Action::make('export_pdf')
+        $actions[] = $this->makeExportPdfAction($record);
+
+        return array_merge($actions, $parentActions);
+    }
+
+    /**
+     * Exportação em PDF, disponível em qualquer situação da demanda.
+     */
+    protected function makeExportPdfAction(Demand $record): Actions\Action
+    {
+        return Actions\Action::make('export_pdf')
             ->label('Exportar PDF')
             ->icon('heroicon-o-document-arrow-down')
             ->color('gray')
             ->url(fn () => route('demands.pdf', ['record' => $record->id]))
             ->openUrlInNewTab();
-
-        return array_merge($actions, $parentActions);
     }
 }
