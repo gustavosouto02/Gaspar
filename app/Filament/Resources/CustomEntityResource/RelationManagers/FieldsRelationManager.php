@@ -22,15 +22,8 @@ class FieldsRelationManager extends RelationManager
 
     public static function canViewForRecord(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): bool
     {
-        if (auth()->user()?->user_role !== \App\Enums\UserRoleEnum::ADMIN) {
-            return false;
-        }
-
-        if (is_subclass_of($pageClass, \Filament\Resources\Pages\ViewRecord::class)) {
-            return false;
-        }
-
-        return true;
+        // Na tela de visualização o Filament exibe a aba somente leitura (sem vincular/desvincular)
+        return auth()->user()?->user_role === \App\Enums\UserRoleEnum::ADMIN;
     }
 
     public function form(Form $form): Form
@@ -63,7 +56,7 @@ class FieldsRelationManager extends RelationManager
 
             ])
             ->defaultSort('field_order')
-            ->reorderable('field_order')
+            ->reorderable('field_order', fn (): bool => ! $this->isReadOnly())
             ->filters([
                 //
             ])
