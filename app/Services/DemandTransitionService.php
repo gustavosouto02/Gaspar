@@ -75,6 +75,8 @@ class DemandTransitionService
         $oldStatusId = $demand->process_status_id;
         $oldStatusName = $demand->processStatus?->name ?? '—';
 
+        $discardedFields = $this->discardValuesFromLaterSteps($demand, $target);
+
         // Executa a transição
         $demand->process_status_id = $target->id;
 
@@ -120,6 +122,7 @@ class DemandTransitionService
                 $transition->toStatus?->isConditional()
                     ? ['via' => 'Condicional', 'rule_order' => $matchedRule?->rule_order]
                     : [],
+                $discardedFields ? ['discarded_fields' => $discardedFields] : [],
             ),
             'ip_address' => request()->ip(),
             'user_agent' => request()->userAgent(),
@@ -142,6 +145,55 @@ class DemandTransitionService
         }
 
         return $target;
+    }
+
+    /**
+     * Ao voltar para uma situação já percorrida, descarta os valores que ela
+     * não enxerga (oculto para todos os papéis) e que foram gravados depois que
+     * a demanda saiu dela, ou seja, decisões das etapas seguintes que estão
+     * sendo refeitas (ex.: "Aprovação" ao retornar para Licitando). Valores
+     * que já existiam quando a demanda saiu da situação são preservados.
+     *
+     * @return array<string> nomes dos campos descartados
+     */
+    public function discardValuesFromLaterSteps(Demand $demand, ProcessStatus $target): array
+    {
+        $entity = $demand->entity;
+        if (! $entity) {
+            return [];
+        }
+
+        $leftTargetAt = ActivityLog::where('auditable_type', Demand::class)
+            ->where('auditable_id', (string) $demand->id)
+            ->where('event', 'transition')
+            ->orderByDesc('created_at')
+            ->get()
+            ->first(fn (ActivityLog $log) => ($log->old_values['process_status_id'] ?? null) === $target->id)
+            ?->created_at;
+
+        // Situação ainda não percorrida: é um avanço, nada a descartar
+        if (! $leftTargetAt) {
+            return [];
+        }
+
+        $hiddenIds = array_keys(array_filter(
+            $this->permissionResolver->possiblePermissions($entity, $target),
+            fn (array $permissions) => $permissions === [FieldPermissionEnum::HIDDEN]
+        ));
+
+        if (empty($hiddenIds)) {
+            return [];
+        }
+
+        $values = $demand->fieldValues()
+            ->with('customField')
+            ->whereIn('custom_field_id', $hiddenIds)
+            ->where('created_at', '>=', $leftTargetAt)
+            ->get();
+
+        $values->each->delete();
+
+        return $values->map(fn ($fieldValue) => $fieldValue->customField?->name)->filter()->values()->all();
     }
 
     /**
