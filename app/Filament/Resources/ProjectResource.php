@@ -89,7 +89,7 @@ class ProjectResource extends Resource
                             ]),
 
                         Forms\Components\TextInput::make('name')
-                            ->label('Título:')
+                            ->label('Nome do projeto:')
                             ->required()
                             ->maxLength(255)
                             ->columnSpanFull(),
@@ -189,7 +189,7 @@ class ProjectResource extends Resource
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Título')
+                    ->label('Nome do projeto')
                     ->searchable(query: fn ($query, string $search) => $query->where(
                         fn ($q) => $q->where('name', 'like', "%{$search}%")
                             ->orWhere('number', 'like', "%{$search}%")

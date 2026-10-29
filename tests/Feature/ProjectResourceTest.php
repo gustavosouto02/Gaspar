@@ -34,7 +34,7 @@ class ProjectResourceTest extends TestCase
         Livewire::test(CreateProject::class)
             ->assertFormFieldDoesNotExist('entity_id')
             ->assertFormFieldExists('process_status_id')
-            ->assertFormFieldExists('name');
+            ->assertFormFieldExists('name', fn ($field) => $field->getLabel() === 'Nome do projeto:');
     }
 
     public function test_projeto_pode_ser_criado_sem_processo(): void
