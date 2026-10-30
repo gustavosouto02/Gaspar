@@ -48,12 +48,6 @@ class FieldsRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('field_type')
                     ->badge()
                     ->label('Tipo'),
-
-                Tables\Columns\IconColumn::make('is_required')
-                    ->boolean()
-                    ->sortable()
-                    ->label('Obrigatório'),
-
             ])
             ->defaultSort('field_order')
             ->reorderable('field_order', fn (): bool => ! $this->isReadOnly())
