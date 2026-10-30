@@ -173,4 +173,23 @@ class FieldPermissionResolverTest extends TestCase
             'permission' => FieldPermissionEnum::READONLY->value,
         ]);
     }
+
+    public function test_field_permissions_action_is_only_available_when_editing_process(): void
+    {
+        $admin = User::factory()->create(['user_role' => UserRoleEnum::ADMIN, 'is_active' => true]);
+        $this->actingAs($admin);
+
+        \Livewire\Livewire::test(\App\Filament\Resources\CustomEntityResource\Pages\ListCustomEntities::class)
+            ->assertTableActionDoesNotExist('permissions');
+
+        \Livewire\Livewire::test(\App\Filament\Resources\CustomEntityResource\Pages\ViewCustomEntity::class, [
+            'record' => $this->entity->getRouteKey(),
+        ])
+            ->assertActionDoesNotExist('field_permissions');
+
+        \Livewire\Livewire::test(\App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity::class, [
+            'record' => $this->entity->getRouteKey(),
+        ])
+            ->assertActionVisible('field_permissions');
+    }
 }
