@@ -25,8 +25,7 @@
                 @endforeach
             </select>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                A linha do papel vence a regra genérica. Célula "Padrão" herda o comportamento do campo
-                (obrigatório/opcional; somente leitura em situações finais).
+                A linha do papel vence a regra genérica. Por padrão, os campos iniciam como "Somente leitura".
             </p>
         </div>
 
@@ -55,7 +54,7 @@
                                 </td>
                                 @foreach ($this->statuses as $status)
                                     @php
-                                        $current = $matrix[$field->id][$status->id] ?? '';
+                                        $current = $matrix[$field->id][$status->id] ?? \App\Enums\FieldPermissionEnum::READONLY->value;
                                     @endphp
                                     <td class="px-2 py-2">
                                         <select
@@ -63,7 +62,6 @@
                                             class="block w-full rounded-lg border text-sm border-gray-300 dark:bg-gray-900 dark:border-gray-700 dark:text-white"
                                             style="{{ $cellStyles[$current] ?? '' }}"
                                         >
-                                            <option value="">Padrão</option>
                                             @foreach ($this->permissionOptions as $value => $label)
                                                 <option value="{{ $value }}">{{ $label }}</option>
                                             @endforeach

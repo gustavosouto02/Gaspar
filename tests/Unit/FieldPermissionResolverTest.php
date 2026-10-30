@@ -101,13 +101,13 @@ class FieldPermissionResolverTest extends TestCase
         $this->assertSame(FieldPermissionEnum::READONLY, $this->resolved());
     }
 
-    public function test_fallback_uses_is_required(): void
+    public function test_fallback_defaults_to_readonly(): void
     {
-        $this->assertSame(FieldPermissionEnum::OPTIONAL, $this->resolved());
+        $this->assertSame(FieldPermissionEnum::READONLY, $this->resolved());
 
         $this->field->update(['is_required' => true]);
 
-        $this->assertSame(FieldPermissionEnum::REQUIRED, $this->resolved());
+        $this->assertSame(FieldPermissionEnum::READONLY, $this->resolved());
     }
 
     public function test_final_statuses_default_to_readonly(): void
@@ -148,5 +148,48 @@ class FieldPermissionResolverTest extends TestCase
         $this->permission(null, FieldPermissionEnum::REQUIRED);
 
         $this->assertSame(FieldPermissionEnum::OPTIONAL, $this->resolved());
+    }
+
+    public function test_manage_field_permissions_page_defaults_to_readonly_without_padrao_option(): void
+    {
+        $admin = User::factory()->create(['user_role' => UserRoleEnum::ADMIN, 'is_active' => true]);
+        $this->entity->processStatuses()->attach($this->status->id, ['display_order' => 1]);
+
+        $this->actingAs($admin);
+
+        \Livewire\Livewire::test(\App\Filament\Resources\CustomEntityResource\Pages\ManageFieldPermissions::class, [
+            'record' => $this->entity->id,
+        ])
+            ->assertSuccessful()
+            ->assertDontSeeHtml('<option value="">Padrão</option>')
+            ->assertSet("matrix.{$this->field->id}.{$this->status->id}", FieldPermissionEnum::READONLY->value)
+            ->call('save');
+
+        $this->assertDatabaseHas('field_permissions', [
+            'entity_id' => $this->entity->id,
+            'custom_field_id' => $this->field->id,
+            'process_status_id' => $this->status->id,
+            'process_role_id' => null,
+            'permission' => FieldPermissionEnum::READONLY->value,
+        ]);
+    }
+
+    public function test_field_permissions_action_is_only_available_when_editing_process(): void
+    {
+        $admin = User::factory()->create(['user_role' => UserRoleEnum::ADMIN, 'is_active' => true]);
+        $this->actingAs($admin);
+
+        \Livewire\Livewire::test(\App\Filament\Resources\CustomEntityResource\Pages\ListCustomEntities::class)
+            ->assertTableActionDoesNotExist('permissions');
+
+        \Livewire\Livewire::test(\App\Filament\Resources\CustomEntityResource\Pages\ViewCustomEntity::class, [
+            'record' => $this->entity->getRouteKey(),
+        ])
+            ->assertActionDoesNotExist('field_permissions');
+
+        \Livewire\Livewire::test(\App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity::class, [
+            'record' => $this->entity->getRouteKey(),
+        ])
+            ->assertActionVisible('field_permissions');
     }
 }

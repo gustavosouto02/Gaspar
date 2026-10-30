@@ -13,9 +13,8 @@ use App\Models\User;
 /**
  * Resolve a permissão efetiva de cada campo do processo para uma situação
  * e um usuário. Precedência: linha do papel vence a genérica; entre vários
- * papéis vale a mais permissiva; sem linha vale o fallback (is_required em
- * situações abertas, somente leitura em situações finais); ADMIN nunca
- * fica abaixo de OPTIONAL.
+ * papéis vale a mais permissiva; sem linha vale o padrão Somente leitura
+ * (READONLY); ADMIN nunca fica abaixo de OPTIONAL.
  */
 class FieldPermissionResolver
 {
@@ -40,8 +39,7 @@ class FieldPermissionResolver
             ->get()
             ->groupBy('custom_field_id');
 
-        $isFinalStatus = $status->isClosed() || $status->isEvaluated() || $status->isCanceled();
-        $isAdmin       = $user->user_role === UserRoleEnum::ADMIN;
+        $isAdmin = $user->user_role === UserRoleEnum::ADMIN;
 
         $permissions = [];
 
@@ -58,12 +56,8 @@ class FieldPermissionResolver
                     ->first();
             } elseif ($generic) {
                 $permission = $generic->permission;
-            } elseif ($isFinalStatus) {
-                $permission = FieldPermissionEnum::READONLY;
             } else {
-                $permission = $field->is_required
-                    ? FieldPermissionEnum::REQUIRED
-                    : FieldPermissionEnum::OPTIONAL;
+                $permission = FieldPermissionEnum::READONLY;
             }
 
             // ADMIN sempre recebe no mínimo OPTIONAL: nunca fica bloqueado pela matriz
@@ -80,7 +74,7 @@ class FieldPermissionResolver
     /**
      * Permissões que cada campo pode assumir na situação, para qualquer
      * usuário não ADMIN: as linhas dos papéis mais a que vale para quem não
-     * tem linha de papel (genérica ou fallback)
+     * tem linha de papel (genérica ou fallback READONLY)
      *
      * @return array<string, array<FieldPermissionEnum>> mapa custom_field_id => permissões possíveis
      */
@@ -93,20 +87,15 @@ class FieldPermissionResolver
             ->get()
             ->groupBy('custom_field_id');
 
-        $isFinalStatus = $status->isClosed() || $status->isEvaluated() || $status->isCanceled();
-
         $permissions = [];
 
         foreach ($fields as $field) {
             $fieldRows = $rows->get($field->id, collect());
             $generic   = $fieldRows->whereNull('process_role_id')->first();
 
-            $base = match (true) {
-                (bool) $generic => $generic->permission,
-                $isFinalStatus => FieldPermissionEnum::READONLY,
-                $field->is_required => FieldPermissionEnum::REQUIRED,
-                default => FieldPermissionEnum::OPTIONAL,
-            };
+            $base = $generic
+                ? $generic->permission
+                : FieldPermissionEnum::READONLY;
 
             $permissions[$field->id] = $fieldRows
                 ->whereNotNull('process_role_id')
