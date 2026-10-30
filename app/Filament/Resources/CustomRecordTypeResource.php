@@ -33,6 +33,10 @@ class CustomRecordTypeResource extends Resource
     {
         return $form
             ->schema([
+                Forms\Components\Placeholder::make('code_placeholder')
+                    ->label('Número')
+                    ->content(fn ($record) => $record?->code ?? 'NOVO')
+                    ->columnSpanFull(),
                 Forms\Components\TextInput::make('name')
                     ->label('Nome (Ex: Produtos)')
                     ->required()
@@ -57,6 +61,10 @@ class CustomRecordTypeResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('code')
+                    ->label('Número')
+                    ->searchable()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome')
                     ->searchable(),

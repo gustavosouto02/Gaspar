@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\HasSequentialCode;
 use App\Concerns\LogsActivity;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,7 +15,11 @@ use Illuminate\Support\Str;
 
 class CustomEntity extends Model
 {
-    use HasFactory, HasUuids, SoftDeletes, LogsActivity;
+    use HasFactory, HasSequentialCode, HasUuids, LogsActivity, SoftDeletes;
+
+    protected string $sequentialCodePrefix = 'PRC';
+
+    protected string $sequentialCodeColumn = 'code';
 
     protected static function booted()
     {
@@ -32,6 +37,7 @@ class CustomEntity extends Model
     }
 
     protected $fillable = [
+        'code',
         'name',
         'macroprocess_id',
         'description',

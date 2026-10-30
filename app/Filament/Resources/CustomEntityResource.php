@@ -40,8 +40,8 @@ class CustomEntityResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Placeholder::make('id_placeholder')
-                    ->label('Processo número')
-                    ->content(fn ($record) => $record?->id ?? '-'),
+                    ->label('Número')
+                    ->content(fn ($record) => $record?->code ?? 'NOVO'),
                 
                 Forms\Components\Placeholder::make('created_at_placeholder')
                     ->label('Data de criação')
@@ -97,6 +97,11 @@ class CustomEntityResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('code')
+                    ->label('Número')
+                    ->searchable()
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome do Processo')
                     ->formatStateUsing(fn (CustomEntity $record) => $record->full_display_name)

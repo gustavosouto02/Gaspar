@@ -3,6 +3,7 @@
 namespace App\Concerns;
 
 use App\Services\CodeGeneratorService;
+use Illuminate\Support\Facades\Schema;
 
 trait HasSequentialCode
 {
@@ -13,6 +14,9 @@ trait HasSequentialCode
     {
         static::creating(function ($model) {
             $column = $model->getSequentialCodeColumn();
+            if (! Schema::hasColumn($model->getTable(), $column)) {
+                return;
+            }
             if (empty($model->{$column})) {
                 $year = $model->created_at ? $model->created_at->year : null;
                 $model->{$column} = app(CodeGeneratorService::class)->generate(

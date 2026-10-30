@@ -75,6 +75,9 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
             'acronym' => 'SUPRI',
             'value_chain_function' => 'Suportar Processos',
         ]);
+
+        $macro = Macroprocess::where('acronym', 'SUPRI')->firstOrFail();
+        $this->assertSame('SUPRI - Macroprocesso Gestão de Suprimentos', $macro->full_display_name);
     }
 
     public function test_campos_bases_de_processo_sao_obrigatorios_na_criacao(): void

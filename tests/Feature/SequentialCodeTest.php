@@ -214,4 +214,48 @@ class SequentialCodeTest extends TestCase
         ]);
         $this->assertEquals("PRJ-{$year}-0003", $project3->number);
     }
+
+    public function test_all_entities_receive_sequential_code_automatically(): void
+    {
+        $year = date('Y');
+
+        $this->assertMatchesRegularExpression("/^USR-{$year}-\d{4}$/", $this->user->code);
+        $this->assertMatchesRegularExpression("/^PRC-{$year}-\d{4}$/", $this->entity->code);
+        $this->assertMatchesRegularExpression("/^CLI-{$year}-\d{4}$/", $this->client->code);
+        $this->assertMatchesRegularExpression("/^SIT-{$year}-\d{4}$/", $this->status->code);
+
+        $macro = Macroprocess::create([
+            'name' => 'Macro 2',
+            'acronym' => 'M2',
+            'is_active' => true,
+        ]);
+        $this->assertMatchesRegularExpression("/^MAC-{$year}-\d{4}$/", $macro->code);
+
+        $field = \App\Models\CustomField::create([
+            'name' => 'Campo Teste',
+            'key' => 'campo_teste',
+            'field_type' => \App\Enums\FieldTypeEnum::TEXT,
+            'created_by' => $this->user->id,
+        ]);
+        $this->assertMatchesRegularExpression("/^CMP-{$year}-\d{4}$/", $field->code);
+
+        $supplier = \App\Models\Supplier::create([
+            'name' => 'Fornecedor Teste',
+        ]);
+        $this->assertMatchesRegularExpression("/^FOR-{$year}-\d{4}$/", $supplier->code);
+
+        $role = \App\Models\ProcessRole::create([
+            'name' => 'Papel Teste',
+            'color' => 'blue',
+            'created_by' => $this->user->id,
+        ]);
+        $this->assertMatchesRegularExpression("/^PAP-{$year}-\d{4}$/", $role->code);
+
+        $recordType = CustomRecordType::create([
+            'name' => 'Tipo Teste',
+            'slug' => 'tipo-teste',
+            'is_active' => true,
+        ]);
+        $this->assertMatchesRegularExpression("/^TPC-{$year}-\d{4}$/", $recordType->code);
+    }
 }

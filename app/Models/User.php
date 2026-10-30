@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\HasCustomFields;
+use App\Concerns\HasSequentialCode;
 use App\Enums\UserRoleEnum;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
@@ -17,7 +18,11 @@ use Illuminate\Support\Str;
 class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, HasUuids, SoftDeletes, HasCustomFields;
+    use HasCustomFields, HasFactory, HasSequentialCode, HasUuids, Notifiable, SoftDeletes;
+
+    protected string $sequentialCodePrefix = 'USR';
+
+    protected string $sequentialCodeColumn = 'code';
 
     /**
      * As colunas que podem ser preenchidas pelo admin
@@ -25,6 +30,7 @@ class User extends Authenticatable implements FilamentUser
      * @var list<string>
      */
     protected $fillable = [
+        'code',
         'name',
         'email',
         'password',
