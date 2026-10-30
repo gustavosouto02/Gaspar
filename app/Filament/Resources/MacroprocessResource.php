@@ -68,8 +68,8 @@ class MacroprocessResource extends Resource
         return $form
             ->schema([
                 \Filament\Forms\Components\Placeholder::make('id_placeholder')
-                    ->label('Número do macroprocesso')
-                    ->content(fn ($record) => $record?->id ?? '-'),
+                    ->label('Número')
+                    ->content(fn ($record) => $record?->code ?? 'NOVO'),
                 
                 \Filament\Forms\Components\Placeholder::make('created_at_placeholder')
                     ->label('Data de criação')
@@ -116,13 +116,14 @@ class MacroprocessResource extends Resource
             ->schema([
                 Infolists\Components\Section::make('MACROPROCESSO')
                     ->schema([
-                        Infolists\Components\TextEntry::make('id')
-                            ->label('Macroprocesso número'),
+                        Infolists\Components\TextEntry::make('code')
+                            ->label('Número'),
                         Infolists\Components\TextEntry::make('created_at')
                             ->label('Data de criação')
                             ->dateTime('d/m/Y'),
                         Infolists\Components\TextEntry::make('name')
-                            ->label('Nome do Macroprocesso'),
+                            ->label('Nome do Macroprocesso')
+                            ->formatStateUsing(fn ($record) => $record->full_display_name),
                         Infolists\Components\TextEntry::make('acronym')
                             ->label('Sigla do Macroprocesso'),
                         Infolists\Components\TextEntry::make('is_active')
@@ -159,6 +160,10 @@ class MacroprocessResource extends Resource
     {
         return $table
             ->columns([
+                \Filament\Tables\Columns\TextColumn::make('code')
+                    ->label('Número')
+                    ->searchable()
+                    ->sortable(),
                 \Filament\Tables\Columns\TextColumn::make('name')
                     ->label('Macroprocesso')
                     ->formatStateUsing(fn ($record) => $record->full_display_name)

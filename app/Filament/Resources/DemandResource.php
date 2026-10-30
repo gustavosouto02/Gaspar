@@ -61,7 +61,7 @@ class DemandResource extends Resource
                                             ->visible(fn ($record) => (bool) $record?->parent_demand_id),
 
                                         Forms\Components\Placeholder::make('id_label')
-                                            ->label('Demanda número:')
+                                            ->label('Número:')
                                             ->content(fn ($record) => $record ? ($record->code ?? '#'.strtoupper(substr($record->id, 0, 8))) : 'NOVA'),
 
                                         Forms\Components\Placeholder::make('created_at_label')
@@ -350,7 +350,7 @@ class DemandResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('code')
-                    ->label('Código')
+                    ->label('Número')
                     ->searchable()
                     ->sortable(),
 

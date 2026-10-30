@@ -2,9 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use App\Concerns\HasCustomFields;
+use App\Concerns\HasSequentialCode;
 use App\Concerns\LogsActivity;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,9 +13,14 @@ use Illuminate\Support\Str;
 
 class Client extends Model
 {
-    use HasFactory, HasUuids, LogsActivity, HasCustomFields;
+    use HasCustomFields, HasFactory, HasSequentialCode, HasUuids, LogsActivity;
+
+    protected string $sequentialCodePrefix = 'CLI';
+
+    protected string $sequentialCodeColumn = 'code';
 
     protected $fillable = [
+        'code',
         'name',
         'email',
         'phone',

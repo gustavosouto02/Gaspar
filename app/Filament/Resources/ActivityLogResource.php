@@ -49,6 +49,11 @@ class ActivityLogResource extends Resource
             ->schema([
                 Infolists\Components\Section::make('Identificação')
                     ->schema([
+                        Infolists\Components\TextEntry::make('auditable_id')
+                            ->label('Número')
+                            ->fontFamily('mono')
+                            ->copyable(),
+
                         Infolists\Components\TextEntry::make('user.name')
                             ->label('Usuário'),
 
@@ -59,11 +64,6 @@ class ActivityLogResource extends Resource
 
                         Infolists\Components\TextEntry::make('auditable_type_label')
                             ->label('Entidade'),
-
-                        Infolists\Components\TextEntry::make('auditable_id')
-                            ->label('ID do Registro')
-                            ->fontFamily('mono')
-                            ->copyable(),
 
                         Infolists\Components\TextEntry::make('ip_address')
                             ->label('IP'),
@@ -97,6 +97,12 @@ class ActivityLogResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('auditable_id')
+                    ->label('Número')
+                    ->fontFamily('mono')
+                    ->limit(12)
+                    ->toggleable(),
+
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Data/Hora')
                     ->dateTime('d/m/Y H:i:s')
@@ -129,12 +135,6 @@ class ActivityLogResource extends Resource
                     ->formatStateUsing(fn ($state) => class_basename($state))
                     ->badge()
                     ->color('gray'),
-
-                Tables\Columns\TextColumn::make('auditable_id')
-                    ->label('ID')
-                    ->fontFamily('mono')
-                    ->limit(12)
-                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('ip_address')
                     ->label('IP')

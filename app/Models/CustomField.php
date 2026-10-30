@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Concerns\HasSequentialCode;
 use App\Enums\FieldTypeEnum;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -12,9 +13,14 @@ use Illuminate\Support\Str;
 
 class CustomField extends Model
 {
-    use HasFactory, HasUuids, SoftDeletes;
+    use HasFactory, HasSequentialCode, HasUuids, SoftDeletes;
+
+    protected string $sequentialCodePrefix = 'CMP';
+
+    protected string $sequentialCodeColumn = 'code';
 
     protected $fillable = [
+        'code',
         'name',
         'key',
         'field_type',

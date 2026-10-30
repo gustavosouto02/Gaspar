@@ -62,7 +62,7 @@ class DemandReports extends Page implements HasForms, HasTable
     {
         $columns = [
             Tables\Columns\TextColumn::make('code')
-                ->label('Código')
+                ->label('Número')
                 ->formatStateUsing(fn ($state, $record) => $state ?? '#'.strtoupper(substr($record->id, 0, 8)))
                 ->searchable(query: function ($query, string $search) {
                     $clean = ltrim(trim($search), '#');
@@ -198,7 +198,7 @@ class DemandReports extends Page implements HasForms, HasTable
                         // UTF-8 BOM para o Excel abrir corretamente
                         fwrite($csv, $bom = (chr(0xEF).chr(0xBB).chr(0xBF)));
 
-                        fputcsv($csv, ['Código', 'Título', 'Situação', 'Status', 'Prioridade', 'Responsável', 'Prazo', 'Aberta Em'], ';');
+                        fputcsv($csv, ['Número', 'Título', 'Situação', 'Status', 'Prioridade', 'Responsável', 'Prazo', 'Aberta Em'], ';');
 
                         $livewire->getFilteredTableQuery()->each(function ($demand) use ($csv) {
                             fputcsv($csv, [
