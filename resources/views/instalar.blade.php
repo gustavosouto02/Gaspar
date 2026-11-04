@@ -487,7 +487,6 @@
                             <label for="db_database">Nome do Banco</label>
                             <input type="text" id="db_database" name="db_database"
                                 value="{{ old('db_database', 'gaspar') }}" placeholder="gaspar" required>
-                            <span class="input-hint">Será criado automaticamente se não existir</span>
                         </div>
                         <div class="form-grid-row">
                             <div class="form-group">
