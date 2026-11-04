@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\SatisfactionRatingEnum;
 use App\Concerns\HasCustomFields;
 use App\Concerns\HasSequentialCode;
 use App\Concerns\LogsActivity;
@@ -40,7 +41,8 @@ class Project extends Model
         'product_owner_name',
         'budget',
         'spent',
-        'sponsor_evaluation',
+        'sponsor_rating',
+        'sponsor_comment',
         'attachments',
     ];
 
@@ -52,6 +54,7 @@ class Project extends Model
         'budget' => 'decimal:2',
         'spent' => 'decimal:2',
         'attachments' => 'array',
+        'sponsor_rating' => SatisfactionRatingEnum::class,
     ];
 
     protected static function booted()
