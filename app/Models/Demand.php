@@ -35,6 +35,7 @@ class Demand extends Model
         'process_status_id',
         'client_id',
         'project_id',
+        'supplier_id',
         'requested_by',
         'assigned_to',
         'created_by',
@@ -118,6 +119,12 @@ class Demand extends Model
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class, 'client_id');
+    }
+
+    /** Fornecedor (nulo = "Não atua") */
+    public function supplier(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class, 'supplier_id');
     }
 
     /** Projeto */

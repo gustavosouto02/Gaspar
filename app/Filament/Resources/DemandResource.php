@@ -130,6 +130,19 @@ class DemandResource extends Resource
                                             ->preload()
                                             ->nullable(),
 
+                                        Forms\Components\Select::make('supplier_id')
+                                            ->label('Fornecedor:')
+                                            ->default(request()->query('supplier_id'))
+                                            ->options(fn () => ['none' => 'Não atua'] + \App\Models\Supplier::query()->orderBy('name')->pluck('name', 'id')->all())
+                                            ->searchable()
+                                            ->required()
+                                            ->afterStateHydrated(function (Forms\Components\Select $component, $state, $record) {
+                                                if ($record && blank($state)) {
+                                                    $component->state('none');
+                                                }
+                                            })
+                                            ->dehydrateStateUsing(fn ($state) => $state === 'none' ? null : $state),
+
                                         Forms\Components\Select::make('requested_by')
                                             ->label('Demandante:')
                                             ->relationship('requester', 'name')

@@ -133,6 +133,7 @@ class FilamentPagesSmokeTest extends TestCase
                 'entity_id' => $this->entity->id,
                 'client_id' => Client::first()->id,
                 'title' => 'Demanda criada pela tela',
+                'supplier_id' => 'none',
             ])
             ->call('create')
             ->assertHasNoFormErrors();
@@ -140,7 +141,20 @@ class FilamentPagesSmokeTest extends TestCase
         $this->assertDatabaseHas('demands', [
             'title' => 'Demanda criada pela tela',
             'status' => DemandStatusEnum::ACTIVE->value,
+            'supplier_id' => null,
         ]);
+    }
+
+    public function test_fornecedor_e_obrigatorio_na_criacao_de_demanda(): void
+    {
+        Livewire::test(CreateDemand::class)
+            ->fillForm([
+                'entity_id' => $this->entity->id,
+                'client_id' => Client::first()->id,
+                'title' => 'Demanda sem fornecedor escolhido',
+            ])
+            ->call('create')
+            ->assertHasFormErrors(['supplier_id' => 'required']);
     }
 
     public function test_demanda_pode_ser_salva_pela_tela_de_edicao(): void

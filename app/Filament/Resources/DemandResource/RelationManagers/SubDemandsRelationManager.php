@@ -118,6 +118,7 @@ class SubDemandsRelationManager extends RelationManager
                             'parent_demand_id' => $parent->id,
                             'client_id' => $parent->client_id,
                             'project_id' => $parent->project_id,
+                            'supplier_id' => $parent->supplier_id,
                         ]);
                     }),
             ])
