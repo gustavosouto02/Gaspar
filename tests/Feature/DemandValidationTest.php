@@ -88,6 +88,7 @@ class DemandValidationTest extends TestCase
             ->fillForm([
                 'entity_id' => $this->entity->id,
                 'title' => 'Demanda com cliente preenchido',
+                'supplier_id' => 'none',
                 'client_id' => $this->client->id,
             ])
             ->call('create')
