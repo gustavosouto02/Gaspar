@@ -132,6 +132,7 @@ class FilamentPagesSmokeTest extends TestCase
             ->fillForm([
                 'entity_id' => $this->entity->id,
                 'client_id' => Client::first()->id,
+                'project_id' => 'none',
                 'title' => 'Demanda criada pela tela',
             ])
             ->call('create')
@@ -140,7 +141,20 @@ class FilamentPagesSmokeTest extends TestCase
         $this->assertDatabaseHas('demands', [
             'title' => 'Demanda criada pela tela',
             'status' => DemandStatusEnum::ACTIVE->value,
+            'project_id' => null,
         ]);
+    }
+
+    public function test_projeto_e_obrigatorio_na_criacao_de_demanda(): void
+    {
+        Livewire::test(CreateDemand::class)
+            ->fillForm([
+                'entity_id' => $this->entity->id,
+                'client_id' => Client::first()->id,
+                'title' => 'Demanda sem projeto escolhido',
+            ])
+            ->call('create')
+            ->assertHasFormErrors(['project_id' => 'required']);
     }
 
     public function test_demanda_pode_ser_salva_pela_tela_de_edicao(): void
