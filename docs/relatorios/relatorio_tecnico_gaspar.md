@@ -97,7 +97,7 @@ O estado da demanda é regulado por dois eixos complementares:
 | Mecanismo de Integridade | Regra e Comportamento Operacional |
 | :--- | :--- |
 | **Subdemandas Abertas** | O método `hasPendingChildren()` bloqueia o encerramento ou cancelamento da demanda-mãe enquanto houver subdemandas em rascunho ou ativas. |
-| **Ação de Retorno Retroativo** | Só permitida se a transição anterior possuir `allow_return = true` e o operador autenticado for o responsável atual (`assigned_to`) ou ADMIN. |
+| **Ação de Retorno Retroativo** | Sempre disponível, independente do fluxo configurado, desde que a demanda não esteja encerrada/avaliada e o operador autenticado for o responsável atual (`assigned_to`) ou ADMIN. |
 | **Imutabilidade de Processo** | O campo `entity_id` é travado contra alteração após a criação da demanda, evitando perda de integridade entre campos dinâmicos e situação. |
 | **Situações Nativas (`is_system`)** | Situações essenciais (*Nova*, *Encerrada*, *Cancelada*) são blindadas no Model contra exclusão acidental ou em massa. |
 
