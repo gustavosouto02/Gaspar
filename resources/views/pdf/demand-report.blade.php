@@ -254,7 +254,7 @@
                 </td>
                 <td>
                     <span class="label">Projeto</span>
-                    <span class="value">{{ $demand->project?->name ?? '—' }}</span>
+                    <span class="value">{{ $demand->project?->display_name ?? '—' }}</span>
                 </td>
             </tr>
         </table>

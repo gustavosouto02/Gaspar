@@ -49,6 +49,7 @@ class ProjectResourceTest extends TestCase
 
         Livewire::test(CreateProject::class)
             ->fillForm([
+                'acronym' => 'PNP',
                 'name' => 'Projeto Novo Portal',
                 'process_status_id' => $status->id,
             ])
@@ -56,9 +57,26 @@ class ProjectResourceTest extends TestCase
             ->assertHasNoFormErrors();
 
         $this->assertDatabaseHas('projects', [
+            'acronym' => 'PNP',
             'name' => 'Projeto Novo Portal',
             'process_status_id' => $status->id,
             'entity_id' => null,
         ]);
+    }
+
+    public function test_sigla_do_projeto_eh_obrigatoria(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(CreateProject::class)
+            ->fillForm(['name' => 'Projeto sem sigla'])
+            ->call('create')
+            ->assertHasFormErrors(['acronym' => 'required']);
+    }
+
+    public function test_sigla_aparece_antes_do_nome_do_projeto(): void
+    {
+        $this->assertSame('PNP - Novo Portal', Project::make(['acronym' => 'PNP', 'name' => 'Novo Portal'])->display_name);
+        $this->assertSame('Novo Portal', Project::make(['name' => 'Novo Portal'])->display_name);
     }
 }

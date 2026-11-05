@@ -255,7 +255,8 @@ class DemandReports extends Page implements HasForms, HasTable
 
                 Tables\Filters\SelectFilter::make('project_id')
                     ->label('Projeto')
-                    ->relationship('project', 'name')
+                    ->relationship('project', 'name', modifyQueryUsing: fn ($query) => $query->orderBy('acronym')->orderBy('name'))
+                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->display_name)
                     ->multiple()
                     ->placeholder('Todos'),
 
