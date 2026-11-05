@@ -374,7 +374,6 @@ class AquiProcessSeeder extends Seeder
             'from_status_id' => $statusNova->id,
             'to_status_id' => $statusMapeados['Licitando']->id,
             'label' => DemandButtonEnum::ENVIAR->value,
-            'allow_return' => false,
             'allowed_role_ids' => ['__requester__'],
             'display_order' => 1,
         ]);
@@ -386,7 +385,6 @@ class AquiProcessSeeder extends Seeder
             'to_status_id' => $statusCondicional->id,
             'default_to_status_id' => $statusMapeados['Adquirindo']->id,
             'label' => DemandButtonEnum::ENVIAR->value,
-            'allow_return' => true,
             'allowed_role_ids' => [$rolesMapeados['Licitador']->id],
             'display_order' => 2,
         ]);
@@ -426,7 +424,6 @@ class AquiProcessSeeder extends Seeder
             'to_status_id' => $statusCondicional->id,
             'default_to_status_id' => $statusMapeados['Adquirindo']->id,
             'label' => DemandButtonEnum::ENVIAR->value,
-            'allow_return' => true,
             'allowed_role_ids' => [$rolesMapeados['Aprovador']->id],
             'display_order' => 3,
         ]);
@@ -451,7 +448,6 @@ class AquiProcessSeeder extends Seeder
             'to_status_id' => $statusCondicional->id,
             'default_to_status_id' => $statusMapeados['Adquirindo']->id,
             'label' => DemandButtonEnum::ENVIAR->value,
-            'allow_return' => true,
             'allowed_role_ids' => [$rolesMapeados['Aprovador alto']->id],
             'display_order' => 4,
         ]);
@@ -475,7 +471,6 @@ class AquiProcessSeeder extends Seeder
             'from_status_id' => $statusMapeados['Adquirindo']->id,
             'to_status_id' => $statusMapeados['Quitando']->id,
             'label' => DemandButtonEnum::ENVIAR->value,
-            'allow_return' => true,
             'allowed_role_ids' => [$rolesMapeados['Adquirente']->id],
             'display_order' => 5,
         ]);
@@ -486,7 +481,6 @@ class AquiProcessSeeder extends Seeder
             'from_status_id' => $statusMapeados['Quitando']->id,
             'to_status_id' => $statusEncerrada->id,
             'label' => DemandButtonEnum::ENVIAR->value,
-            'allow_return' => true,
             'allowed_role_ids' => [$rolesMapeados['Quitador']->id],
             'display_order' => 6,
         ]);

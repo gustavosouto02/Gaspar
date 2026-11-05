@@ -179,12 +179,29 @@ trait HasDemandHeaderActions
         }
 
         // --- BOTÃO DINÂMICO DE DEVOLVER / RETORNAR ---
-        // Verifica qual foi a última situação desta demanda antes da atual
-        $lastTransitionLog = ActivityLog::where('auditable_type', Demand::class)
+        // Reconstrói a pilha de transições: avanços empilham, retornos desempilham.
+        // O topo da pilha é a transição que trouxe a demanda à situação atual.
+        $transitionStack = [];
+        $transitionLogs = ActivityLog::where('auditable_type', Demand::class)
             ->where('auditable_id', (string) $record->id)
             ->where('event', 'transition')
-            ->orderByDesc('created_at')
-            ->first();
+            ->orderBy('created_at')
+            ->get();
+
+        foreach ($transitionLogs as $log) {
+            if (($log->new_values['action'] ?? null) === 'Retorno Retroativo') {
+                array_pop($transitionStack);
+            } else {
+                $transitionStack[] = $log;
+            }
+        }
+
+        $lastTransitionLog = end($transitionStack) ?: null;
+
+        // Só vale se a situação atual for o destino dessa transição
+        if ($lastTransitionLog && (string) ($lastTransitionLog->new_values['process_status_id'] ?? '') !== (string) $record->process_status_id) {
+            $lastTransitionLog = null;
+        }
 
         // Se encontrou histórico e a situação atual é o destino dessa última transição
         $isClosedOrEvaluated = $record->processStatus?->isClosed() || $record->processStatus?->isEvaluated();
@@ -195,108 +212,81 @@ trait HasDemandHeaderActions
             $previousStatusName = $lastTransitionLog->old_values['status_name'] ?? 'Situação Anterior';
             $previousUserId = $lastTransitionLog->user_id;
 
-            // Verifica se a transição que trouxe a demanda até a situação atual permite retorno (allow_return)
-            $transitionId = $lastTransitionLog->new_values['transition_id'] ?? null;
-            if ($transitionId) {
-                $transitionUsed = StatusTransition::find($transitionId);
-            } else {
-                $transitionUsed = StatusTransition::where('entity_id', $record->entity_id)
-                    ->where(function ($q) use ($previousStatusId) {
-                        $q->where('from_status_id', $previousStatusId)
-                            ->orWhereNull('from_status_id');
-                    })
-                    ->where(function ($q) use ($record) {
-                        $q->where('to_status_id', $record->process_status_id)
-                            ->orWhere('default_to_status_id', $record->process_status_id)
-                            ->orWhere(function ($condQ) use ($record) {
-                                $condQ->whereHas('toStatus', fn ($s) => $s->where('system_key', 'conditional'))
-                                    ->where(function ($matchQ) use ($record) {
-                                        $matchQ->where('default_to_status_id', $record->process_status_id)
-                                            ->orWhereHas('rules', fn ($r) => $r->where('to_status_id', $record->process_status_id));
-                                    });
-                            });
-                    })
-                    ->first();
-            }
+            // O retorno à situação anterior é sempre permitido, independente do fluxo configurado.
+            $actions[] = Actions\Action::make('return_previous_status')
+                ->label("Retornar para: {$previousStatusName}")
+                ->color('warning')
+                ->icon('heroicon-o-arrow-uturn-left')
+                ->requiresConfirmation()
+                ->modalHeading('Devolver Demanda')
+                ->modalDescription("Isso fará a demanda voltar para a situação \"{$previousStatusName}\" e será reatribuída ao responsável anterior.")
+                ->modalSubmitActionLabel('Confirmar Retorno')
+                ->action(function () use ($record, $user, $previousStatusId, $previousStatusName, $previousUserId) {
+                    // Trava de subdemandas pendentes
+                    if ($record->hasPendingChildren()) {
+                        Notification::make()
+                            ->title('Não é possível retornar a demanda')
+                            ->body('Esta demanda possui subdemandas pendentes (ativas ou em rascunho). Conclua ou cancele-as primeiro.')
+                            ->danger()
+                            ->send();
 
-            $allowReturn = (bool) ($transitionUsed?->allow_return);
+                        return;
+                    }
 
-            if ($allowReturn) {
-                $actions[] = Actions\Action::make('return_previous_status')
-                    ->label("Retornar para: {$previousStatusName}")
-                    ->color('warning')
-                    ->icon('heroicon-o-arrow-uturn-left')
-                    ->requiresConfirmation()
-                    ->modalHeading('Devolver Demanda')
-                    ->modalDescription("Isso fará a demanda voltar para a situação \"{$previousStatusName}\" e será reatribuída ao responsável anterior.")
-                    ->modalSubmitActionLabel('Confirmar Retorno')
-                    ->action(function () use ($record, $user, $previousStatusId, $previousStatusName, $previousUserId) {
-                        // Trava de subdemandas pendentes
-                        if ($record->hasPendingChildren()) {
-                            Notification::make()
-                                ->title('Não é possível retornar a demanda')
-                                ->body('Esta demanda possui subdemandas pendentes (ativas ou em rascunho). Conclua ou cancele-as primeiro.')
-                                ->danger()
-                                ->send();
+                    $oldStatusId = $record->process_status_id;
+                    $oldStatusName = $record->processStatus?->name ?? '—';
 
-                            return;
+                    $previousStatus = ProcessStatus::find($previousStatusId);
+                    $discardedFields = $previousStatus
+                        ? app(DemandTransitionService::class)->discardValuesFromLaterSteps($record, $previousStatus)
+                        : [];
+
+                    $record->process_status_id = $previousStatusId;
+
+                    if ($previousUserId) {
+                        $record->assigned_to = $previousUserId;
+                    }
+                    $record->save();
+
+                    if (! $previousUserId) {
+                        $record->autoAssign();
+                    }
+
+                    // Registra no audit log o retorno
+                    ActivityLog::create([
+                        'user_id' => $user->id,
+                        'event' => 'transition',
+                        'auditable_type' => Demand::class,
+                        'auditable_id' => (string) $record->id,
+                        'old_values' => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
+                        'new_values' => array_merge(
+                            ['process_status_id' => $previousStatusId, 'status_name' => $previousStatusName, 'action' => 'Retorno Retroativo'],
+                            $discardedFields ? ['discarded_fields' => $discardedFields] : [],
+                        ),
+                        'ip_address' => request()->ip(),
+                        'user_agent' => request()->userAgent(),
+                        'created_at' => now(),
+                    ]);
+
+                    // Dispara notificações
+                    try {
+                        if ($record->assignee && $record->assignee->id !== $user->id) {
+                            $record->assignee->notify(new DemandActivityNotification($record, "A demanda foi devolvida para: {$previousStatusName}"));
                         }
-
-                        $oldStatusId = $record->process_status_id;
-                        $oldStatusName = $record->processStatus?->name ?? '—';
-
-                        $previousStatus = ProcessStatus::find($previousStatusId);
-                        $discardedFields = $previousStatus
-                            ? app(DemandTransitionService::class)->discardValuesFromLaterSteps($record, $previousStatus)
-                            : [];
-
-                        $record->process_status_id = $previousStatusId;
-
-                        if ($previousUserId) {
-                            $record->assigned_to = $previousUserId;
+                        if ($record->requester && $record->requester->id !== $user->id) {
+                            $record->requester->notify(new DemandActivityNotification($record, "A demanda foi devolvida para: {$previousStatusName}"));
                         }
-                        $record->save();
+                    } catch (\Throwable $e) {
+                        Log::warning("Falha ao enviar notificação de devolução da demanda: {$e->getMessage()}");
+                    }
 
-                        if (! $previousUserId) {
-                            $record->autoAssign();
-                        }
+                    Notification::make()->title("Demanda devolvida para: {$previousStatusName}")->success()->send();
 
-                        // Registra no audit log o retorno
-                        ActivityLog::create([
-                            'user_id' => $user->id,
-                            'event' => 'transition',
-                            'auditable_type' => Demand::class,
-                            'auditable_id' => (string) $record->id,
-                            'old_values' => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
-                            'new_values' => array_merge(
-                                ['process_status_id' => $previousStatusId, 'status_name' => $previousStatusName, 'action' => 'Retorno Retroativo'],
-                                $discardedFields ? ['discarded_fields' => $discardedFields] : [],
-                            ),
-                            'ip_address' => request()->ip(),
-                            'user_agent' => request()->userAgent(),
-                            'created_at' => now(),
-                        ]);
-
-                        // Dispara notificações
-                        try {
-                            if ($record->assignee && $record->assignee->id !== $user->id) {
-                                $record->assignee->notify(new DemandActivityNotification($record, "A demanda foi devolvida para: {$previousStatusName}"));
-                            }
-                            if ($record->requester && $record->requester->id !== $user->id) {
-                                $record->requester->notify(new DemandActivityNotification($record, "A demanda foi devolvida para: {$previousStatusName}"));
-                            }
-                        } catch (\Throwable $e) {
-                            Log::warning("Falha ao enviar notificação de devolução da demanda: {$e->getMessage()}");
-                        }
-
-                        Notification::make()->title("Demanda devolvida para: {$previousStatusName}")->success()->send();
-
-                        if (method_exists($this, 'refreshFormData')) {
-                            $this->refreshFormData(['process_status_id', 'assigned_to']);
-                        }
-                        $this->redirect(static::getResource()::getUrl('view', ['record' => $record]));
-                    });
-            }
+                    if (method_exists($this, 'refreshFormData')) {
+                        $this->refreshFormData(['process_status_id', 'assigned_to']);
+                    }
+                    $this->redirect(static::getResource()::getUrl('view', ['record' => $record]));
+                });
         }
 
         $actions[] = Actions\Action::make('cancelar')
