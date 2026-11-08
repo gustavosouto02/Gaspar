@@ -36,6 +36,11 @@ class CustomFieldResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Section::make('Configuração do Campo')->schema([
+                    Forms\Components\Placeholder::make('code_placeholder')
+                        ->label('Número')
+                        ->content(fn ($record) => $record?->code ?? 'NOVO')
+                        ->columnSpanFull(),
+
                     Forms\Components\TextInput::make('name')
                         ->label('Nome do Campo')
                         ->required()
@@ -87,6 +92,11 @@ class CustomFieldResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('code')
+                    ->label('Número')
+                    ->searchable()
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable(),

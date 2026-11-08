@@ -234,7 +234,7 @@
                     <span class="label">Macroprocesso</span>
                     <span class="value">
                         @if($demand->entity && $demand->entity->macroprocess)
-                            <strong>{{ $demand->entity->macroprocess->acronym }}</strong> - {{ $demand->entity->macroprocess->name }}
+                            {{ $demand->entity->macroprocess->full_display_name }}
                         @else
                             —
                         @endif
@@ -438,7 +438,7 @@
         <table class="grid-table">
             <thead>
                 <tr>
-                    <th style="width: 15%;">Código</th>
+                    <th style="width: 15%;">Número</th>
                     <th style="width: 45%;">Título</th>
                     <th style="width: 20%;">Situação</th>
                     <th style="width: 20%;">Responsável</th>

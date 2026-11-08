@@ -47,6 +47,11 @@ class MembersRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('user.name')
             ->columns([
+                Tables\Columns\TextColumn::make('user.code')
+                    ->label('Número')
+                    ->searchable()
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('user.name')
                     ->label('Usuário')
                     ->searchable()

@@ -38,7 +38,7 @@ class ProjectResource extends Resource
                                 Forms\Components\Group::make()
                                     ->schema([
                                         Forms\Components\Placeholder::make('id_label')
-                                            ->label('Projeto número:')
+                                            ->label('Número:')
                                             ->content(fn ($record) => $record ? ($record->number ?? '#'.strtoupper(substr($record->id, 0, 8))) : 'NOVO'),
 
                                         Forms\Components\Placeholder::make('created_at_label')

@@ -93,12 +93,11 @@ class CustomRecordResource extends Resource
             $typeId = $form->getRecord()->custom_record_type_id;
         }
 
-        $schema = [];
-        if ($form->getRecord()) {
-            $schema[] = Forms\Components\Placeholder::make('code_placeholder')
-                ->label('Código do Registro:')
-                ->content(fn ($record) => $record?->code ?? '-');
-        }
+        $schema = [
+            Forms\Components\Placeholder::make('code_placeholder')
+                ->label('Número:')
+                ->content(fn ($record) => $record?->code ?? 'NOVO'),
+        ];
 
         if ($typeId) {
             $type = \App\Models\CustomRecordType::with('fields')->find($typeId);
@@ -150,7 +149,7 @@ class CustomRecordResource extends Resource
         
         $columns = [
             Tables\Columns\TextColumn::make('code')
-                ->label('Código')
+                ->label('Número')
                 ->searchable()
                 ->sortable(),
         ];
