@@ -125,7 +125,8 @@ class DemandResource extends Resource
                                         Forms\Components\Select::make('project_id')
                                             ->label('Projeto:')
                                             ->default(request()->query('project_id'))
-                                            ->relationship('project', 'name')
+                                            ->relationship('project', 'name', modifyQueryUsing: fn ($query) => $query->orderBy('acronym')->orderBy('name'))
+                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->display_name)
                                             ->searchable()
                                             ->preload()
                                             ->nullable(),
@@ -431,7 +432,8 @@ class DemandResource extends Resource
 
                 Tables\Filters\SelectFilter::make('project_id')
                     ->label('Projeto')
-                    ->relationship('project', 'name'),
+                    ->relationship('project', 'name', modifyQueryUsing: fn ($query) => $query->orderBy('acronym')->orderBy('name'))
+                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->display_name),
 
                 Tables\Filters\SelectFilter::make('requested_by')
                     ->label('Demandante')
