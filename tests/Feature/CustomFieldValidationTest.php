@@ -78,4 +78,15 @@ class CustomFieldValidationTest extends TestCase
             'field_type' => FieldTypeEnum::CURRENCY->value,
         ]);
     }
+
+    public function test_campo_obrigatorio_nao_existe_no_formulario_de_criacao_de_campos(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(CreateCustomField::class)
+            ->assertFormFieldDoesNotExist('is_required');
+
+        Livewire::test(\App\Filament\Resources\CustomFieldResource\Pages\ListCustomFields::class)
+            ->assertTableColumnDoesNotExist('is_required');
+    }
 }

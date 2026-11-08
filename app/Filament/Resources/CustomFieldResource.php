@@ -63,10 +63,6 @@ class CustomFieldResource extends Resource
                     Forms\Components\TextInput::make('placeholder')
                         ->maxLength(255),
 
-                    Forms\Components\Toggle::make('is_required')
-                        ->label('Obrigatório')
-                        ->default(false),
-
                     Forms\Components\TextInput::make('default_value')
                         ->label('Valor Padrão')
                         ->maxLength(65535),
@@ -103,11 +99,6 @@ class CustomFieldResource extends Resource
                 Tables\Columns\TextColumn::make('field_type')
                     ->badge()
                     ->label('Tipo'),
-
-                Tables\Columns\IconColumn::make('is_required')
-                    ->boolean()
-                    ->sortable()
-                    ->label('Obrigatório'),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Criado em')

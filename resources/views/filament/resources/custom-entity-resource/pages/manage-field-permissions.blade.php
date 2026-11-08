@@ -5,7 +5,6 @@
             'OPTIONAL' => 'background-color: rgba(34, 197, 94, 0.12); color: rgb(21, 128, 61); border-color: rgba(34, 197, 94, 0.4);',
             'READONLY' => 'background-color: rgba(245, 158, 11, 0.12); color: rgb(180, 83, 9); border-color: rgba(245, 158, 11, 0.4);',
             'HIDDEN'   => 'background-color: rgba(107, 114, 128, 0.15); color: rgb(75, 85, 99); border-color: rgba(107, 114, 128, 0.4);',
-            ''         => '',
         ];
     @endphp
 
@@ -25,8 +24,7 @@
                 @endforeach
             </select>
             <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                A linha do papel vence a regra genérica. Célula "Padrão" herda o comportamento do campo
-                (obrigatório/opcional; somente leitura em situações finais).
+                A linha do papel vence a regra genérica. Por padrão, os campos iniciam como "Somente leitura".
             </p>
         </div>
 
@@ -55,7 +53,7 @@
                                 </td>
                                 @foreach ($this->statuses as $status)
                                     @php
-                                        $current = $matrix[$field->id][$status->id] ?? '';
+                                        $current = $matrix[$field->id][$status->id] ?? \App\Enums\FieldPermissionEnum::READONLY->value;
                                     @endphp
                                     <td class="px-2 py-2">
                                         <select
@@ -63,7 +61,6 @@
                                             class="block w-full rounded-lg border text-sm border-gray-300 dark:bg-gray-900 dark:border-gray-700 dark:text-white"
                                             style="{{ $cellStyles[$current] ?? '' }}"
                                         >
-                                            <option value="">Padrão</option>
                                             @foreach ($this->permissionOptions as $value => $label)
                                                 <option value="{{ $value }}">{{ $label }}</option>
                                             @endforeach
