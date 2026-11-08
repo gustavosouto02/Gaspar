@@ -84,7 +84,7 @@ class ProjectResource extends Resource
 
                                         Forms\Components\Placeholder::make('sponsor_evaluation_label')
                                             ->label('Avaliação do Sponsor:')
-                                            ->content(fn ($record) => $record && $record->sponsor_evaluation ? $record->sponsor_evaluation : '-'),
+                                            ->content(fn ($record) => $record && $record->sponsor_rating ? $record->sponsor_rating->label() : '-'),
                                     ]),
                             ]),
 
@@ -135,9 +135,13 @@ class ProjectResource extends Resource
                             ->label('Despendido (R$)')
                             ->numeric()
                             ->prefix('R$'),
-                        Forms\Components\TextInput::make('sponsor_evaluation')
+                        Forms\Components\Select::make('sponsor_rating')
                             ->label('Avaliação do Sponsor')
-                            ->maxLength(255),
+                            ->options(\App\Enums\SatisfactionRatingEnum::options()),
+                        Forms\Components\Textarea::make('sponsor_comment')
+                            ->label('Comentário da avaliação')
+                            ->rows(3)
+                            ->columnSpanFull(),
                     ])->columns(3),
 
                 Forms\Components\Section::make('Detalhes')
