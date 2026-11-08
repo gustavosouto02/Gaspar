@@ -141,9 +141,14 @@ class DemandResource extends Resource
                                             ->disabled()
                                             ->dehydrated(),
 
-                                        Forms\Components\Placeholder::make('current_responsibles_label')
+                                        Forms\Components\TextInput::make('current_responsibles_label')
                                             ->label('Responsável:')
-                                            ->content(fn ($record) => $record ? $record->current_responsibles : 'Atribuição automática...'),
+                                            ->disabled()
+                                            ->dehydrated(false)
+                                            ->placeholder('—')
+                                            ->afterStateHydrated(function (Forms\Components\TextInput $component, $record) {
+                                                $component->state($record ? $record->current_responsibles : null);
+                                            }),
                                     ]),
 
                                 Forms\Components\Group::make()
