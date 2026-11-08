@@ -257,5 +257,10 @@ class SequentialCodeTest extends TestCase
             'is_active' => true,
         ]);
         $this->assertMatchesRegularExpression("/^TPC-{$year}-\d{4}$/", $recordType->code);
+
+        $log = \App\Models\ActivityLog::where('auditable_type', \App\Models\ProcessRole::class)
+            ->where('auditable_id', $role->id)
+            ->firstOrFail();
+        $this->assertSame($role->code, $log->auditable_number);
     }
 }

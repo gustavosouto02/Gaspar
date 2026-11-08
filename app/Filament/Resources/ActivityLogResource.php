@@ -51,6 +51,7 @@ class ActivityLogResource extends Resource
                     ->schema([
                         Infolists\Components\TextEntry::make('auditable_id')
                             ->label('Número')
+                            ->formatStateUsing(fn (ActivityLog $record): string => $record->auditable_number)
                             ->fontFamily('mono')
                             ->copyable(),
 
@@ -99,8 +100,9 @@ class ActivityLogResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('auditable_id')
                     ->label('Número')
+                    ->formatStateUsing(fn (ActivityLog $record): string => $record->auditable_number)
                     ->fontFamily('mono')
-                    ->limit(12)
+                    ->limit(15)
                     ->toggleable(),
 
                 Tables\Columns\TextColumn::make('created_at')
