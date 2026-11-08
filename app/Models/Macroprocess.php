@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Concerns\HasCustomFields;
+use App\Concerns\HasSequentialCode;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,9 +12,14 @@ use Illuminate\Support\Str;
 
 class Macroprocess extends Model
 {
-    use HasFactory, HasUuids, SoftDeletes, HasCustomFields;
+    use HasCustomFields, HasFactory, HasSequentialCode, HasUuids, SoftDeletes;
+
+    protected string $sequentialCodePrefix = 'MAC';
+
+    protected string $sequentialCodeColumn = 'code';
 
     protected $fillable = [
+        'code',
         'name',
         'acronym',
         'description',
@@ -34,6 +40,17 @@ class Macroprocess extends Model
 
     public function getFullDisplayNameAttribute(): string
     {
-        return $this->acronym ? "{$this->acronym} - {$this->name}" : $this->name;
+        $cleanName = trim((string) $this->name);
+
+        if ($this->acronym) {
+            $prefixPattern = '/^' . preg_quote(trim($this->acronym), '/') . '\s*-\s*/iu';
+            $cleanName = (string) preg_replace($prefixPattern, '', $cleanName);
+        }
+
+        $cleanName = (string) preg_replace('/^macroprocesso\s+/iu', '', $cleanName);
+
+        return $this->acronym
+            ? "{$this->acronym} - Macroprocesso {$cleanName}"
+            : "Macroprocesso {$cleanName}";
     }
 }

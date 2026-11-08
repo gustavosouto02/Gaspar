@@ -38,7 +38,7 @@ class ProjectResource extends Resource
                                 Forms\Components\Group::make()
                                     ->schema([
                                         Forms\Components\Placeholder::make('id_label')
-                                            ->label('Projeto número:')
+                                            ->label('Número:')
                                             ->content(fn ($record) => $record ? ($record->number ?? '#'.strtoupper(substr($record->id, 0, 8))) : 'NOVO'),
 
                                         Forms\Components\Placeholder::make('created_at_label')
@@ -84,9 +84,15 @@ class ProjectResource extends Resource
 
                                         Forms\Components\Placeholder::make('sponsor_evaluation_label')
                                             ->label('Avaliação do Sponsor:')
-                                            ->content(fn ($record) => $record && $record->sponsor_evaluation ? $record->sponsor_evaluation : '-'),
+                                            ->content(fn ($record) => $record && $record->sponsor_rating ? $record->sponsor_rating->label() : '-'),
                                     ]),
                             ]),
+
+                        Forms\Components\TextInput::make('acronym')
+                            ->label('Sigla do projeto:')
+                            ->required()
+                            ->maxLength(20)
+                            ->columnSpanFull(),
 
                         Forms\Components\TextInput::make('name')
                             ->label('Nome do projeto:')
@@ -129,9 +135,13 @@ class ProjectResource extends Resource
                             ->label('Despendido (R$)')
                             ->numeric()
                             ->prefix('R$'),
-                        Forms\Components\TextInput::make('sponsor_evaluation')
+                        Forms\Components\Select::make('sponsor_rating')
                             ->label('Avaliação do Sponsor')
-                            ->maxLength(255),
+                            ->options(\App\Enums\SatisfactionRatingEnum::options()),
+                        Forms\Components\Textarea::make('sponsor_comment')
+                            ->label('Comentário da avaliação')
+                            ->rows(3)
+                            ->columnSpanFull(),
                     ])->columns(3),
 
                 Forms\Components\Section::make('Detalhes')
@@ -190,8 +200,10 @@ class ProjectResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome do projeto')
+                    ->formatStateUsing(fn ($record) => $record->display_name)
                     ->searchable(query: fn ($query, string $search) => $query->where(
                         fn ($q) => $q->where('name', 'like', "%{$search}%")
+                            ->orWhere('acronym', 'like', "%{$search}%")
                             ->orWhere('number', 'like', "%{$search}%")
                             ->orWhere('description', 'like', "%{$search}%")
                             ->orWhere('custom_data', 'like', "%{$search}%")

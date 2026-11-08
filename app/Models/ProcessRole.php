@@ -2,8 +2,9 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use App\Concerns\HasSequentialCode;
 use App\Concerns\LogsActivity;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -12,9 +13,14 @@ use Illuminate\Support\Str;
 
 class ProcessRole extends Model
 {
-    use HasFactory, HasUuids, LogsActivity;
+    use HasFactory, HasSequentialCode, HasUuids, LogsActivity;
+
+    protected string $sequentialCodePrefix = 'PAP';
+
+    protected string $sequentialCodeColumn = 'code';
 
     protected $fillable = [
+        'code',
         'name',
         'color',
         'description',

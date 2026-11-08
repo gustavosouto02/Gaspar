@@ -29,6 +29,10 @@ class DemandsRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('title')
             ->columns([
+                Tables\Columns\TextColumn::make('code')
+                    ->label('Número')
+                    ->searchable()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('title')
                     ->label('Título')
                     ->searchable(query: fn ($query, string $search) => $query->globalSearch($search)),
