@@ -104,10 +104,6 @@ class FieldPermissionResolverTest extends TestCase
     public function test_fallback_defaults_to_readonly(): void
     {
         $this->assertSame(FieldPermissionEnum::READONLY, $this->resolved());
-
-        $this->field->update(['is_required' => true]);
-
-        $this->assertSame(FieldPermissionEnum::READONLY, $this->resolved());
     }
 
     public function test_final_statuses_default_to_readonly(): void

@@ -5,7 +5,6 @@
             'OPTIONAL' => 'background-color: rgba(34, 197, 94, 0.12); color: rgb(21, 128, 61); border-color: rgba(34, 197, 94, 0.4);',
             'READONLY' => 'background-color: rgba(245, 158, 11, 0.12); color: rgb(180, 83, 9); border-color: rgba(245, 158, 11, 0.4);',
             'HIDDEN'   => 'background-color: rgba(107, 114, 128, 0.15); color: rgb(75, 85, 99); border-color: rgba(107, 114, 128, 0.4);',
-            ''         => '',
         ];
     @endphp
 
