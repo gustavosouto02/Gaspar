@@ -174,6 +174,26 @@ class Demand extends Model
         return ! $this->hasPendingChildren();
     }
 
+    /**
+     * Todos os usuários envolvidos no processo da demanda: demandante,
+     * responsável atual e membros do processo (entidade), sem duplicatas.
+     *
+     * @return \Illuminate\Support\Collection<int, User>
+     */
+    public function processParticipants(): \Illuminate\Support\Collection
+    {
+        $memberUsers = ProcessMember::where('entity_id', $this->entity_id)
+            ->with('user')
+            ->get()
+            ->pluck('user');
+
+        return collect([$this->requester, $this->assignee])
+            ->merge($memberUsers)
+            ->filter()
+            ->unique('id')
+            ->values();
+    }
+
     /** Verifica se há subdemandas pendentes (ativas ou em rascunho) */
     public function hasPendingChildren(): bool
     {
