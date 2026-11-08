@@ -88,6 +88,12 @@ class ProjectResource extends Resource
                                     ]),
                             ]),
 
+                        Forms\Components\TextInput::make('acronym')
+                            ->label('Sigla do projeto:')
+                            ->required()
+                            ->maxLength(20)
+                            ->columnSpanFull(),
+
                         Forms\Components\TextInput::make('name')
                             ->label('Nome do projeto:')
                             ->required()
@@ -190,8 +196,10 @@ class ProjectResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome do projeto')
+                    ->formatStateUsing(fn ($record) => $record->display_name)
                     ->searchable(query: fn ($query, string $search) => $query->where(
                         fn ($q) => $q->where('name', 'like', "%{$search}%")
+                            ->orWhere('acronym', 'like', "%{$search}%")
                             ->orWhere('number', 'like', "%{$search}%")
                             ->orWhere('description', 'like', "%{$search}%")
                             ->orWhere('custom_data', 'like', "%{$search}%")
