@@ -125,11 +125,20 @@ class DemandResource extends Resource
                                         Forms\Components\Select::make('project_id')
                                             ->label('Projeto:')
                                             ->default(request()->query('project_id'))
-                                            ->relationship('project', 'name', modifyQueryUsing: fn ($query) => $query->orderBy('acronym')->orderBy('name'))
-                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->display_name)
+                                            ->options(fn () => ['none' => 'Sem vínculo'] + \App\Models\Project::query()
+                                                ->orderBy('acronym')
+                                                ->orderBy('name')
+                                                ->get()
+                                                ->mapWithKeys(fn (\App\Models\Project $project) => [$project->id => $project->display_name])
+                                                ->all())
                                             ->searchable()
-                                            ->preload()
-                                            ->nullable(),
+                                            ->required()
+                                            ->afterStateHydrated(function (Forms\Components\Select $component, $state, $record) {
+                                                if ($record && blank($state)) {
+                                                    $component->state('none');
+                                                }
+                                            })
+                                            ->dehydrateStateUsing(fn ($state) => $state === 'none' ? null : $state),
 
                                         Forms\Components\Select::make('requested_by')
                                             ->label('Demandante:')
