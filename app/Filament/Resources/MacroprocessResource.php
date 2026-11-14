@@ -93,7 +93,6 @@ class MacroprocessResource extends Resource
                         'Definir Diretrizes e Estratégia' => 'Definir Diretrizes e Estratégia',
                         'Entregar Produtos e Serviços' => 'Entregar Produtos e Serviços',
                         'Manter Relacionamentos' => 'Manter Relacionamentos',
-                        'Apoio' => 'Apoio',
                     ]),
 
                 \Filament\Forms\Components\Textarea::make('description')

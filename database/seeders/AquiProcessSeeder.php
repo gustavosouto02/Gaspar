@@ -148,7 +148,7 @@ class AquiProcessSeeder extends Seeder
             [
                 'acronym' => 'AQUI',
                 'description' => 'Aquisições, compras e contratação de serviços avulsos',
-                'value_chain_function' => 'Apoio',
+                'value_chain_function' => 'Suportar Processos',
                 'is_active' => true,
                 'created_by' => $admin->id,
             ]
