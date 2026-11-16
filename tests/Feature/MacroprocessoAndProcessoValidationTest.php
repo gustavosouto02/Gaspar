@@ -292,4 +292,34 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
             'label' => 'Salvar',
         ]);
     }
+
+    public function test_formulario_de_cadastro_do_processo_exibe_titulo_sistematizacao_do_processo(): void
+    {
+        $this->actingAs($this->admin);
+
+        $macro = Macroprocess::create([
+            'name' => 'Macroprocesso Teste Sistematizacao',
+            'acronym' => 'SIST',
+            'value_chain_function' => 'Apoio',
+            'description' => 'Descrição do macroprocesso',
+            'is_active' => true,
+            'created_by' => $this->admin->id,
+        ]);
+
+        $entity = CustomEntity::create([
+            'name' => 'Processo Sistematizado',
+            'macroprocess_id' => $macro->id,
+            'purpose' => 'Apoio',
+            'sla_hours' => 24,
+            'description' => 'Descrição do processo',
+            'is_active' => true,
+            'created_by' => $this->admin->id,
+        ]);
+
+        Livewire::test(EditCustomEntity::class, ['record' => $entity->id])
+            ->assertSee('Sistematização do processo:');
+
+        Livewire::test(\App\Filament\Resources\CustomEntityResource\Pages\ViewCustomEntity::class, ['record' => $entity->id])
+            ->assertSee('Sistematização do processo:');
+    }
 }
