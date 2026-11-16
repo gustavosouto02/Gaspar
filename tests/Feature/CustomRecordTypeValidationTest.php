@@ -1,0 +1,109 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Enums\UserRoleEnum;
+use App\Filament\Resources\ClientResource;
+use App\Filament\Resources\CustomRecordTypeResource\Pages\CreateCustomRecordType;
+use App\Filament\Resources\CustomRecordTypeResource\Pages\EditCustomRecordType;
+use App\Models\Client;
+use App\Models\CustomRecordType;
+use App\Models\User;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
+use Tests\TestCase;
+
+class CustomRecordTypeValidationTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private User $admin;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->admin = User::factory()->create([
+            'user_role' => UserRoleEnum::ADMIN,
+            'is_active' => true,
+        ]);
+    }
+
+    public function test_criar_cadastro_com_nome_ate_15_caracteres_tem_sucesso(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(CreateCustomRecordType::class)
+            ->set('data.name', '123456789012345') // 15 caracteres
+            ->set('data.slug', 'teste-15-chars')
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('custom_record_types', [
+            'name' => '123456789012345',
+            'slug' => 'teste-15-chars',
+            'is_system' => false,
+        ]);
+    }
+
+    public function test_criar_cadastro_com_nome_maior_que_15_caracteres_falha_validacao(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(CreateCustomRecordType::class)
+            ->set('data.name', '1234567890123456') // 16 caracteres
+            ->set('data.slug', 'teste-16-chars')
+            ->call('create')
+            ->assertHasFormErrors(['name' => 'max']);
+    }
+
+    public function test_editar_cadastro_base_com_nome_ate_15_caracteres_tem_sucesso(): void
+    {
+        $this->actingAs($this->admin);
+
+        $baseType = CustomRecordType::where('model_class', Client::class)
+            ->where('is_system', true)
+            ->firstOrFail();
+
+        Livewire::test(EditCustomRecordType::class, ['record' => $baseType->id])
+            ->assertFormFieldIsEnabled('name')
+            ->set('data.name', 'Parceiros')
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('custom_record_types', [
+            'id' => $baseType->id,
+            'name' => 'Parceiros',
+            'slug' => 'clientes', // Slug original mantido
+            'is_system' => true,
+        ]);
+
+        $this->assertSame('Parceiros', ClientResource::getNavigationLabel());
+    }
+
+    public function test_editar_cadastro_base_com_nome_maior_que_15_caracteres_falha_validacao(): void
+    {
+        $this->actingAs($this->admin);
+
+        $baseType = CustomRecordType::where('model_class', Client::class)
+            ->where('is_system', true)
+            ->firstOrFail();
+
+        Livewire::test(EditCustomRecordType::class, ['record' => $baseType->id])
+            ->set('data.name', 'NomeComMaisDe15C') // 16 caracteres
+            ->call('save')
+            ->assertHasFormErrors(['name' => 'max']);
+    }
+
+    public function test_slug_permanece_bloqueado_para_cadastro_base(): void
+    {
+        $this->actingAs($this->admin);
+
+        $baseType = CustomRecordType::where('model_class', Client::class)
+            ->where('is_system', true)
+            ->firstOrFail();
+
+        Livewire::test(EditCustomRecordType::class, ['record' => $baseType->id])
+            ->assertFormFieldIsDisabled('slug');
+    }
+}

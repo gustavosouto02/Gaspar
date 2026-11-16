@@ -25,10 +25,30 @@ class MacroprocessResource extends Resource
     protected static ?string $modelLabel = 'Macroprocesso';
     protected static ?string $pluralModelLabel = 'Macroprocessos';
 
+    public static function getNavigationLabel(): string
+    {
+        try {
+            return \App\Models\CustomRecordType::where('model_class', static::$model)->value('name') ?? 'Macroprocessos';
+        } catch (\Throwable) {
+            return 'Macroprocessos';
+        }
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        try {
+            return \App\Models\CustomRecordType::where('model_class', static::$model)->value('name') ?? static::$pluralModelLabel;
+        } catch (\Throwable) {
+            return static::$pluralModelLabel;
+        }
+    }
+
     public static function getNavigationItems(): array
     {
+        $label = static::getNavigationLabel();
+
         $items = [
-            \Filament\Navigation\NavigationItem::make('Macroprocessos')
+            \Filament\Navigation\NavigationItem::make($label)
                 ->group('Cadastros')
                 ->icon(static::getNavigationIcon())
                 ->sort(5)
@@ -37,7 +57,7 @@ class MacroprocessResource extends Resource
         ];
 
         if (auth()->user()?->user_role === \App\Enums\UserRoleEnum::ADMIN) {
-            $items[] = \Filament\Navigation\NavigationItem::make('Macroprocessos')
+            $items[] = \Filament\Navigation\NavigationItem::make($label)
                 ->group('Administração')
                 ->icon(static::getNavigationIcon())
                 ->sort(2)

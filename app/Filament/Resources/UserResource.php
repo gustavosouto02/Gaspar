@@ -34,6 +34,24 @@ class UserResource extends Resource
 
     protected static ?int $navigationSort = 1;
 
+    public static function getNavigationLabel(): string
+    {
+        try {
+            return \App\Models\CustomRecordType::where('model_class', static::$model)->value('name') ?? static::$navigationLabel;
+        } catch (\Throwable) {
+            return static::$navigationLabel;
+        }
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        try {
+            return \App\Models\CustomRecordType::where('model_class', static::$model)->value('name') ?? static::$pluralModelLabel;
+        } catch (\Throwable) {
+            return static::$pluralModelLabel;
+        }
+    }
+
     public static function form(Form $form): Form
     {
         return $form

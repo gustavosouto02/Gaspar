@@ -40,10 +40,13 @@ class CustomRecordTypeResource extends Resource
                 Forms\Components\TextInput::make('name')
                     ->label('Nome (Ex: Produtos)')
                     ->required()
-                    ->maxLength(255)
+                    ->maxLength(15)
                     ->live(onBlur: true)
-                    ->afterStateUpdated(fn (Forms\Set $set, ?string $state) => $set('slug', \Illuminate\Support\Str::slug($state)))
-                    ->disabled(fn ($record) => $record?->is_system),
+                    ->afterStateUpdated(function (Forms\Set $set, ?string $state, ?CustomRecordType $record) {
+                        if (! $record?->is_system) {
+                            $set('slug', \Illuminate\Support\Str::slug($state));
+                        }
+                    }),
                 Forms\Components\TextInput::make('slug')
                     ->label('Slug')
                     ->required()
