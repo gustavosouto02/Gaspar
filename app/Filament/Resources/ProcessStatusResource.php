@@ -55,6 +55,11 @@ class ProcessStatusResource extends Resource
                     ->default('gray')
                     ->native(false),
 
+                Forms\Components\Textarea::make('description')
+                    ->label('Descrição')
+                    ->maxLength(65535)
+                    ->columnSpanFull(),
+
                 Forms\Components\Hidden::make('created_by')
                     ->default(fn () => auth()->id()),
             ]);
@@ -73,6 +78,12 @@ class ProcessStatusResource extends Resource
                     ->label('Situação')
                     ->searchable()
                     ->sortable(),
+
+                Tables\Columns\TextColumn::make('description')
+                    ->label('Descrição')
+                    ->limit(50)
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('color')
                     ->label('Cor')

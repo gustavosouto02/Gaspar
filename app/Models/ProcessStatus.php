@@ -23,6 +23,7 @@ class ProcessStatus extends Model
         'code',
         'name',
         'color',
+        'description',
         'is_system',
         'system_key',
         'created_by',

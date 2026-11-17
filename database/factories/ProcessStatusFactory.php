@@ -16,6 +16,7 @@ class ProcessStatusFactory extends Factory
         return [
             'name' => fake()->unique()->words(2, true),
             'color' => 'gray',
+            'description' => fake()->sentence(),
             'is_system' => false,
             'created_by' => User::factory(),
         ];

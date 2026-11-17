@@ -51,6 +51,11 @@ class ProcessStatusesRelationManager extends RelationManager
                     ->color(fn ($record) => ProcessStatusColorEnum::tryFrom($record->color)?->filamentColor() ?? 'gray')
                     ->sortable(),
 
+                Tables\Columns\TextColumn::make('description')
+                    ->label('Descrição')
+                    ->limit(40)
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 Tables\Columns\IconColumn::make('is_system')
                     ->label('Padrão')
                     ->boolean()
