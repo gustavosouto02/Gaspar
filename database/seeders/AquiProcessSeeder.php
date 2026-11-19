@@ -137,9 +137,15 @@ class AquiProcessSeeder extends Seeder
         $projeto = Project::updateOrCreate(
             ['number' => 'PRJ-INCT-001'],
             [
+                'acronym' => 'INCT',
                 'name' => 'Apoio Institucional e Aquisições INCT',
                 'description' => 'Projeto de apoio a compras, cotações e contratações do INCT.',
                 'client_id' => $clienteInct->id,
+                'contact_name' => $admin->name,
+                'manager_name' => $admin->name,
+                'sponsor_name' => $admin->name,
+                'scrum_master_name' => $admin->name,
+                'product_owner_name' => $admin->name,
                 'is_active' => true,
                 'start_date_forecast' => now()->startOfYear(),
                 'end_date_forecast' => now()->endOfYear(),
