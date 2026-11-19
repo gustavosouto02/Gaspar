@@ -93,7 +93,8 @@ class MacroprocessResource extends Resource
                         'Definir Diretrizes e Estratégia' => 'Definir Diretrizes e Estratégia',
                         'Entregar Produtos e Serviços' => 'Entregar Produtos e Serviços',
                         'Manter Relacionamentos' => 'Manter Relacionamentos',
-                    ]),
+                    ])
+                    ->in(fn (\Filament\Forms\Components\Select $component): array => array_keys($component->getOptions())),
 
                 \Filament\Forms\Components\Textarea::make('description')
                     ->label('Descrição')
