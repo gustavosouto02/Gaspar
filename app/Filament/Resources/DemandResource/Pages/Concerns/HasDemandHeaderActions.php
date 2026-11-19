@@ -186,6 +186,7 @@ trait HasDemandHeaderActions
             ->where('auditable_id', (string) $record->id)
             ->where('event', 'transition')
             ->orderBy('created_at')
+            ->orderBy('id')
             ->get();
 
         foreach ($transitionLogs as $log) {

@@ -17,8 +17,10 @@ return new class extends Migration
 
     public function down(): void
     {
-        Schema::table('status_transitions', function (Blueprint $table) {
-            $table->boolean('allow_return')->default(false)->after('label');
-        });
+        if (! Schema::hasColumn('status_transitions', 'allow_return')) {
+            Schema::table('status_transitions', function (Blueprint $table) {
+                $table->boolean('allow_return')->default(true)->after('label');
+            });
+        }
     }
 };
