@@ -54,6 +54,7 @@ class ProcessStatusesRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('description')
                     ->label('Descrição')
                     ->limit(40)
+                    ->tooltip(fn (?string $state): ?string => $state)
                     ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\IconColumn::make('is_system')
@@ -66,7 +67,7 @@ class ProcessStatusesRelationManager extends RelationManager
             ])
             ->defaultSort('entity_process_status.display_order')
             ->reorderable('display_order')
-            ->checkIfRecordIsSelectableUsing(fn ($record) => !$record->is_system)
+            ->checkIfRecordIsSelectableUsing(fn ($record) => ! $record->is_system)
             ->headerActions([
                 Tables\Actions\AttachAction::make()
                     ->label('Vincular Situação')
