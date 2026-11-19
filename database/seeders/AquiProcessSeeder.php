@@ -126,6 +126,14 @@ class AquiProcessSeeder extends Seeder
             ]
         );
 
+        Client::firstOrCreate(
+            ['name' => 'Interno'],
+            [
+                'email' => 'interno@gaspar.local',
+                'is_active' => true,
+            ]
+        );
+
         $projeto = Project::updateOrCreate(
             ['number' => 'PRJ-INCT-001'],
             [
