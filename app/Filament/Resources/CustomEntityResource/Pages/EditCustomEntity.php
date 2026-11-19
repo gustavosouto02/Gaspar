@@ -10,6 +10,8 @@ class EditCustomEntity extends EditRecord
 {
     protected static string $resource = CustomEntityResource::class;
 
+    protected static string $view = 'filament.resources.custom-entity-resource.pages.edit-custom-entity';
+
     protected function getHeaderActions(): array
     {
         return [
