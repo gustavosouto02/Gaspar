@@ -1,35 +1,44 @@
 <?php
 
-use App\Models\Client;
+use App\Services\CodeGeneratorService;
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
+    private const NAME = 'Interno';
+
+    private const EMAIL = 'interno@gaspar.local';
+
     public function up(): void
     {
-        if (Schema::hasTable('clients')) {
-            Client::firstOrCreate(
-                ['name' => 'Interno'],
-                [
-                    'email' => 'interno@gaspar.local',
-                    'is_active' => true,
-                ]
-            );
+        if (DB::table('clients')->where('name', self::NAME)->exists()) {
+            return;
         }
+
+        DB::table('clients')->insert([
+            'id' => (string) Str::uuid7(),
+            'code' => app(CodeGeneratorService::class)->generate('clients', 'code', 'CLI'),
+            'name' => self::NAME,
+            'email' => self::EMAIL,
+            'is_active' => true,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        if (Schema::hasTable('clients')) {
-            Client::where('name', 'Interno')->delete();
+        $id = DB::table('clients')
+            ->where('name', self::NAME)
+            ->where('email', self::EMAIL)
+            ->value('id');
+
+        if ($id
+            && ! DB::table('demands')->where('client_id', $id)->exists()
+            && ! DB::table('projects')->where('client_id', $id)->exists()) {
+            DB::table('clients')->where('id', $id)->delete();
         }
     }
 };
-

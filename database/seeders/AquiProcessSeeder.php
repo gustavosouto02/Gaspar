@@ -126,7 +126,7 @@ class AquiProcessSeeder extends Seeder
             ]
         );
 
-        $clienteInterno = Client::updateOrCreate(
+        Client::firstOrCreate(
             ['name' => 'Interno'],
             [
                 'email' => 'interno@gaspar.local',
