@@ -311,6 +311,7 @@ class ProcessoAquiE2ETest extends TestCase
         $statusEncerrada = ProcessStatus::where('system_key', 'closed')->firstOrFail();
 
         $demanda = Demand::factory()->create([
+            'title' => 'Demanda Aguardando Avaliacao',
             'entity_id' => $this->processo->id,
             'process_status_id' => $statusEncerrada->id,
             'requested_by' => $this->demandante->id,
