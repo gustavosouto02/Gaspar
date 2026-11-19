@@ -286,6 +286,7 @@ class ProcessoAquiFieldPermissionsTest extends TestCase
                 'client_id' => Client::first()->id,
                 'title' => 'Coffee break',
                 'project_id' => 'none',
+                'supplier_id' => 'none',
             ])
             ->assertFormFieldIsHidden('field_data.preco')
             ->assertFormFieldIsHidden('field_data.aprovacao')

@@ -13,6 +13,8 @@ use App\Models\ActivityLog;
 use App\Models\CustomEntity;
 use App\Models\Demand;
 use App\Models\ProcessStatus;
+use App\Models\Project;
+use App\Models\Supplier;
 use App\Models\User;
 use App\Services\FieldPermissionResolver;
 use Filament\Forms;
@@ -125,12 +127,37 @@ class DemandResource extends Resource
                                         Forms\Components\Select::make('project_id')
                                             ->label('Projeto:')
                                             ->default(request()->query('project_id'))
-                                            ->options(fn () => ['none' => 'Sem vínculo'] + \App\Models\Project::query()
+                                            ->options(fn () => ['none' => 'Sem vínculo'] + Project::query()
                                                 ->orderBy('acronym')
                                                 ->orderBy('name')
                                                 ->get()
-                                                ->mapWithKeys(fn (\App\Models\Project $project) => [$project->id => $project->display_name])
+                                                ->mapWithKeys(fn (Project $project) => [$project->id => $project->display_name])
                                                 ->all())
+                                            ->searchable()
+                                            ->required()
+                                            ->afterStateHydrated(function (Forms\Components\Select $component, $state, $record) {
+                                                if ($record && blank($state)) {
+                                                    $component->state('none');
+                                                }
+                                            })
+                                            ->dehydrateStateUsing(fn ($state) => $state === 'none' ? null : $state),
+
+                                        Forms\Components\Select::make('supplier_id')
+                                            ->label('Fornecedor:')
+                                            ->default(request()->query('supplier_id'))
+                                            ->options(function (?Demand $record): array {
+                                                $suppliers = Supplier::query()->orderBy('name')->pluck('name', 'id')->all();
+
+                                                if ($record?->supplier_id && ! isset($suppliers[$record->supplier_id])) {
+                                                    $trashed = Supplier::withTrashed()->find($record->supplier_id);
+                                                    if ($trashed) {
+                                                        $suppliers[$trashed->id] = $trashed->name.' (excluído)';
+                                                    }
+                                                }
+
+                                                return ['none' => 'Não atua'] + $suppliers;
+                                            })
+                                            ->in(fn (Forms\Components\Select $component): array => array_keys($component->getOptions()))
                                             ->searchable()
                                             ->required()
                                             ->afterStateHydrated(function (Forms\Components\Select $component, $state, $record) {
@@ -238,7 +265,12 @@ class DemandResource extends Resource
                             ->label('Registrar Subdemanda')
                             ->icon('heroicon-m-plus')
                             ->color('warning')
-                            ->url(fn ($record) => $record ? DemandResource::getUrl('create', ['parent_demand_id' => $record->id]) : null),
+                            ->url(fn ($record) => $record ? DemandResource::getUrl('create', [
+                                'parent_demand_id' => $record->id,
+                                'client_id' => $record->client_id,
+                                'project_id' => $record->project_id ?? 'none',
+                                'supplier_id' => $record->supplier_id ?? 'none',
+                            ]) : null),
                     ])
                     ->schema([
                         Forms\Components\ViewField::make('demand_subdemands')
