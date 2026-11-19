@@ -46,11 +46,8 @@ class AdminPanelProvider extends PanelProvider
             )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
-            ->pages([])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
-            ->widgets([
-                // widgets GASPAR são descobertos automaticamente via discoverWidgets
-            ])
+            // widgets são registrados por discoverWidgets; a página que exibe cada um é definida em getWidgets() de MyDemands / ControlPanel
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

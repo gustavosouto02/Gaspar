@@ -362,7 +362,6 @@ class FilamentPagesSmokeTest extends TestCase
 
         $this->get('/admin')
             ->assertOk()
-            ->assertSee('Minhas Demandas')
             ->assertSeeLivewire(MyDemandsWidget::class)
             ->assertSeeLivewire(MySubDemandsWidget::class)
             ->assertDontSeeLivewire(DemandStatsWidget::class)
@@ -410,7 +409,6 @@ class FilamentPagesSmokeTest extends TestCase
 
         $this->get('/admin/painel-de-controle')
             ->assertOk()
-            ->assertSee('Painel de Controle')
             ->assertSeeLivewire(DemandStatsWidget::class)
             ->assertSeeLivewire(GeneralStatsOverview::class)
             ->assertSeeLivewire(DemandByProcessChart::class)
@@ -429,6 +427,9 @@ class FilamentPagesSmokeTest extends TestCase
         foreach ([$this->admin, $executor] as $user) {
             $this->actingAs($user);
 
+            // NavigationManager é scoped: sem isto o 2º usuário reaproveita o menu do 1º
+            $this->app->forgetScopedInstances();
+
             $topGroup = collect(Filament::getNavigation())->first(fn ($group) => $group->getLabel() === null);
             $this->assertNotNull($topGroup);
 
@@ -440,6 +441,9 @@ class FilamentPagesSmokeTest extends TestCase
 
             $this->assertSame('Painel de Controle', $items[1]->getLabel());
             $this->assertSame(ControlPanel::getUrl(), $items[1]->getUrl());
+
+            $this->get('/admin')->assertOk();
+            $this->get('/admin/painel-de-controle')->assertOk();
         }
     }
 }

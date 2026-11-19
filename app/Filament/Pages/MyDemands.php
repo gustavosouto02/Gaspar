@@ -20,6 +20,11 @@ class MyDemands extends BaseDashboard
 
     protected static ?int $navigationSort = -2;
 
+    public function getHeading(): string
+    {
+        return '';
+    }
+
     public function getWidgets(): array
     {
         return [
