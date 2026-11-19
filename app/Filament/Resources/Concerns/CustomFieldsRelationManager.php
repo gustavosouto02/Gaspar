@@ -77,6 +77,11 @@ class CustomFieldsRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('name')
             ->columns([
+                Tables\Columns\TextColumn::make('code')
+                    ->label('Número')
+                    ->searchable()
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
@@ -89,11 +94,6 @@ class CustomFieldsRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('field_type')
                     ->badge()
                     ->label('Tipo'),
-
-                Tables\Columns\IconColumn::make('is_required')
-                    ->boolean()
-                    ->sortable()
-                    ->label('Obrigatório'),
             ])
             ->defaultSort('field_order')
             ->reorderable('field_order')

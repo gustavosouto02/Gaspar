@@ -42,6 +42,38 @@ class ActivityLog extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function auditable(): MorphTo
+    {
+        return $this->morphTo();
+    }
+
+    /** Número sequencial amigável do registro auditado (com fallback para o ID) */
+    public function getAuditableNumberAttribute(): string
+    {
+        $fromPayload = $this->new_values['code']
+            ?? $this->old_values['code']
+            ?? $this->new_values['number']
+            ?? $this->old_values['number']
+            ?? null;
+
+        if ($fromPayload) {
+            return (string) $fromPayload;
+        }
+
+        if ($this->auditable_type && $this->auditable_id && class_exists($this->auditable_type)) {
+            $query = $this->auditable_type::query();
+            if (in_array(\Illuminate\Database\Eloquent\SoftDeletes::class, class_uses_recursive($this->auditable_type), true)) {
+                $query->withTrashed();
+            }
+            $record = $query->find($this->auditable_id);
+            if ($record) {
+                return (string) ($record->code ?? $record->number ?? $this->auditable_id);
+            }
+        }
+
+        return (string) $this->auditable_id;
+    }
+
     /** Label amigável para exibição do tipo auditado */
     public function getAuditableTypeLabelAttribute(): string
     {

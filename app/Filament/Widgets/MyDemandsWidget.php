@@ -36,6 +36,11 @@ class MyDemandsWidget extends BaseWidget
                     ->orderBy('created_at', 'desc')
             )
             ->columns([
+                Tables\Columns\TextColumn::make('code')
+                    ->label('Número')
+                    ->searchable()
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('title')
                     ->label('Título')
                     ->searchable(query: fn ($query, string $search) => $query->globalSearch($search))

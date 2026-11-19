@@ -4,8 +4,8 @@ namespace Tests\Feature;
 
 use App\Enums\UserRoleEnum;
 use App\Filament\Resources\ProjectResource\Pages\CreateProject;
-use App\Models\ProcessStatus;
 use App\Models\Client;
+use App\Models\ProcessStatus;
 use App\Models\Project;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -52,6 +52,7 @@ class ProjectResourceTest extends TestCase
 
         Livewire::test(CreateProject::class)
             ->fillForm([
+                'acronym' => 'PNP',
                 'name' => 'Projeto Novo Portal',
                 'process_status_id' => $status->id,
                 'client_id' => $client->id,
@@ -67,10 +68,27 @@ class ProjectResourceTest extends TestCase
             ->assertHasNoFormErrors();
 
         $this->assertDatabaseHas('projects', [
+            'acronym' => 'PNP',
             'name' => 'Projeto Novo Portal',
             'process_status_id' => $status->id,
             'entity_id' => null,
         ]);
+    }
+
+    public function test_sigla_do_projeto_eh_obrigatoria(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(CreateProject::class)
+            ->fillForm(['name' => 'Projeto sem sigla'])
+            ->call('create')
+            ->assertHasFormErrors(['acronym' => 'required']);
+    }
+
+    public function test_sigla_aparece_antes_do_nome_do_projeto(): void
+    {
+        $this->assertSame('PNP - Novo Portal', Project::make(['acronym' => 'PNP', 'name' => 'Novo Portal'])->display_name);
+        $this->assertSame('Novo Portal', Project::make(['name' => 'Novo Portal'])->display_name);
     }
 
     public function test_campos_primarios_sao_obrigatorios_no_cadastro_de_projetos(): void
@@ -89,6 +107,7 @@ class ProjectResourceTest extends TestCase
                 'product_owner_name' => 'required',
                 'budget' => 'required',
                 'description' => 'required',
-            ]);
+            ])
+            ->assertHasNoFormErrors(['spent', 'sponsor_rating', 'sponsor_comment', 'attachments', 'is_active']);
     }
 }

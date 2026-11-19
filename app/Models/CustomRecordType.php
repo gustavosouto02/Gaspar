@@ -2,18 +2,23 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Concerns\HasSequentialCode;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Support\Str;
 
 class CustomRecordType extends Model
 {
-    use HasFactory, HasUuids;
+    use HasFactory, HasSequentialCode, HasUuids;
+
+    protected string $sequentialCodePrefix = 'TPC';
+
+    protected string $sequentialCodeColumn = 'code';
 
     protected $fillable = [
+        'code',
         'name',
         'slug',
         'is_active',
