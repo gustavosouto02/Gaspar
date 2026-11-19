@@ -26,7 +26,6 @@ class StatusTransition extends Model
         'to_status_id',
         'default_to_status_id',
         'label',
-        'allow_return',
         'allowed_role_ids',
         'display_order',
     ];
