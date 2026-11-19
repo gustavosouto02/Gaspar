@@ -345,6 +345,16 @@ trait HasDemandHeaderActions
                     'created_at' => now(),
                 ]);
 
+                // Notifica todos os envolvidos no processo (exceto quem cancelou)
+                try {
+                    $canceler = auth()->user();
+                    foreach ($record->processParticipants()->reject(fn ($u) => $u->id === $canceler->id) as $participant) {
+                        $participant->notify(new DemandActivityNotification($record, "A demanda foi cancelada por {$canceler->name}"));
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning("Falha ao enviar notificação de cancelamento da demanda: {$e->getMessage()}");
+                }
+
                 Notification::make()->title('Demanda cancelada com sucesso!')->success()->send();
                 $this->redirect(static::getResource()::getUrl('index'));
             })

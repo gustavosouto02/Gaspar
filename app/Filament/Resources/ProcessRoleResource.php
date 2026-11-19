@@ -37,6 +37,11 @@ class ProcessRoleResource extends Resource
     {
         return $form
             ->schema([
+                Forms\Components\Placeholder::make('code_placeholder')
+                    ->label('Número')
+                    ->content(fn ($record) => $record?->code ?? 'NOVO')
+                    ->columnSpanFull(),
+
                 Forms\Components\TextInput::make('name')
                     ->label('Nome do Papel')
                     ->required()
@@ -69,8 +74,8 @@ class ProcessRoleResource extends Resource
             ->schema([
                 \Filament\Infolists\Components\Section::make('PAPEL')
                     ->schema([
-                        \Filament\Infolists\Components\TextEntry::make('id')
-                            ->label('Papel número'),
+                        \Filament\Infolists\Components\TextEntry::make('code')
+                            ->label('Número'),
                         \Filament\Infolists\Components\TextEntry::make('created_at')
                             ->label('Data de criação')
                             ->dateTime('d/m/Y'),
@@ -103,6 +108,11 @@ class ProcessRoleResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('code')
+                    ->label('Número')
+                    ->searchable()
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome')
                     ->searchable()

@@ -6,6 +6,7 @@ use App\Enums\DemandButtonEnum;
 use App\Enums\UserRoleEnum;
 use App\Filament\Resources\CustomEntityResource\Pages\CreateCustomEntity;
 use App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity;
+use App\Filament\Resources\CustomEntityResource\Pages\ViewCustomEntity;
 use App\Filament\Resources\CustomEntityResource\RelationManagers\FieldsRelationManager;
 use App\Filament\Resources\CustomEntityResource\RelationManagers\MembersRelationManager;
 use App\Filament\Resources\CustomEntityResource\RelationManagers\ProcessStatusesRelationManager;
@@ -75,6 +76,9 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
             'acronym' => 'SUPRI',
             'value_chain_function' => 'Suportar Processos',
         ]);
+
+        $macro = Macroprocess::where('acronym', 'SUPRI')->firstOrFail();
+        $this->assertSame('SUPRI - Macroprocesso Gestão de Suprimentos', $macro->full_display_name);
     }
 
     public function test_campos_bases_de_processo_sao_obrigatorios_na_criacao(): void
@@ -288,5 +292,35 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
             'to_status_id' => $status->id,
             'label' => 'Salvar',
         ]);
+    }
+
+    public function test_telas_de_edicao_e_visualizacao_do_processo_exibem_titulo_sistematizacao(): void
+    {
+        $this->actingAs($this->admin);
+
+        $macro = Macroprocess::create([
+            'name' => 'Macroprocesso Teste Sistematizacao',
+            'acronym' => 'SIST',
+            'value_chain_function' => 'Suportar Processos',
+            'description' => 'Descrição do macroprocesso',
+            'is_active' => true,
+            'created_by' => $this->admin->id,
+        ]);
+
+        $entity = CustomEntity::create([
+            'name' => 'Processo Sistematizado',
+            'macroprocess_id' => $macro->id,
+            'purpose' => 'Apoio',
+            'sla_hours' => 24,
+            'description' => 'Descrição do processo',
+            'is_active' => true,
+            'created_by' => $this->admin->id,
+        ]);
+
+        Livewire::test(EditCustomEntity::class, ['record' => $entity->id])
+            ->assertSeeInOrder(['Nome do Processo', 'Sistematização do processo:', 'Campos Customizados']);
+
+        Livewire::test(ViewCustomEntity::class, ['record' => $entity->id])
+            ->assertSeeInOrder(['Nome do Processo', 'Sistematização do processo:', 'Campos Customizados']);
     }
 }

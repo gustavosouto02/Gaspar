@@ -28,7 +28,7 @@ class ManageFieldPermissions extends Page
     public ?string $roleId = null;
 
     /**
-     * matrix[custom_field_id][process_status_id] = permission ('' = padrão/herdar)
+     * matrix[custom_field_id][process_status_id] = permission (default: READONLY)
      *
      * @var array<string, array<string, string>>
      */
@@ -107,13 +107,13 @@ class ManageFieldPermissions extends Page
                         && $r->process_status_id === $status->id
                 );
 
-                $this->matrix[$field->id][$status->id] = $row?->permission?->value ?? '';
+                $this->matrix[$field->id][$status->id] = $row?->permission?->value ?? FieldPermissionEnum::READONLY->value;
             }
         }
     }
 
     /**
-     * Salva a grade do papel selecionado em lote; célula "Padrão" remove a linha
+     * Salva a grade do papel selecionado em lote
      */
     public function save(): void
     {
@@ -127,11 +127,10 @@ class ManageFieldPermissions extends Page
                         'process_role_id'   => $this->roleId,
                     ];
 
-                    if ($permission === '') {
-                        FieldPermission::where($keys)->delete();
-                    } else {
-                        FieldPermission::updateOrCreate($keys, ['permission' => $permission]);
-                    }
+                    FieldPermission::updateOrCreate(
+                        $keys,
+                        ['permission' => $permission ?: FieldPermissionEnum::READONLY->value]
+                    );
                 }
             }
         });
