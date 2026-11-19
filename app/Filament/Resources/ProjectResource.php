@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\SatisfactionRatingEnum;
 use App\Filament\Resources\Concerns\CustomFieldsRelationManager;
+use App\Filament\Resources\Concerns\HasRecordTypeLabel;
 use App\Filament\Resources\ProjectResource\Pages;
 use App\Models\ProcessStatus;
 use App\Models\Project;
@@ -15,6 +17,8 @@ use Filament\Tables\Table;
 
 class ProjectResource extends Resource
 {
+    use HasRecordTypeLabel;
+
     protected static ?string $model = Project::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-briefcase';
@@ -26,24 +30,6 @@ class ProjectResource extends Resource
     protected static ?string $pluralModelLabel = 'Projetos';
 
     protected static ?string $navigationGroup = 'Cadastros';
-
-    public static function getNavigationLabel(): string
-    {
-        try {
-            return \App\Models\CustomRecordType::where('model_class', static::$model)->value('name') ?? static::$navigationLabel;
-        } catch (\Throwable) {
-            return static::$navigationLabel;
-        }
-    }
-
-    public static function getPluralModelLabel(): string
-    {
-        try {
-            return \App\Models\CustomRecordType::where('model_class', static::$model)->value('name') ?? static::$pluralModelLabel;
-        } catch (\Throwable) {
-            return static::$pluralModelLabel;
-        }
-    }
 
     public static function form(Form $form): Form
     {
@@ -161,7 +147,7 @@ class ProjectResource extends Resource
                             ->prefix('R$'),
                         Forms\Components\Select::make('sponsor_rating')
                             ->label('Avaliação do Sponsor')
-                            ->options(\App\Enums\SatisfactionRatingEnum::options()),
+                            ->options(SatisfactionRatingEnum::options()),
                         Forms\Components\Textarea::make('sponsor_comment')
                             ->label('Comentário da avaliação')
                             ->rows(3)

@@ -6,8 +6,12 @@ use App\Enums\UserRoleEnum;
 use App\Filament\Resources\ClientResource;
 use App\Filament\Resources\CustomRecordTypeResource\Pages\CreateCustomRecordType;
 use App\Filament\Resources\CustomRecordTypeResource\Pages\EditCustomRecordType;
+use App\Filament\Resources\MacroprocessResource;
+use App\Filament\Resources\SupplierResource;
 use App\Models\Client;
 use App\Models\CustomRecordType;
+use App\Models\Macroprocess;
+use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -105,5 +109,51 @@ class CustomRecordTypeValidationTest extends TestCase
 
         Livewire::test(EditCustomRecordType::class, ['record' => $baseType->id])
             ->assertFormFieldIsDisabled('slug');
+    }
+
+    public function test_cadastro_legado_com_nome_longo_pode_ser_editado_quando_nome_nao_muda(): void
+    {
+        $this->actingAs($this->admin);
+
+        $legacyType = CustomRecordType::create([
+            'name' => 'NomeMuitoLongoLegado20Chars',
+            'slug' => 'nome-muito-longo',
+            'is_active' => true,
+            'is_system' => false,
+        ]);
+
+        Livewire::test(EditCustomRecordType::class, ['record' => $legacyType->id])
+            ->set('data.is_active', false)
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('custom_record_types', [
+            'id' => $legacyType->id,
+            'is_active' => false,
+        ]);
+    }
+
+    public function test_fallback_retorna_label_padrao_quando_registro_de_sistema_nao_existe(): void
+    {
+        CustomRecordType::where('model_class', Supplier::class)->delete();
+
+        $this->assertSame('Fornecedores', SupplierResource::getNavigationLabel());
+        $this->assertSame('Fornecedores', SupplierResource::getPluralModelLabel());
+    }
+
+    public function test_macroprocess_navigation_items_refletem_novo_nome(): void
+    {
+        $this->actingAs($this->admin);
+
+        $baseType = CustomRecordType::where('model_class', Macroprocess::class)
+            ->where('is_system', true)
+            ->firstOrFail();
+
+        $baseType->update(['name' => 'Processos Mae']);
+
+        $items = MacroprocessResource::getNavigationItems();
+        $labels = array_map(fn ($item) => $item->getLabel(), $items);
+
+        $this->assertContains('Processos Mae', $labels);
     }
 }
