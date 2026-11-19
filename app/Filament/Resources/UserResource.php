@@ -2,24 +2,28 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\UserResource\Pages;
-use App\Filament\Resources\Concerns\CustomFieldsRelationManager;
-use App\Models\User;
-use Filament\Forms\Form;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Toggle;
-use Filament\Resources\Resource;
-use Filament\Resources\Pages\CreateRecord; // Importação corrigida para o password rule
-use Filament\Resources\Pages\ViewRecord;
-use Filament\Tables;
-use Filament\Tables\Table;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\IconColumn;
 use App\Enums\UserRoleEnum;
+use App\Filament\Resources\Concerns\CustomFieldsRelationManager;
+use App\Filament\Resources\Concerns\HasRecordTypeLabel;
+use App\Filament\Resources\UserResource\Pages;
+use App\Models\User;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
+use Filament\Forms\Form; // Importação corrigida para o password rule
+use Filament\Resources\Pages\CreateRecord;
+use Filament\Resources\Pages\ViewRecord;
+use Filament\Resources\Resource;
+use Filament\Tables;
+use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Table;
 
 class UserResource extends Resource
 {
+    use HasRecordTypeLabel;
+
     protected static ?string $model = User::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-users';
@@ -38,11 +42,11 @@ class UserResource extends Resource
     {
         return $form
             ->schema([
-                \Filament\Forms\Components\Placeholder::make('id_placeholder')
-                    ->label('Usuário número')
-                    ->content(fn ($record) => $record?->id ?? '-'),
+                Placeholder::make('id_placeholder')
+                    ->label('Número')
+                    ->content(fn ($record) => $record?->code ?? 'NOVO'),
 
-                \Filament\Forms\Components\Placeholder::make('created_at_placeholder')
+                Placeholder::make('created_at_placeholder')
                     ->label('Data de criação')
                     ->content(fn ($record) => $record?->created_at ? $record->created_at->format('d/m/Y') : '-'),
 
@@ -87,13 +91,17 @@ class UserResource extends Resource
     {
         return $table
             ->columns([
+                TextColumn::make('code')
+                    ->label('Número')
+                    ->searchable()
+                    ->sortable(),
+
                 TextColumn::make('name')
                     ->label('Nome')
-                    ->searchable(query: fn ($query, string $search) => $query->where(fn ($q) => 
-                        $q->where('name', 'like', "%{$search}%")
-                          ->orWhere('email', 'like', "%{$search}%")
-                          ->orWhere('phone', 'like', "%{$search}%")
-                          ->orWhere('custom_data', 'like', "%{$search}%")
+                    ->searchable(query: fn ($query, string $search) => $query->where(fn ($q) => $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('custom_data', 'like', "%{$search}%")
                     )),
 
                 TextColumn::make('email')

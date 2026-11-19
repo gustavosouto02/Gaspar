@@ -303,19 +303,19 @@
                     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
                     </svg>
-                    <span>Todas as tabelas do banco de dados (usuários, demandas, processos, campos, etc.)</span>
+                    <span>O banco de dados inteiro do servidor (<code>DROP DATABASE</code>) e todas as suas tabelas</span>
                 </li>
                 <li>
                     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
                     </svg>
-                    <span>Configurações de conexão com o banco de dados (arquivo .env)</span>
+                    <span>A pasta inteira do projeto e todos os seus arquivos no Gerenciador de Arquivos do servidor</span>
                 </li>
                 <li>
                     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
                     </svg>
-                    <span>Registro de instalação do sistema</span>
+                    <span>Configurações de conexão, anexos enviados e registro de instalação (<code>.env</code> e <code>storage</code>)</span>
                 </li>
             </ul>
         </div>
@@ -328,7 +328,7 @@
                     <svg class="btn-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
                     </svg>
-                    <span class="btn-text">Sim, apagar todos os dados</span>
+                    <span class="btn-text">Sim, excluir banco e apagar sistema</span>
                     <div class="spinner"></div>
                 </button>
 
@@ -349,9 +349,9 @@
     <script>
         document.getElementById('uninstallForm').addEventListener('submit', function (e) {
             const confirmed = confirm(
-                'ATENÇÃO: Todos os dados do sistema serão apagados permanentemente.\n\n' +
-                'Isso inclui todos os usuários, demandas, processos e configurações.\n\n' +
-                'Tem certeza que deseja prosseguir?'
+                'ATENÇÃO: O banco de dados e TODOS os arquivos e pastas do Gaspar serão excluídos permanentemente do servidor.\n\n' +
+                'Isso apagará todos os usuários, demandas, processos, anexos e o próprio código-fonte.\n\n' +
+                'Tem certeza absoluta que deseja prosseguir?'
             );
 
             if (!confirmed) {

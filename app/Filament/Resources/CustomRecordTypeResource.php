@@ -2,44 +2,59 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\UserRoleEnum;
+use App\Filament\Resources\CustomEntityResource\RelationManagers\FieldsRelationManager;
 use App\Filament\Resources\CustomRecordTypeResource\Pages;
-use App\Filament\Resources\CustomRecordTypeResource\RelationManagers;
 use App\Models\CustomRecordType;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Str;
 
 class CustomRecordTypeResource extends Resource
 {
     protected static ?string $model = CustomRecordType::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
+
     protected static ?string $navigationGroup = 'Administração';
+
     protected static ?string $navigationLabel = 'Criar Cadastros';
+
     protected static ?string $modelLabel = 'Cadastro';
+
     protected static ?string $pluralModelLabel = 'Cadastros';
+
     protected static ?int $navigationSort = 5;
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->user_role === \App\Enums\UserRoleEnum::ADMIN;
+        return auth()->user()?->user_role === UserRoleEnum::ADMIN;
     }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
+                Forms\Components\Placeholder::make('code_placeholder')
+                    ->label('Número')
+                    ->content(fn ($record) => $record?->code ?? 'NOVO')
+                    ->columnSpanFull(),
                 Forms\Components\TextInput::make('name')
                     ->label('Nome (Ex: Produtos)')
                     ->required()
-                    ->maxLength(255)
+                    ->maxLength(fn (?CustomRecordType $record, ?string $state) => ($record && $record->name === $state) ? 255 : 15)
+                    ->helperText(fn (?CustomRecordType $record) => $record?->is_system
+                        ? 'Máximo de 15 caracteres. Altera o nome no menu e na listagem.'
+                        : 'Máximo de 15 caracteres.')
                     ->live(onBlur: true)
-                    ->afterStateUpdated(fn (Forms\Set $set, ?string $state) => $set('slug', \Illuminate\Support\Str::slug($state)))
-                    ->disabled(fn ($record) => $record?->is_system),
+                    ->afterStateUpdated(function (Forms\Set $set, ?string $state, ?CustomRecordType $record) {
+                        if (! $record?->is_system) {
+                            $set('slug', Str::slug($state));
+                        }
+                    }),
                 Forms\Components\TextInput::make('slug')
                     ->label('Slug')
                     ->required()
@@ -57,6 +72,10 @@ class CustomRecordTypeResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('code')
+                    ->label('Número')
+                    ->searchable()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome')
                     ->searchable(),
@@ -97,7 +116,7 @@ class CustomRecordTypeResource extends Resource
     public static function getRelations(): array
     {
         return [
-            \App\Filament\Resources\CustomEntityResource\RelationManagers\FieldsRelationManager::class,
+            FieldsRelationManager::class,
         ];
     }
 

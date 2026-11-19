@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\ClientResource\Pages;
 use App\Filament\Resources\Concerns\CustomFieldsRelationManager;
+use App\Filament\Resources\Concerns\HasRecordTypeLabel;
 use App\Models\Client;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -13,6 +14,8 @@ use Filament\Tables\Table;
 
 class ClientResource extends Resource
 {
+    use HasRecordTypeLabel;
+
     protected static ?string $model = Client::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-building-office';
@@ -33,6 +36,11 @@ class ClientResource extends Resource
             ->schema([
                 Forms\Components\Section::make('Dados do Cliente')
                     ->schema([
+                        Forms\Components\Placeholder::make('code_placeholder')
+                            ->label('Número')
+                            ->content(fn ($record) => $record?->code ?? 'NOVO')
+                            ->columnSpanFull(),
+
                         Forms\Components\TextInput::make('name')
                             ->label('Nome')
                             ->required()
@@ -62,13 +70,17 @@ class ClientResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('code')
+                    ->label('Número')
+                    ->searchable()
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome')
-                    ->searchable(query: fn ($query, string $search) => $query->where(fn ($q) => 
-                        $q->where('name', 'like', "%{$search}%")
-                          ->orWhere('email', 'like', "%{$search}%")
-                          ->orWhere('phone', 'like', "%{$search}%")
-                          ->orWhere('custom_data', 'like', "%{$search}%")
+                    ->searchable(query: fn ($query, string $search) => $query->where(fn ($q) => $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('custom_data', 'like', "%{$search}%")
                     ))
                     ->sortable(),
 
@@ -107,7 +119,7 @@ class ClientResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->recordUrl(fn (\App\Models\Client $record): string => Pages\ViewClient::getUrl(['record' => $record]));
+            ->recordUrl(fn (Client $record): string => Pages\ViewClient::getUrl(['record' => $record]));
     }
 
     public static function getRelations(): array
@@ -120,10 +132,10 @@ class ClientResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'  => Pages\ListClients::route('/'),
+            'index' => Pages\ListClients::route('/'),
             'create' => Pages\CreateClient::route('/create'),
-            'view'   => Pages\ViewClient::route('/{record}'),
-            'edit'   => Pages\EditClient::route('/{record}/edit'),
+            'view' => Pages\ViewClient::route('/{record}'),
+            'edit' => Pages\EditClient::route('/{record}/edit'),
         ];
     }
 }

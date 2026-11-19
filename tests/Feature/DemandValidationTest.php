@@ -18,8 +18,11 @@ class DemandValidationTest extends TestCase
     use RefreshDatabase;
 
     private User $admin;
+
     private CustomEntity $entity;
+
     private ProcessStatus $status;
+
     private Client $client;
 
     protected function setUp(): void
@@ -88,6 +91,7 @@ class DemandValidationTest extends TestCase
             ->fillForm([
                 'entity_id' => $this->entity->id,
                 'title' => 'Demanda com cliente preenchido',
+                'project_id' => 'none',
                 'supplier_id' => 'none',
                 'client_id' => $this->client->id,
             ])

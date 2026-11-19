@@ -20,6 +20,7 @@ use App\Models\Macroprocess;
 use App\Models\ProcessStatus;
 use App\Models\Project;
 use App\Models\StatusTransition;
+use App\Models\Supplier;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
@@ -132,6 +133,7 @@ class FilamentPagesSmokeTest extends TestCase
             ->fillForm([
                 'entity_id' => $this->entity->id,
                 'client_id' => Client::first()->id,
+                'project_id' => 'none',
                 'title' => 'Demanda criada pela tela',
                 'supplier_id' => 'none',
             ])
@@ -141,8 +143,22 @@ class FilamentPagesSmokeTest extends TestCase
         $this->assertDatabaseHas('demands', [
             'title' => 'Demanda criada pela tela',
             'status' => DemandStatusEnum::ACTIVE->value,
+            'project_id' => null,
             'supplier_id' => null,
         ]);
+    }
+
+    public function test_projeto_e_obrigatorio_na_criacao_de_demanda(): void
+    {
+        Livewire::test(CreateDemand::class)
+            ->fillForm([
+                'entity_id' => $this->entity->id,
+                'client_id' => Client::first()->id,
+                'supplier_id' => 'none',
+                'title' => 'Demanda sem projeto escolhido',
+            ])
+            ->call('create')
+            ->assertHasFormErrors(['project_id' => 'required']);
     }
 
     public function test_fornecedor_e_obrigatorio_na_criacao_de_demanda(): void
@@ -151,10 +167,54 @@ class FilamentPagesSmokeTest extends TestCase
             ->fillForm([
                 'entity_id' => $this->entity->id,
                 'client_id' => Client::first()->id,
+                'project_id' => 'none',
                 'title' => 'Demanda sem fornecedor escolhido',
             ])
             ->call('create')
             ->assertHasFormErrors(['supplier_id' => 'required']);
+    }
+
+    public function test_demanda_pode_ser_criada_com_fornecedor_real(): void
+    {
+        $supplier = Supplier::create(['name' => 'Fornecedor ACME']);
+
+        Livewire::test(CreateDemand::class)
+            ->fillForm([
+                'entity_id' => $this->entity->id,
+                'client_id' => Client::first()->id,
+                'project_id' => 'none',
+                'supplier_id' => $supplier->id,
+                'title' => 'Demanda com fornecedor real',
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('demands', [
+            'title' => 'Demanda com fornecedor real',
+            'supplier_id' => $supplier->id,
+        ]);
+    }
+
+    public function test_fornecedor_inexistente_falha_validacao_in(): void
+    {
+        Livewire::test(CreateDemand::class)
+            ->fillForm([
+                'entity_id' => $this->entity->id,
+                'client_id' => Client::first()->id,
+                'project_id' => 'none',
+                'supplier_id' => 'fornecedor-invalido',
+                'title' => 'Demanda com fornecedor invalido',
+            ])
+            ->call('create')
+            ->assertHasFormErrors(['supplier_id' => 'in']);
+    }
+
+    public function test_edicao_de_demanda_sem_fornecedor_hidrata_none(): void
+    {
+        $this->assertNull($this->demand->supplier_id);
+
+        Livewire::test(EditDemand::class, ['record' => $this->demand->getKey()])
+            ->assertFormSet(['supplier_id' => 'none']);
     }
 
     public function test_demanda_pode_ser_salva_pela_tela_de_edicao(): void

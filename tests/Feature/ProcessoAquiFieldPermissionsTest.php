@@ -8,11 +8,13 @@ use App\Exceptions\DemandTransitionException;
 use App\Filament\Resources\DemandResource\Pages\CreateDemand;
 use App\Filament\Resources\DemandResource\Pages\EditDemand;
 use App\Filament\Resources\DemandResource\Pages\ViewDemand;
+use App\Models\ActivityLog;
 use App\Models\Client;
 use App\Models\CustomEntity;
 use App\Models\CustomField;
 use App\Models\Demand;
 use App\Models\DemandFieldValue;
+use App\Models\FieldPermission;
 use App\Models\ProcessStatus;
 use App\Models\StatusTransition;
 use App\Models\User;
@@ -283,6 +285,7 @@ class ProcessoAquiFieldPermissionsTest extends TestCase
                 'entity_id' => $this->processo->id,
                 'client_id' => Client::first()->id,
                 'title' => 'Coffee break',
+                'project_id' => 'none',
                 'supplier_id' => 'none',
             ])
             ->assertFormFieldIsHidden('field_data.preco')
@@ -423,7 +426,7 @@ class ProcessoAquiFieldPermissionsTest extends TestCase
         $this->assertNull($this->valor($demand, 'aprovacao'));
         $this->assertSame('5000', $this->valor($demand, 'preco'), 'preço visível em Licitando deve ser mantido');
 
-        $log = \App\Models\ActivityLog::where('auditable_id', $demand->id)->where('event', 'transition')->orderByDesc('created_at')->first();
+        $log = ActivityLog::where('auditable_id', $demand->id)->where('event', 'transition')->orderByDesc('created_at')->first();
         $this->assertSame(['Aprovação'], $log->new_values['discarded_fields']);
 
         $this->preencher($demand, 'preco', '1500');
@@ -456,7 +459,7 @@ class ProcessoAquiFieldPermissionsTest extends TestCase
     public function test_valor_oculto_que_ja_existia_na_situacao_e_preservado(): void
     {
         // Fornecedor passa a ser oculto em Aprovando (dado interno da licitação)
-        \App\Models\FieldPermission::where('entity_id', $this->processo->id)
+        FieldPermission::where('entity_id', $this->processo->id)
             ->where('custom_field_id', $this->f['fornecedor']->id)
             ->where('process_status_id', $this->situacao('Aprovando')->id)
             ->update(['permission' => self::H]);
@@ -491,5 +494,62 @@ class ProcessoAquiFieldPermissionsTest extends TestCase
 
         $nova = app(FieldPermissionResolver::class)->resolve($this->processo, $this->situacao('new'), $this->u['admin']);
         $this->assertSame(self::O, $nova[$this->f['preco']->id]);
+    }
+
+    public function test_retorno_de_licitando_para_nova_atribui_ao_demandante(): void
+    {
+        $demand = $this->demandaEm('new', [], $this->u['demandante']);
+        $this->enviar($demand, $this->u['demandante']);
+
+        $demand->refresh();
+        $this->assertSame('Licitando', $demand->processStatus->name);
+
+        $this->actingAs($this->u['licitador']);
+        Livewire::test(EditDemand::class, ['record' => $demand->id])
+            ->assertActionVisible('return_previous_status')
+            ->callAction('return_previous_status')
+            ->assertHasNoActionErrors();
+
+        $demand->refresh();
+        $this->assertSame('Nova', $demand->processStatus->name);
+        $this->assertSame($this->u['demandante']->id, $demand->assigned_to);
+    }
+
+    public function test_retornos_sucessivos_respeitam_pilha_de_transicoes(): void
+    {
+        $demand = $this->demandaEm('new', [], $this->u['demandante']);
+        $this->enviar($demand, $this->u['demandante']);
+        $this->preencher($demand, 'preco', '5000');
+        $this->enviar($demand, $this->u['licitador']);
+
+        $demand->refresh();
+        $this->assertSame('Aprovando', $demand->processStatus->name);
+
+        // Primeiro retorno: Aprovando -> Licitando
+        $this->actingAs($this->u['aprovador']);
+        Livewire::test(EditDemand::class, ['record' => $demand->id])
+            ->assertActionVisible('return_previous_status')
+            ->assertActionHasLabel('return_previous_status', 'Retornar para: Licitando')
+            ->callAction('return_previous_status')
+            ->assertHasNoActionErrors();
+
+        $demand->refresh();
+        $this->assertSame('Licitando', $demand->processStatus->name);
+
+        // Segundo retorno: Licitando -> Nova
+        $this->actingAs($this->u['licitador']);
+        Livewire::test(EditDemand::class, ['record' => $demand->id])
+            ->assertActionVisible('return_previous_status')
+            ->assertActionHasLabel('return_previous_status', 'Retornar para: Nova')
+            ->callAction('return_previous_status')
+            ->assertHasNoActionErrors();
+
+        $demand->refresh();
+        $this->assertSame('Nova', $demand->processStatus->name);
+
+        // Não há mais retorno possível a partir de Nova
+        $this->actingAs($this->u['demandante']);
+        Livewire::test(EditDemand::class, ['record' => $demand->id])
+            ->assertActionDoesNotExist('return_previous_status');
     }
 }

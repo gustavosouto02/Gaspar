@@ -12,6 +12,7 @@ use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Model;
 
 class SubDemandsRelationManager extends RelationManager
 {
@@ -23,7 +24,7 @@ class SubDemandsRelationManager extends RelationManager
 
     protected static ?string $pluralModelLabel = 'Subdemandas';
 
-    public static function canViewForRecord(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): bool
+    public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool
     {
         // Só exibe se NÃO for uma subdemanda
         return is_null($ownerRecord->parent_demand_id);
@@ -65,6 +66,11 @@ class SubDemandsRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('title')
             ->columns([
+                Tables\Columns\TextColumn::make('code')
+                    ->label('Número')
+                    ->searchable()
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('title')
                     ->label('Título')
                     ->searchable(query: fn ($query, string $search) => $query->globalSearch($search))
@@ -114,11 +120,12 @@ class SubDemandsRelationManager extends RelationManager
                     ->color('warning')
                     ->url(function () {
                         $parent = $this->getOwnerRecord();
+
                         return DemandResource::getUrl('create', [
                             'parent_demand_id' => $parent->id,
                             'client_id' => $parent->client_id,
-                            'project_id' => $parent->project_id,
-                            'supplier_id' => $parent->supplier_id,
+                            'project_id' => $parent->project_id ?? 'none',
+                            'supplier_id' => $parent->supplier_id ?? 'none',
                         ]);
                     }),
             ])
