@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Enums\DemandButtonEnum;
 use App\Enums\DemandStatusEnum;
 use App\Enums\UserRoleEnum;
+use App\Filament\Pages\ControlPanel;
 use App\Filament\Pages\DemandReports;
+use App\Filament\Pages\MyDemands;
 use App\Filament\Resources\DemandResource\Pages\CreateDemand;
 use App\Filament\Resources\DemandResource\Pages\EditDemand;
 use App\Filament\Resources\DemandResource\Pages\ListDemands;
@@ -13,6 +15,12 @@ use App\Filament\Resources\DemandResource\Pages\ViewDemand;
 use App\Filament\Resources\ProjectResource\Pages\CreateProject;
 use App\Filament\Resources\ProjectResource\Pages\EditProject;
 use App\Filament\Resources\ProjectResource\Pages\ListProjects;
+use App\Filament\Widgets\DemandByProcessChart;
+use App\Filament\Widgets\DemandSLAChart;
+use App\Filament\Widgets\DemandStatsWidget;
+use App\Filament\Widgets\GeneralStatsOverview;
+use App\Filament\Widgets\MyDemandsWidget;
+use App\Filament\Widgets\MySubDemandsWidget;
 use App\Models\Client;
 use App\Models\CustomEntity;
 use App\Models\Demand;
@@ -22,6 +30,7 @@ use App\Models\Project;
 use App\Models\StatusTransition;
 use App\Models\Supplier;
 use App\Models\User;
+use Filament\Facades\Filament;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
@@ -324,5 +333,117 @@ class FilamentPagesSmokeTest extends TestCase
 
         Livewire::test(EditProject::class, ['record' => $project->getKey()])
             ->assertSuccessful();
+    }
+
+    public function test_tela_inicial_e_minhas_demandas_com_apenas_demandas_e_subdemandas(): void
+    {
+        $this->assertSame('Minhas Demandas', MyDemands::getNavigationLabel());
+        $this->assertSame(url('/admin'), MyDemands::getUrl());
+        $this->assertSame(MyDemands::getUrl(), Filament::getHomeUrl());
+        $this->assertSame(MyDemands::getUrl(), Filament::getUrl());
+
+        $component = Livewire::test(MyDemands::class)->assertSuccessful();
+
+        $this->assertSame(
+            [
+                MyDemandsWidget::class,
+                MySubDemandsWidget::class,
+            ],
+            array_values($component->instance()->getVisibleWidgets())
+        );
+
+        Livewire::test(MyDemandsWidget::class)
+            ->assertSuccessful()
+            ->assertSee('Minhas Demandas');
+
+        Livewire::test(MySubDemandsWidget::class)
+            ->assertSuccessful()
+            ->assertSee('Minhas Subdemandas');
+
+        $this->get('/admin')
+            ->assertOk()
+            ->assertSeeLivewire(MyDemandsWidget::class)
+            ->assertSeeLivewire(MySubDemandsWidget::class)
+            ->assertDontSeeLivewire(DemandStatsWidget::class)
+            ->assertDontSeeLivewire(GeneralStatsOverview::class)
+            ->assertDontSeeLivewire(DemandByProcessChart::class)
+            ->assertDontSeeLivewire(DemandSLAChart::class);
+    }
+
+    public function test_pagina_painel_de_controle_exibe_metricas_e_graficos(): void
+    {
+        $this->assertSame('Painel de Controle', ControlPanel::getNavigationLabel());
+        $this->assertSame(url('/admin/painel-de-controle'), ControlPanel::getUrl());
+
+        $component = Livewire::test(ControlPanel::class)->assertSuccessful();
+
+        $this->assertSame(
+            [
+                DemandStatsWidget::class,
+                GeneralStatsOverview::class,
+                DemandByProcessChart::class,
+                DemandSLAChart::class,
+            ],
+            array_values($component->instance()->getVisibleWidgets())
+        );
+
+        Livewire::test(DemandStatsWidget::class)
+            ->assertSuccessful()
+            ->assertSee('Qtde de Demandas')
+            ->assertSee('Projetos (membro)')
+            ->assertSee('Demandas Atrasadas');
+
+        Livewire::test(GeneralStatsOverview::class)
+            ->assertSuccessful()
+            ->assertSee('Demandas Pendentes')
+            ->assertSee('Encerradas (Mês Atual)')
+            ->assertSee('Total de Demandas');
+
+        Livewire::test(DemandByProcessChart::class)
+            ->assertSuccessful()
+            ->assertSee('Demandas por Processo');
+
+        Livewire::test(DemandSLAChart::class)
+            ->assertSuccessful()
+            ->assertSee('Cumprimento de Prazo (SLA)');
+
+        $this->get('/admin/painel-de-controle')
+            ->assertOk()
+            ->assertSeeLivewire(DemandStatsWidget::class)
+            ->assertSeeLivewire(GeneralStatsOverview::class)
+            ->assertSeeLivewire(DemandByProcessChart::class)
+            ->assertSeeLivewire(DemandSLAChart::class)
+            ->assertDontSeeLivewire(MyDemandsWidget::class)
+            ->assertDontSeeLivewire(MySubDemandsWidget::class);
+    }
+
+    public function test_navegacao_exibe_minhas_demandas_antes_de_painel_de_controle(): void
+    {
+        $executor = User::factory()->create([
+            'user_role' => UserRoleEnum::EXECUTOR,
+            'is_active' => true,
+        ]);
+
+        foreach ([$this->admin, $executor] as $user) {
+            $this->actingAs($user);
+
+            // NavigationManager é scoped: sem isto o 2º usuário reaproveita o menu do 1º
+            $this->app->forgetScopedInstances();
+
+            $topGroup = collect(Filament::getNavigation())->first(fn ($group) => $group->getLabel() === null);
+            $this->assertNotNull($topGroup);
+
+            $items = collect($topGroup->getItems())->values();
+            $this->assertCount(2, $items);
+
+            $this->assertSame('Minhas Demandas', $items[0]->getLabel());
+            $this->assertSame(MyDemands::getUrl(), $items[0]->getUrl());
+
+            $this->assertSame('Painel de Controle', $items[1]->getLabel());
+            $this->assertSame(ControlPanel::getUrl(), $items[1]->getUrl());
+
+            $this->get('/admin')->assertOk();
+            $this->get('/admin/painel-de-controle')->assertOk();
+        }
     }
 }
