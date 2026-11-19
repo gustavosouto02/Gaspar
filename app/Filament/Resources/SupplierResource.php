@@ -2,9 +2,9 @@
 
 namespace App\Filament\Resources;
 
-use App\Filament\Resources\SupplierResource\Pages;
-use App\Filament\Resources\SupplierResource\RelationManagers;
 use App\Filament\Resources\Concerns\CustomFieldsRelationManager;
+use App\Filament\Resources\Concerns\HasRecordTypeLabel;
+use App\Filament\Resources\SupplierResource\Pages;
 use App\Models\Supplier;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -16,6 +16,8 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class SupplierResource extends Resource
 {
+    use HasRecordTypeLabel;
+
     protected static ?string $model = Supplier::class;
 
     protected static ?string $modelLabel = 'Fornecedor';
@@ -69,12 +71,11 @@ class SupplierResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome')
-                    ->searchable(query: fn ($query, string $search) => $query->where(fn ($q) => 
-                        $q->where('name', 'like', "%{$search}%")
-                          ->orWhere('email', 'like', "%{$search}%")
-                          ->orWhere('phone', 'like', "%{$search}%")
-                          ->orWhere('business', 'like', "%{$search}%")
-                          ->orWhere('custom_data', 'like', "%{$search}%")
+                    ->searchable(query: fn ($query, string $search) => $query->where(fn ($q) => $q->where('name', 'like', "%{$search}%")
+                        ->orWhere('email', 'like', "%{$search}%")
+                        ->orWhere('phone', 'like', "%{$search}%")
+                        ->orWhere('business', 'like', "%{$search}%")
+                        ->orWhere('custom_data', 'like', "%{$search}%")
                     ))
                     ->sortable(),
                 Tables\Columns\TextColumn::make('phone')
