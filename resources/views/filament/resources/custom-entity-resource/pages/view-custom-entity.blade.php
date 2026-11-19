@@ -1,3 +1,6 @@
+{{-- Cópia de vendor/filament/filament/resources/views/resources/pages/view-record.blade.php (Filament v3.3.50).
+     Única alteração: título "Sistematização do processo:" acima dos relation managers.
+     Ao atualizar o Filament, comparar com o original. --}}
 <x-filament-panels::page
     @class([
         'fi-resource-view-record-page',
@@ -24,9 +27,7 @@
 
     @if (count($relationManagers))
         <div class="flex flex-col gap-y-4">
-            <h3 class="fi-section-header-heading text-base font-semibold leading-6 text-gray-950 dark:text-white">
-                Sistematização do processo:
-            </h3>
+            @include('filament.resources.custom-entity-resource.partials.systematization-heading')
 
             <x-filament-panels::resources.relation-managers
                 :active-locale="isset($activeLocale) ? $activeLocale : null"
@@ -51,4 +52,3 @@
         </div>
     @endif
 </x-filament-panels::page>
-

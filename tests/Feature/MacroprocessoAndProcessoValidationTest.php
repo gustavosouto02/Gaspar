@@ -6,6 +6,7 @@ use App\Enums\DemandButtonEnum;
 use App\Enums\UserRoleEnum;
 use App\Filament\Resources\CustomEntityResource\Pages\CreateCustomEntity;
 use App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity;
+use App\Filament\Resources\CustomEntityResource\Pages\ViewCustomEntity;
 use App\Filament\Resources\CustomEntityResource\RelationManagers\FieldsRelationManager;
 use App\Filament\Resources\CustomEntityResource\RelationManagers\MembersRelationManager;
 use App\Filament\Resources\CustomEntityResource\RelationManagers\ProcessStatusesRelationManager;
@@ -293,14 +294,14 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
         ]);
     }
 
-    public function test_formulario_de_cadastro_do_processo_exibe_titulo_sistematizacao_do_processo(): void
+    public function test_telas_de_edicao_e_visualizacao_do_processo_exibem_titulo_sistematizacao(): void
     {
         $this->actingAs($this->admin);
 
         $macro = Macroprocess::create([
             'name' => 'Macroprocesso Teste Sistematizacao',
             'acronym' => 'SIST',
-            'value_chain_function' => 'Apoio',
+            'value_chain_function' => 'Suportar Processos',
             'description' => 'Descrição do macroprocesso',
             'is_active' => true,
             'created_by' => $this->admin->id,
@@ -317,9 +318,9 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
         ]);
 
         Livewire::test(EditCustomEntity::class, ['record' => $entity->id])
-            ->assertSee('Sistematização do processo:');
+            ->assertSeeInOrder(['Nome do Processo', 'Sistematização do processo:', 'Campos Customizados']);
 
-        Livewire::test(\App\Filament\Resources\CustomEntityResource\Pages\ViewCustomEntity::class, ['record' => $entity->id])
-            ->assertSee('Sistematização do processo:');
+        Livewire::test(ViewCustomEntity::class, ['record' => $entity->id])
+            ->assertSeeInOrder(['Nome do Processo', 'Sistematização do processo:', 'Campos Customizados']);
     }
 }
