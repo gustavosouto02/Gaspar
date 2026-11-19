@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources;
 
+use App\Enums\SatisfactionRatingEnum;
 use App\Filament\Resources\Concerns\CustomFieldsRelationManager;
+use App\Filament\Resources\Concerns\HasRecordTypeLabel;
 use App\Filament\Resources\ProjectResource\Pages;
 use App\Models\ProcessStatus;
 use App\Models\Project;
@@ -15,6 +17,8 @@ use Filament\Tables\Table;
 
 class ProjectResource extends Resource
 {
+    use HasRecordTypeLabel;
+
     protected static ?string $model = Project::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-briefcase';
@@ -58,7 +62,7 @@ class ProjectResource extends Resource
                                             ->relationship('client', 'name')
                                             ->searchable()
                                             ->preload()
-                                            ->nullable(),
+                                            ->required(),
                                     ]),
 
                                 Forms\Components\Group::make()
@@ -106,23 +110,28 @@ class ProjectResource extends Resource
                         Forms\Components\Select::make('contact_name')
                             ->label('Contato')
                             ->options(User::pluck('name', 'name'))
-                            ->searchable(),
+                            ->searchable()
+                            ->required(),
                         Forms\Components\Select::make('manager_name')
                             ->label('Gerente')
                             ->options(User::pluck('name', 'name'))
-                            ->searchable(),
+                            ->searchable()
+                            ->required(),
                         Forms\Components\Select::make('sponsor_name')
                             ->label('Sponsor')
                             ->options(User::pluck('name', 'name'))
-                            ->searchable(),
+                            ->searchable()
+                            ->required(),
                         Forms\Components\Select::make('scrum_master_name')
                             ->label('Scrum Master')
                             ->options(User::pluck('name', 'name'))
-                            ->searchable(),
+                            ->searchable()
+                            ->required(),
                         Forms\Components\Select::make('product_owner_name')
                             ->label('Product Owner')
                             ->options(User::pluck('name', 'name'))
-                            ->searchable(),
+                            ->searchable()
+                            ->required(),
                     ])->columns(2),
 
                 Forms\Components\Section::make('Financeiro e Avaliação')
@@ -130,6 +139,7 @@ class ProjectResource extends Resource
                         Forms\Components\TextInput::make('budget')
                             ->label('Orçamento (R$)')
                             ->numeric()
+                            ->required()
                             ->prefix('R$'),
                         Forms\Components\TextInput::make('spent')
                             ->label('Despendido (R$)')
@@ -137,7 +147,7 @@ class ProjectResource extends Resource
                             ->prefix('R$'),
                         Forms\Components\Select::make('sponsor_rating')
                             ->label('Avaliação do Sponsor')
-                            ->options(\App\Enums\SatisfactionRatingEnum::options()),
+                            ->options(SatisfactionRatingEnum::options()),
                         Forms\Components\Textarea::make('sponsor_comment')
                             ->label('Comentário da avaliação')
                             ->rows(3)
@@ -148,6 +158,7 @@ class ProjectResource extends Resource
                     ->schema([
                         Forms\Components\Textarea::make('description')
                             ->label('Descrição:')
+                            ->required()
                             ->columnSpanFull(),
                         Forms\Components\FileUpload::make('attachments')
                             ->label('Anexos:')

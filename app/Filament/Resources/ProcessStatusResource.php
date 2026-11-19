@@ -11,6 +11,7 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Collection;
 
 class ProcessStatusResource extends Resource
 {
@@ -52,8 +53,15 @@ class ProcessStatusResource extends Resource
                     ->label('Cor')
                     ->required()
                     ->options(ProcessStatusColorEnum::options())
+                    ->in(array_keys(ProcessStatusColorEnum::options()))
                     ->default('gray')
                     ->native(false),
+
+                Forms\Components\Textarea::make('description')
+                    ->label('Descrição')
+                    ->maxLength(1000)
+                    ->rows(3)
+                    ->columnSpanFull(),
 
                 Forms\Components\Hidden::make('created_by')
                     ->default(fn () => auth()->id()),
@@ -73,6 +81,13 @@ class ProcessStatusResource extends Resource
                     ->label('Situação')
                     ->searchable()
                     ->sortable(),
+
+                Tables\Columns\TextColumn::make('description')
+                    ->label('Descrição')
+                    ->limit(50)
+                    ->tooltip(fn (?string $state): ?string => $state)
+                    ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('color')
                     ->label('Cor')
@@ -111,8 +126,7 @@ class ProcessStatusResource extends Resource
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
-                        ->action(fn (\Illuminate\Database\Eloquent\Collection $records) => 
-                            $records->reject(fn (ProcessStatus $r) => $r->is_system)->each->delete()
+                        ->action(fn (Collection $records) => $records->reject(fn (ProcessStatus $r) => $r->is_system)->each->delete()
                         ),
                 ]),
             ])
@@ -122,9 +136,9 @@ class ProcessStatusResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'  => Pages\ListProcessStatuses::route('/'),
+            'index' => Pages\ListProcessStatuses::route('/'),
             'create' => Pages\CreateProcessStatus::route('/create'),
-            'edit'   => Pages\EditProcessStatus::route('/{record}/edit'),
+            'edit' => Pages\EditProcessStatus::route('/{record}/edit'),
         ];
     }
 }
