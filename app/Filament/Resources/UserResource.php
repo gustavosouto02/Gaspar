@@ -39,8 +39,8 @@ class UserResource extends Resource
         return $form
             ->schema([
                 \Filament\Forms\Components\Placeholder::make('id_placeholder')
-                    ->label('Usuário número')
-                    ->content(fn ($record) => $record?->id ?? '-'),
+                    ->label('Número')
+                    ->content(fn ($record) => $record?->code ?? 'NOVO'),
 
                 \Filament\Forms\Components\Placeholder::make('created_at_placeholder')
                     ->label('Data de criação')
@@ -87,6 +87,11 @@ class UserResource extends Resource
     {
         return $table
             ->columns([
+                TextColumn::make('code')
+                    ->label('Número')
+                    ->searchable()
+                    ->sortable(),
+
                 TextColumn::make('name')
                     ->label('Nome')
                     ->searchable(query: fn ($query, string $search) => $query->where(fn ($q) => 

@@ -40,8 +40,8 @@ class CustomEntityResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Placeholder::make('id_placeholder')
-                    ->label('Processo número')
-                    ->content(fn ($record) => $record?->id ?? '-'),
+                    ->label('Número')
+                    ->content(fn ($record) => $record?->code ?? 'NOVO'),
                 
                 Forms\Components\Placeholder::make('created_at_placeholder')
                     ->label('Data de criação')
@@ -97,6 +97,11 @@ class CustomEntityResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('code')
+                    ->label('Número')
+                    ->searchable()
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome do Processo')
                     ->formatStateUsing(fn (CustomEntity $record) => $record->full_display_name)
@@ -129,12 +134,6 @@ class CustomEntityResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\Action::make('permissions')
-                    ->label('Permissões')
-                    ->icon('heroicon-o-lock-closed')
-                    ->color('gray')
-                    ->url(fn (\App\Models\CustomEntity $record) => \App\Filament\Resources\CustomEntityResource::getUrl('permissions', ['record' => $record]))
-                    ->visible(fn () => auth()->user()?->user_role === \App\Enums\UserRoleEnum::ADMIN),
                 Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([

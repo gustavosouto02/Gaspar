@@ -61,7 +61,7 @@ class DemandResource extends Resource
                                             ->visible(fn ($record) => (bool) $record?->parent_demand_id),
 
                                         Forms\Components\Placeholder::make('id_label')
-                                            ->label('Demanda número:')
+                                            ->label('Número:')
                                             ->content(fn ($record) => $record ? ($record->code ?? '#'.strtoupper(substr($record->id, 0, 8))) : 'NOVA'),
 
                                         Forms\Components\Placeholder::make('created_at_label')
@@ -125,10 +125,20 @@ class DemandResource extends Resource
                                         Forms\Components\Select::make('project_id')
                                             ->label('Projeto:')
                                             ->default(request()->query('project_id'))
-                                            ->relationship('project', 'name')
+                                            ->options(fn () => ['none' => 'Sem vínculo'] + \App\Models\Project::query()
+                                                ->orderBy('acronym')
+                                                ->orderBy('name')
+                                                ->get()
+                                                ->mapWithKeys(fn (\App\Models\Project $project) => [$project->id => $project->display_name])
+                                                ->all())
                                             ->searchable()
-                                            ->preload()
-                                            ->nullable(),
+                                            ->required()
+                                            ->afterStateHydrated(function (Forms\Components\Select $component, $state, $record) {
+                                                if ($record && blank($state)) {
+                                                    $component->state('none');
+                                                }
+                                            })
+                                            ->dehydrateStateUsing(fn ($state) => $state === 'none' ? null : $state),
 
                                         Forms\Components\Select::make('requested_by')
                                             ->label('Demandante:')
@@ -140,9 +150,14 @@ class DemandResource extends Resource
                                             ->disabled()
                                             ->dehydrated(),
 
-                                        Forms\Components\Placeholder::make('current_responsibles_label')
+                                        Forms\Components\TextInput::make('current_responsibles_label')
                                             ->label('Responsável:')
-                                            ->content(fn ($record) => $record ? $record->current_responsibles : 'Atribuição automática...'),
+                                            ->disabled()
+                                            ->dehydrated(false)
+                                            ->placeholder('—')
+                                            ->afterStateHydrated(function (Forms\Components\TextInput $component, $record) {
+                                                $component->state($record ? $record->current_responsibles : null);
+                                            }),
                                     ]),
 
                                 Forms\Components\Group::make()
@@ -350,7 +365,7 @@ class DemandResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('code')
-                    ->label('Código')
+                    ->label('Número')
                     ->searchable()
                     ->sortable(),
 
@@ -431,7 +446,8 @@ class DemandResource extends Resource
 
                 Tables\Filters\SelectFilter::make('project_id')
                     ->label('Projeto')
-                    ->relationship('project', 'name'),
+                    ->relationship('project', 'name', modifyQueryUsing: fn ($query) => $query->orderBy('acronym')->orderBy('name'))
+                    ->getOptionLabelFromRecordUsing(fn ($record) => $record->display_name),
 
                 Tables\Filters\SelectFilter::make('requested_by')
                     ->label('Demandante')

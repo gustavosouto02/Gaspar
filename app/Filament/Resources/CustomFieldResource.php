@@ -36,6 +36,11 @@ class CustomFieldResource extends Resource
         return $form
             ->schema([
                 Forms\Components\Section::make('Configuração do Campo')->schema([
+                    Forms\Components\Placeholder::make('code_placeholder')
+                        ->label('Número')
+                        ->content(fn ($record) => $record?->code ?? 'NOVO')
+                        ->columnSpanFull(),
+
                     Forms\Components\TextInput::make('name')
                         ->label('Nome do Campo')
                         ->required()
@@ -63,10 +68,6 @@ class CustomFieldResource extends Resource
                     Forms\Components\TextInput::make('placeholder')
                         ->maxLength(255),
 
-                    Forms\Components\Toggle::make('is_required')
-                        ->label('Obrigatório')
-                        ->default(false),
-
                     Forms\Components\TextInput::make('default_value')
                         ->label('Valor Padrão')
                         ->maxLength(65535),
@@ -91,6 +92,11 @@ class CustomFieldResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\TextColumn::make('code')
+                    ->label('Número')
+                    ->searchable()
+                    ->sortable(),
+
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
@@ -103,11 +109,6 @@ class CustomFieldResource extends Resource
                 Tables\Columns\TextColumn::make('field_type')
                     ->badge()
                     ->label('Tipo'),
-
-                Tables\Columns\IconColumn::make('is_required')
-                    ->boolean()
-                    ->sortable()
-                    ->label('Obrigatório'),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->label('Criado em')
