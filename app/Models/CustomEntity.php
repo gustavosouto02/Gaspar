@@ -106,6 +106,15 @@ class CustomEntity extends Model
     }
 
     /**
+     * Situação em que a demanda nasce: a "Nova" ou, sem ela, a primeira do processo
+     */
+    public function initialProcessStatus(): ?ProcessStatus
+    {
+        return $this->processStatuses()->where('system_key', 'new')->first()
+            ?? $this->processStatuses()->orderBy('display_order')->first();
+    }
+
+    /**
      * Membros vinculados ao processo
      */
     public function members(): HasMany

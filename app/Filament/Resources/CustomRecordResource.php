@@ -103,12 +103,17 @@ class CustomRecordResource extends Resource
             $type = \App\Models\CustomRecordType::with('fields')->find($typeId);
             if ($type) {
                 foreach ($type->fields as $field) {
+                    // Campos de valor só aparecem para ADMIN e para os gestores do cadastro
+                    if (app(\App\Services\MoneyFieldVisibility::class)->isHiddenFor(auth()->user(), $field, $type)) {
+                        continue;
+                    }
+
                     $key = "data_json.{$field->key}";
                     $component = match ($field->field_type) {
                         \App\Enums\FieldTypeEnum::TEXT     => Forms\Components\TextInput::make($key),
                         \App\Enums\FieldTypeEnum::TEXTAREA => Forms\Components\Textarea::make($key)->rows(3),
                         \App\Enums\FieldTypeEnum::NUMBER   => Forms\Components\TextInput::make($key)->numeric(),
-                        \App\Enums\FieldTypeEnum::CURRENCY => Forms\Components\TextInput::make($key)->prefix('R$')->numeric(),
+                        \App\Enums\FieldTypeEnum::CURRENCY => \App\Support\MoneyInput::make($key),
                         \App\Enums\FieldTypeEnum::DATE     => Forms\Components\DatePicker::make($key),
                         \App\Enums\FieldTypeEnum::SELECT   => Forms\Components\Select::make($key)
                             ->options($field->options_json
@@ -157,11 +162,21 @@ class CustomRecordResource extends Resource
         if ($typeId) {
             $type = \App\Models\CustomRecordType::with('fields')->find($typeId);
             if ($type) {
-                foreach ($type->fields->take(4) as $field) {
-                    $columns[] = Tables\Columns\TextColumn::make("data_json.{$field->key}")
+                $visibleFields = $type->fields->reject(
+                    fn ($field) => app(\App\Services\MoneyFieldVisibility::class)->isHiddenFor(auth()->user(), $field, $type)
+                );
+
+                foreach ($visibleFields->take(4) as $field) {
+                    $column = Tables\Columns\TextColumn::make("data_json.{$field->key}")
                         ->label($field->name)
                         ->searchable()
                         ->sortable();
+
+                    if ($field->field_type === \App\Enums\FieldTypeEnum::CURRENCY) {
+                        $column->formatStateUsing(fn ($state) => \App\Support\MoneyInput::display($state));
+                    }
+
+                    $columns[] = $column;
                 }
             }
         }

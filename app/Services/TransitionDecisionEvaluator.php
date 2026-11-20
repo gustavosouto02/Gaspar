@@ -9,6 +9,7 @@ use App\Models\CustomField;
 use App\Models\Demand;
 use App\Models\StatusTransition;
 use App\Models\TransitionRule;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -20,16 +21,21 @@ use Illuminate\Support\Collection;
 class TransitionDecisionEvaluator
 {
     /**
+     * Com `$actor`, um campo de valor vazio que ele não enxerga (e não foi liberado
+     * para ele na matriz) não é citado como "precisa estar preenchido": a mensagem
+     * pede para aguardar o gestor do processo (ou um administrador) informá-lo e,
+     * se processo e macroprocesso estão sem gestor, avisa que só um administrador pode.
+     *
      * @throws DemandTransitionException quando falta o "senão" ou um campo de entrada está vazio
      */
-    public function resolve(StatusTransition $transition, Demand $demand): TransitionDecision
+    public function resolve(StatusTransition $transition, Demand $demand, ?User $actor = null): TransitionDecision
     {
         $values = $demand->fieldValues()->get()->keyBy('custom_field_id');
 
         $rules = $transition->rules()->with('toStatus')->get();
 
         foreach ($rules as $rule) {
-            if ($this->ruleMatches($rule, $values)) {
+            if ($this->ruleMatches($rule, $values, $demand, $actor)) {
                 return new TransitionDecision($rule->to_status_id, $rule);
             }
         }
@@ -44,7 +50,7 @@ class TransitionDecisionEvaluator
     /**
      * Todas as condições da regra combinam com E; regra sem condições nunca casa.
      */
-    private function ruleMatches(TransitionRule $rule, Collection $values): bool
+    private function ruleMatches(TransitionRule $rule, Collection $values, Demand $demand, ?User $actor): bool
     {
         $conditions = $rule->conditions ?? [];
 
@@ -53,7 +59,7 @@ class TransitionDecisionEvaluator
         }
 
         foreach ($conditions as $condition) {
-            if (! $this->conditionMatches($condition, $values)) {
+            if (! $this->conditionMatches($condition, $values, $demand, $actor)) {
                 return false;
             }
         }
@@ -61,7 +67,7 @@ class TransitionDecisionEvaluator
         return true;
     }
 
-    private function conditionMatches(array $condition, Collection $values): bool
+    private function conditionMatches(array $condition, Collection $values, Demand $demand, ?User $actor): bool
     {
         $field = CustomField::find($condition['field_id'] ?? null);
 
@@ -89,6 +95,15 @@ class TransitionDecisionEvaluator
         }
 
         if ($isEmpty) {
+            if ($actor && app(MoneyFieldVisibility::class)->isHiddenInDemand($actor, $field, $demand->entity, $demand->processStatus)) {
+                $semGestor = $demand->entity->manager_id === null
+                    && $demand->entity->macroprocess?->manager_id === null;
+
+                throw new DemandTransitionException($semGestor
+                    ? "O processo está sem gestor: só um administrador pode informar o campo \"{$field->name}\" para avaliar a transição condicional."
+                    : "Aguardando o gestor do processo ou um administrador informar o campo \"{$field->name}\" para avaliar a transição condicional.");
+            }
+
             throw new DemandTransitionException("O campo \"{$field->name}\" precisa estar preenchido para avaliar a transição condicional.");
         }
 

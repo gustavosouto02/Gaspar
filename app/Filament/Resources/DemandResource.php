@@ -17,6 +17,8 @@ use App\Models\Project;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Services\FieldPermissionResolver;
+use App\Services\MoneyFieldVisibility;
+use App\Support\MoneyInput;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -82,13 +84,8 @@ class DemandResource extends Resource
                                                 if ($state) {
                                                     $entity = CustomEntity::find($state);
                                                     if ($entity) {
-                                                        // Tenta buscar a situação "Nova"
-                                                        $nova = $entity->processStatuses()->where('system_key', 'new')->first();
-                                                        // Se não tiver "Nova", pega a primeira que achar
-                                                        if (! $nova) {
-                                                            $nova = $entity->processStatuses()->orderBy('display_order')->first();
-                                                        }
-                                                        $set('process_status_id', $nova?->id);
+                                                        // Situação "Nova" ou, sem ela, a primeira do processo
+                                                        $set('process_status_id', $entity->initialProcessStatus()?->id);
                                                     } else {
                                                         $set('process_status_id', null);
                                                     }
@@ -99,6 +96,11 @@ class DemandResource extends Resource
 
                                         Forms\Components\Select::make('process_status_id')
                                             ->label('Situação:')
+                                            // Processo pré-selecionado por ?entity_id= não dispara o afterStateUpdated
+                                            // do select de processo: a situação inicial vem por default
+                                            ->default(fn () => ($entityId = request()->query('entity_id'))
+                                                ? CustomEntity::find($entityId)?->initialProcessStatus()?->id
+                                                : null)
                                             ->options(function (Get $get) {
                                                 $entityId = $get('entity_id');
                                                 if (! $entityId) {
@@ -254,6 +256,7 @@ class DemandResource extends Resource
                         $get('entity_id'),
                         $record?->process_status_id ?? $get('process_status_id'),
                         auth()->user(),
+                        creating: $record === null,
                     ))
                     ->columns(2)
                     ->visible(fn (Get $get) => filled($get('entity_id')))
@@ -309,8 +312,12 @@ class DemandResource extends Resource
      * Usa "field_data.{key}" como namespace — interceptado nas Pages para salvar em demand_field_values.
      * Quando situação e usuário são informados, aplica a matriz de permissões
      * de campos (obrigatório/opcional/somente leitura/oculto).
+     * Na criação (`$creating`) sem situação informada (ex.: processo pré-selecionado
+     * por `?entity_id=`, cujo select de situação ainda não foi preenchido), vale a
+     * situação inicial do processo, a mesma que o CreateDemand grava; sem situação
+     * resolvível, o campo de valor segue restrito a quem pode vê-lo.
      */
-    public static function buildDynamicFieldSchema(?string $entityId, ?string $processStatusId = null, ?User $user = null): array
+    public static function buildDynamicFieldSchema(?string $entityId, ?string $processStatusId = null, ?User $user = null, bool $creating = false): array
     {
         if (! $entityId) {
             return [];
@@ -335,18 +342,30 @@ class DemandResource extends Resource
         $permissions = null;
         $statusRecord = $processStatusId ? ProcessStatus::find($processStatusId) : null;
 
+        if (! $statusRecord && $creating) {
+            $statusRecord = $entity->initialProcessStatus();
+        }
+
         if ($statusRecord && $user) {
             $permissions = app(FieldPermissionResolver::class)->resolve($entity, $statusRecord, $user);
         }
 
+        $moneyVisibility = app(MoneyFieldVisibility::class);
+
         $schema = [];
         foreach ($fields as $field) {
+            // Sem situação resolvível não há matriz a consultar: o campo de valor
+            // só aparece para quem pode vê-lo
+            if ($permissions === null && $moneyVisibility->isHiddenFor($user ?? auth()->user(), $field, $entity)) {
+                continue;
+            }
+
             $key = "field_data.{$field->key}";
             $component = match ($field->field_type) {
                 FieldTypeEnum::TEXT => Forms\Components\TextInput::make($key),
                 FieldTypeEnum::TEXTAREA => Forms\Components\Textarea::make($key)->rows(3),
                 FieldTypeEnum::NUMBER => Forms\Components\TextInput::make($key)->numeric(),
-                FieldTypeEnum::CURRENCY => Forms\Components\TextInput::make($key)->prefix('R$')->numeric(),
+                FieldTypeEnum::CURRENCY => MoneyInput::make($key),
                 FieldTypeEnum::DATE => Forms\Components\DatePicker::make($key),
                 FieldTypeEnum::SELECT => Forms\Components\Select::make($key)
                     ->options($field->options_json

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\CustomRecordResource\Pages;
 
+use App\Filament\Resources\Concerns\HidesMoneyValuesOnFill;
 use App\Filament\Resources\CustomRecordResource;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
@@ -9,6 +10,8 @@ use Livewire\Attributes\Url;
 
 class EditCustomRecord extends EditRecord
 {
+    use HidesMoneyValuesOnFill;
+
     protected static string $resource = CustomRecordResource::class;
 
     #[Url]

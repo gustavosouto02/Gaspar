@@ -11,6 +11,8 @@ use App\Models\CustomEntity;
 use App\Models\CustomField;
 use App\Models\Demand;
 use App\Models\SavedReport;
+use App\Services\MoneyFieldVisibility;
+use App\Support\MoneyInput;
 use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -139,7 +141,15 @@ class DemandReports extends Page implements HasForms, HasTable
                 $q->where('custom_entities.id', $entityId);
             })->get();
 
+            $entity = CustomEntity::with('macroprocess')->find($entityId);
+            $moneyVisibility = app(MoneyFieldVisibility::class);
+
             foreach ($customFields as $field) {
+                // Campos de valor só aparecem para ADMIN e para o gestor do processo
+                if ($moneyVisibility->isHiddenFor(auth()->user(), $field, $entity)) {
+                    continue;
+                }
+
                 $columns[] = Tables\Columns\TextColumn::make('field_'.$field->id)
                     ->label($field->name)
                     ->getStateUsing(function (Demand $record) use ($field) {
@@ -147,8 +157,8 @@ class DemandReports extends Page implements HasForms, HasTable
                         if (blank($fv?->value)) {
                             return '—';
                         }
-                        if ($field->field_type === FieldTypeEnum::CURRENCY && is_numeric($fv->value)) {
-                            return 'R$ '.number_format((float) $fv->value, 2, ',', '.');
+                        if ($field->field_type === FieldTypeEnum::CURRENCY) {
+                            return MoneyInput::display($fv->value);
                         }
 
                         return $fv->value;

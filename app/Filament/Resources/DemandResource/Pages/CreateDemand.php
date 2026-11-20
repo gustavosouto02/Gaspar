@@ -83,9 +83,7 @@ class CreateDemand extends CreateRecord
         // por query string não dispara o afterStateUpdated do select de processo)
         if (empty($data['process_status_id']) && ! empty($data['entity_id'])) {
             $entity = CustomEntity::find($data['entity_id']);
-            $nova = $entity?->processStatuses()->where('system_key', 'new')->first()
-                ?? $entity?->processStatuses()->orderBy('display_order')->first();
-            $data['process_status_id'] = $nova?->id;
+            $data['process_status_id'] = $entity?->initialProcessStatus()?->id;
         }
 
         if ($this->isDraft) {

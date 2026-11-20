@@ -326,7 +326,13 @@
     </div>
 
     <!-- SEÇÃO 5: CAMPOS CUSTOMIZADOS DO PROCESSO (METADADOS) -->
-    @if($demand->fieldValues && $demand->fieldValues->isNotEmpty())
+    @php
+        $visibleFieldValues = ($demand->fieldValues ?? collect())->filter(
+            fn ($fv) => $fv->customField
+                && (($canViewMoney ?? false) || $fv->customField->field_type !== \App\Enums\FieldTypeEnum::CURRENCY)
+        );
+    @endphp
+    @if($visibleFieldValues->isNotEmpty())
     <div class="section">
         <div class="section-title">5. Formulário do Processo (Campos Customizados)</div>
         <table class="grid-table">
@@ -337,7 +343,7 @@
                 </tr>
             </thead>
             <tbody>
-                @foreach($demand->fieldValues as $fieldVal)
+                @foreach($visibleFieldValues as $fieldVal)
                     @if($fieldVal->customField)
                     <tr>
                         <td style="background-color: #fafafa;">
@@ -350,8 +356,8 @@
                                 $decoded = json_decode($val, true);
                                 if (is_array($decoded)) {
                                     $val = implode(', ', $decoded);
-                                } elseif ($fieldVal->customField->field_type === \App\Enums\FieldTypeEnum::CURRENCY && is_numeric($val)) {
-                                    $val = 'R$ ' . number_format((float) $val, 2, ',', '.');
+                                } elseif ($fieldVal->customField->field_type === \App\Enums\FieldTypeEnum::CURRENCY) {
+                                    $val = \App\Support\MoneyInput::display($val);
                                 }
                             @endphp
                             {{ $val ?: '—' }}
