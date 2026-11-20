@@ -12,9 +12,9 @@ Legenda: ✅ feito · 🔄 em andamento (PR aberto) · ⬜ a fazer
 | Item | Dev | Status | Observação |
 |---|---|---|---|
 | PR #39 (limite de 15 caracteres no cadastro) | Gustavo | ✅ | Mergeado na `develop` junto com os PRs #31, #32, #34, #35, #40, #41, #42 e #43. |
-| R0 — `CustomFieldComponentFactory` | Filipi | ⬜ | |
-| T1 — Gestor obrigatório | Gustavo | 🔄 | PR aberto na branch `feat/gestor-obrigatorio`; validado manualmente no ambiente local. Falta homologação. |
-| T2 — Visibilidade de valores | Gustavo | 🔄 | PR aberto na branch `feat/visibilidade-valores`, empilhado sobre o PR do T1; validado manualmente no ambiente local. Inclui o padrão de moeda `1.000,00`. Falta homologação. |
+| R0 — `CustomFieldComponentFactory` | Filipi (feito por Gustavo) | 🔄 | PR aberto na branch `refactor/custom-field-component-factory` (sem mudança de comportamento; o `continue` por `MoneyFieldVisibility`, a obrigatoriedade e a permissão ficam nos chamadores). Filipi pode partir da `develop` para o T4 depois do merge. |
+| T1 — Gestor obrigatório | Gustavo | ✅ | Mergeado na `develop` (PR #44). Falta homologação. |
+| T2 — Visibilidade de valores | Gustavo | ✅ | Mergeado na `develop` (PR #45). Inclui o padrão de moeda `1.000,00`. Falta homologação. |
 | T3 — Cadeia de Valor | Gustavo | ⬜ | |
 | T4 — Campo Vínculo | Filipi | ⬜ | Depende do R0. |
 | T5 — Relatório de Cadastros | Gustavo | ⬜ | Depende de T2 e do formatter do T4. |
@@ -111,9 +111,9 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 
 ---
 
-### T1 — Gestor obrigatório em Cadastro, Macroprocesso e Processo (Gustavo, ~1 dia) 🔄
+### T1 — Gestor obrigatório em Cadastro, Macroprocesso e Processo (Gustavo, ~1 dia) ✅
 
-> **Status:** implementado e com PR aberto (`feat/gestor-obrigatorio`); suíte com 199 testes passando; validado manualmente no ambiente local. Pendente: homologação.
+> **Status:** mergeado na `develop` (PR #44). Pendente: homologação.
 > **Mudança em relação ao plano original:** o Cadastro passou a ter **N gestores** (tabela pivô), por resposta do PO em 17/11/2026. Macroprocesso e Processo seguem com 1.
 
 **Banco**
@@ -152,9 +152,9 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 
 ---
 
-### T2 — Visibilidade de valores (Gustavo, ~1 dia, depende de T1) 🔄
+### T2 — Visibilidade de valores (Gustavo, ~1 dia, depende de T1) ✅
 
-> **Status:** implementado e com PR aberto (`feat/visibilidade-valores`, empilhado sobre o PR do T1); 275 testes passando; validado manualmente no ambiente local. Pendente: homologação.
+> **Status:** mergeado na `develop` (PR #45, depois do #44). Pendente: homologação.
 > **Acréscimo ao escopo original:** campo de moeda no padrão brasileiro `1.000,00` (pedido durante a validação).
 
 **Regra central**
@@ -197,7 +197,7 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 - [x] `App\Support\MoneyInput`: máscara pt-BR, completa as casas decimais ao sair do campo e abre valores gravados já formatados. O armazenamento continua numérico (`1500.50`), porque regras de transição, relatório e PDF dependem disso.
 - [x] Usado nos formulários da demanda, do registro de cadastro e dos cadastros base; a tabela de registros mostra `R$ 800,00`.
 - ⬜ Fora do escopo: o editor de regras de transição segue numérico e sem máscara.
-- ⬜ Para o R0 (Filipi): o caso `CURRENCY` da `CustomFieldComponentFactory` deve apontar para `MoneyInput::make()`.
+- ✅ Para o R0 (Filipi), na branch `refactor/custom-field-component-factory`: o caso `CURRENCY` da `CustomFieldComponentFactory` deve apontar para `MoneyInput::make()`.
 
 **Pontos de atenção**
 - A tramitação deixa de cobrar um campo de valor obrigatório de quem não o enxerga (sem liberação ele nem chega a ser `REQUIRED` para a pessoa).
@@ -205,7 +205,7 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 - Criação com `?entity_id=`: a situação inicial ("Nova" ou a primeira do processo) é resolvida na tela, então a liberação da matriz vale já na criação; sem situação resolvível o campo de valor segue restrito.
 - Valores antigos no formato `1.500` (3 casas após o ponto) passam a ser lidos como milhar. Não há migração de dados: rodar `php artisan app:audit-currency-values` em homologação e conferir a lista.
 - O `preco` do processo AQUI é `NUMBER`, não `CURRENCY`, então não é afetado. Se o PO quiser escondê-lo, é preciso mudar o tipo do campo.
-- ⬜ Não verificado: se o `ActivityLog` registra valores de `custom_data` e `demand_field_values`.
+- ✅ `ActivityLog` não vaza valores: `Client` e `Project` gravam `custom_data`, mas o `ActivityLogResource` é só do `ADMIN`; `DemandFieldValue` não registra log.
 - ⬜ Pendente: validação em homologação.
 
 **Aceite:** executor sem gestão não vê o campo no formulário, no relatório, no PDF nem na busca; gestor do processo e do macroprocesso veem; gestor de **outro** processo não vê; admin vê; salvar a demanda sem permissão não apaga o valor; o campo de moeda segue o padrão `1.000,00`.
