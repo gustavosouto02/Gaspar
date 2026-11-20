@@ -113,7 +113,7 @@ class CustomRecordResource extends Resource
                         \App\Enums\FieldTypeEnum::TEXT     => Forms\Components\TextInput::make($key),
                         \App\Enums\FieldTypeEnum::TEXTAREA => Forms\Components\Textarea::make($key)->rows(3),
                         \App\Enums\FieldTypeEnum::NUMBER   => Forms\Components\TextInput::make($key)->numeric(),
-                        \App\Enums\FieldTypeEnum::CURRENCY => Forms\Components\TextInput::make($key)->prefix('R$')->numeric(),
+                        \App\Enums\FieldTypeEnum::CURRENCY => \App\Support\MoneyInput::make($key),
                         \App\Enums\FieldTypeEnum::DATE     => Forms\Components\DatePicker::make($key),
                         \App\Enums\FieldTypeEnum::SELECT   => Forms\Components\Select::make($key)
                             ->options($field->options_json
@@ -167,10 +167,16 @@ class CustomRecordResource extends Resource
                 );
 
                 foreach ($visibleFields->take(4) as $field) {
-                    $columns[] = Tables\Columns\TextColumn::make("data_json.{$field->key}")
+                    $column = Tables\Columns\TextColumn::make("data_json.{$field->key}")
                         ->label($field->name)
                         ->searchable()
                         ->sortable();
+
+                    if ($field->field_type === \App\Enums\FieldTypeEnum::CURRENCY) {
+                        $column->formatStateUsing(fn ($state) => \App\Support\MoneyInput::display($state));
+                    }
+
+                    $columns[] = $column;
                 }
             }
         }

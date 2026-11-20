@@ -28,6 +28,7 @@ use App\Models\StatusTransition;
 use App\Models\User;
 use App\Services\FieldPermissionResolver;
 use App\Services\MoneyFieldVisibility;
+use App\Support\MoneyInput;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -279,7 +280,7 @@ class MoneyFieldVisibilityTest extends TestCase
             $componente = Livewire::actingAs($usuario)
                 ->test(ViewDemand::class, ['record' => $this->demanda->id]);
 
-            $this->assertSame('1500.50', $componente->get('data.field_data.valor_estimado'));
+            $this->assertSame('1.500,50', $componente->get('data.field_data.valor_estimado'));
         }
     }
 
@@ -317,6 +318,80 @@ class MoneyFieldVisibilityTest extends TestCase
             ->assertHasNoFormErrors();
 
         $this->assertEquals(2000, $this->valorGravado());
+    }
+
+    // ------------------------------------------------------------------
+    // Formato do campo de valor (1.000,00)
+    // ------------------------------------------------------------------
+
+    public function test_campo_de_valor_abre_formatado_e_a_tela_de_edicao_mostra_o_padrao_brasileiro(): void
+    {
+        $this->actingAs($this->gestorProcesso);
+
+        $componente = Livewire::test(EditDemand::class, ['record' => $this->demanda->id]);
+
+        $this->assertSame('1.500,50', $componente->get('data.field_data.valor_estimado'));
+    }
+
+    public function test_salva_o_valor_digitado_no_padrao_brasileiro_como_numero_puro(): void
+    {
+        $this->actingAs($this->gestorProcesso);
+
+        Livewire::test(EditDemand::class, ['record' => $this->demanda->id])
+            ->set('data.field_data.valor_estimado', '2.000,5')
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame('2000.50', $this->valorGravado());
+    }
+
+    public function test_ao_sair_do_campo_completa_as_casas_decimais(): void
+    {
+        $this->actingAs($this->gestorProcesso);
+
+        Livewire::test(EditDemand::class, ['record' => $this->demanda->id])
+            ->set('data.field_data.valor_estimado', '1000')
+            ->assertSet('data.field_data.valor_estimado', '1.000,00');
+    }
+
+    public function test_valor_invalido_e_rejeitado_e_nao_altera_o_gravado(): void
+    {
+        $this->actingAs($this->gestorProcesso);
+
+        Livewire::test(EditDemand::class, ['record' => $this->demanda->id])
+            ->set('data.field_data.valor_estimado', 'abc')
+            ->call('save')
+            ->assertHasFormErrors(['field_data.valor_estimado']);
+
+        $this->assertSame('1500.50', $this->valorGravado());
+    }
+
+    public function test_formatos_de_entrada_e_de_armazenamento(): void
+    {
+        $casos = [
+            ['1.234,56', '1234.56', '1.234,56'],
+            ['1.000', '1000.00', '1.000,00'],
+            ['1.234.567', '1234567.00', '1.234.567,00'],
+            ['1000', '1000.00', '1.000,00'],
+            ['1500.5', '1500.50', '1.500,50'],
+            ['1500.50', '1500.50', '1.500,50'],
+            ['0,5', '0.50', '0,50'],
+            ['R$ 2.500,00', '2500.00', '2.500,00'],
+            ['-300', '-300.00', '-300,00'],
+        ];
+
+        foreach ($casos as [$entrada, $gravado, $exibido]) {
+            $this->assertSame($gravado, MoneyInput::normalize($entrada), "normalize({$entrada})");
+            $this->assertSame($exibido, MoneyInput::format($entrada), "format({$entrada})");
+        }
+
+        $this->assertNull(MoneyInput::normalize(''));
+        $this->assertNull(MoneyInput::normalize(null));
+        $this->assertNull(MoneyInput::normalize('abc'));
+        $this->assertNull(MoneyInput::normalize('1,2,3'));
+        $this->assertSame('abc', MoneyInput::format('abc'));
+        $this->assertSame('R$ 1.234,50', MoneyInput::display('1234.5'));
+        $this->assertSame('—', MoneyInput::display(null));
     }
 
     // ------------------------------------------------------------------
@@ -451,7 +526,7 @@ class MoneyFieldVisibilityTest extends TestCase
         foreach ([$this->gestorProcesso, $this->gestorOutro, $this->admin] as $usuario) {
             $componente = Livewire::actingAs($usuario)
                 ->test(ViewCustomRecord::class, ['record' => $registro->id, 'type_id' => $cadastro->id]);
-            $this->assertSame('800', $componente->get('data.data_json.preco_unit'), $usuario->name);
+            $this->assertSame('800,00', $componente->get('data.data_json.preco_unit'), $usuario->name);
         }
     }
 
