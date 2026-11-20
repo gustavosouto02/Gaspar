@@ -9,6 +9,8 @@ use Livewire\Attributes\Url;
 
 class ViewCustomRecord extends ViewRecord
 {
+    use \App\Filament\Resources\Concerns\HidesMoneyValuesOnFill;
+
     protected static string $resource = CustomRecordResource::class;
 
     #[Url]

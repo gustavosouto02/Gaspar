@@ -8,6 +8,8 @@ use Filament\Resources\Pages\ViewRecord;
 
 class ViewProject extends ViewRecord
 {
+    use \App\Filament\Resources\Concerns\HidesMoneyValuesOnFill;
+
     protected static string $resource = ProjectResource::class;
 
     public string $new_treatment = '';

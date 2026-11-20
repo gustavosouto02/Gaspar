@@ -6,7 +6,9 @@ use App\Concerns\HasSequentialCode;
 use App\Concerns\LogsActivity;
 use App\Enums\DemandPriorityEnum;
 use App\Enums\DemandStatusEnum;
+use App\Enums\FieldTypeEnum;
 use App\Enums\SatisfactionRatingEnum;
+use App\Services\MoneyFieldVisibility;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -528,12 +530,26 @@ class Demand extends Model
             });
 
             // 8. Campos Customizados da Demanda (Valores e Nomes dos Campos)
-            $q->orWhereHas('fieldValues', function ($fvq) use ($search) {
-                $fvq->where('value', 'like', "%{$search}%")
-                    ->orWhereHas('customField', function ($cfq) use ($search) {
+            // Valores de campos de valor (moeda) só entram na busca quando o usuário
+            // pode vê-los no processo da demanda; o nome do campo continua pesquisável.
+            $viewableEntityIds = app(MoneyFieldVisibility::class)->viewableEntityIds(auth()->user());
+
+            $q->orWhereHas('fieldValues', function ($fvq) use ($search, $viewableEntityIds) {
+                $fvq->where(function ($w) use ($search, $viewableEntityIds) {
+                    $w->where(function ($valueQuery) use ($search, $viewableEntityIds) {
+                        $valueQuery->where('value', 'like', "%{$search}%");
+
+                        if ($viewableEntityIds !== null) {
+                            $valueQuery->where(function ($visible) use ($viewableEntityIds) {
+                                $visible->whereDoesntHave('customField', fn ($cf) => $cf->where('field_type', FieldTypeEnum::CURRENCY->value))
+                                    ->orWhereHas('demand', fn ($d) => $d->whereIn('entity_id', $viewableEntityIds));
+                            });
+                        }
+                    })->orWhereHas('customField', function ($cfq) use ($search) {
                         $cfq->where('name', 'like', "%{$search}%")
                             ->orWhere('key', 'like', "%{$search}%");
                     });
+                });
             });
 
             // 9. Relatos e comentários de tratamento

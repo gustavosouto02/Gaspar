@@ -103,6 +103,11 @@ class CustomRecordResource extends Resource
             $type = \App\Models\CustomRecordType::with('fields')->find($typeId);
             if ($type) {
                 foreach ($type->fields as $field) {
+                    // Campos de valor só aparecem para ADMIN e para os gestores do cadastro
+                    if (app(\App\Services\MoneyFieldVisibility::class)->isHiddenFor(auth()->user(), $field, $type)) {
+                        continue;
+                    }
+
                     $key = "data_json.{$field->key}";
                     $component = match ($field->field_type) {
                         \App\Enums\FieldTypeEnum::TEXT     => Forms\Components\TextInput::make($key),
@@ -157,7 +162,11 @@ class CustomRecordResource extends Resource
         if ($typeId) {
             $type = \App\Models\CustomRecordType::with('fields')->find($typeId);
             if ($type) {
-                foreach ($type->fields->take(4) as $field) {
+                $visibleFields = $type->fields->reject(
+                    fn ($field) => app(\App\Services\MoneyFieldVisibility::class)->isHiddenFor(auth()->user(), $field, $type)
+                );
+
+                foreach ($visibleFields->take(4) as $field) {
                     $columns[] = Tables\Columns\TextColumn::make("data_json.{$field->key}")
                         ->label($field->name)
                         ->searchable()

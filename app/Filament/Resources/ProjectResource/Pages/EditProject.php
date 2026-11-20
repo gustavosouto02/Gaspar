@@ -8,6 +8,8 @@ use Filament\Resources\Pages\EditRecord;
 
 class EditProject extends EditRecord
 {
+    use \App\Filament\Resources\Concerns\HidesMoneyValuesOnFill;
+
     protected static string $resource = ProjectResource::class;
 
     public string $new_treatment = '';

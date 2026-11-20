@@ -40,6 +40,7 @@ class FieldPermissionResolver
             ->groupBy('custom_field_id');
 
         $isAdmin = $user->user_role === UserRoleEnum::ADMIN;
+        $moneyVisibility = app(MoneyFieldVisibility::class);
 
         $permissions = [];
 
@@ -63,6 +64,13 @@ class FieldPermissionResolver
             // ADMIN sempre recebe no mínimo OPTIONAL: nunca fica bloqueado pela matriz
             if ($isAdmin && $permission->rank() < FieldPermissionEnum::OPTIONAL->rank()) {
                 $permission = FieldPermissionEnum::OPTIONAL;
+            }
+
+            // Campos de valor só aparecem para ADMIN e para o gestor do dono do campo.
+            // Ao virar HIDDEN, o formulário oculta o campo, o save descarta o payload
+            // e a tramitação deixa de cobrá-lo como obrigatório de quem não o enxerga.
+            if ($moneyVisibility->isHiddenFor($user, $field, $entity)) {
+                $permission = FieldPermissionEnum::HIDDEN;
             }
 
             $permissions[$field->id] = $permission;

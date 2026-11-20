@@ -8,6 +8,8 @@ use Filament\Resources\Pages\ViewRecord;
 
 class ViewSupplier extends ViewRecord
 {
+    use \App\Filament\Resources\Concerns\HidesMoneyValuesOnFill;
+
     protected static string $resource = SupplierResource::class;
 
     protected function getHeaderActions(): array

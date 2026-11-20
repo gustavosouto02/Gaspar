@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ActivityLog;
 use App\Models\Demand;
+use App\Services\MoneyFieldVisibility;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 
@@ -36,7 +37,10 @@ class DemandPdfController extends Controller
             ->orderBy('created_at', 'asc')
             ->get();
 
-        $pdf = Pdf::loadView('pdf.demand-report', compact('demand', 'transitionsHistory'))
+        // Campos de valor só saem no PDF para ADMIN e para o gestor do processo
+        $canViewMoney = app(MoneyFieldVisibility::class)->canView($request->user(), $demand->entity);
+
+        $pdf = Pdf::loadView('pdf.demand-report', compact('demand', 'transitionsHistory', 'canViewMoney'))
             ->setPaper('a4', 'portrait')
             ->setOption([
                 'isHtml5ParserEnabled' => true,
