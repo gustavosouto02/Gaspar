@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Concerns\HasSequentialCode;
-use App\Services\MoneyFieldVisibility;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -31,31 +30,6 @@ class CustomRecord extends Model
     protected $attributes = [
         'data_json' => '{}',
     ];
-
-    /**
-     * Quem não pode ver os campos de valor do cadastro não os altera:
-     * eles voltam ao que estava gravado, mesmo que venham no payload.
-     */
-    protected static function booted(): void
-    {
-        static::saving(function (CustomRecord $record) {
-            if (! auth()->check() || ! $record->isDirty('data_json')) {
-                return;
-            }
-
-            $type = $record->recordType()->with('fields')->first();
-            if (! $type) {
-                return;
-            }
-
-            $record->data_json = app(MoneyFieldVisibility::class)->preserveHiddenValues(
-                $type,
-                (array) $record->data_json,
-                (array) $record->getOriginal('data_json'),
-                $type->fields
-            );
-        });
-    }
 
     /**
      * Gerar UUID7 para a chave primária

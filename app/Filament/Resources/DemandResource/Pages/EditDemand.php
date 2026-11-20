@@ -12,7 +12,6 @@ use App\Models\DemandComment;
 use App\Models\DemandFieldValue;
 use App\Notifications\DemandActivityNotification;
 use App\Services\FieldPermissionResolver;
-use App\Services\MoneyFieldVisibility;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
@@ -59,23 +58,10 @@ class EditDemand extends EditRecord
             ->with('customField')
             ->get();
 
-        $entity = $this->getRecord()->entity;
-        $status = $this->getRecord()->processStatus;
-        $moneyVisibility = app(MoneyFieldVisibility::class);
-
         foreach ($fieldValues as $fv) {
-            if (! $fv->customField) {
-                continue;
+            if ($fv->customField) {
+                $data['field_data'][$fv->customField->key] = $fv->value;
             }
-
-            // O valor de campo de valor nem chega ao navegador (o estado do
-            // Livewire é serializado) para quem não pode vê-lo (a liberação
-            // pela matriz vale para a situação atual da demanda)
-            if ($moneyVisibility->isHiddenInDemand(auth()->user(), $fv->customField, $entity, $status)) {
-                continue;
-            }
-
-            $data['field_data'][$fv->customField->key] = $fv->value;
         }
 
         return $data;

@@ -7,7 +7,6 @@ use Filament\Actions;
 use Filament\Resources\Pages\ViewRecord;
 
 use App\Filament\Resources\DemandResource\Pages\Concerns\HasDemandHeaderActions;
-use App\Services\MoneyFieldVisibility;
 
 class ViewDemand extends ViewRecord
 {
@@ -46,23 +45,10 @@ class ViewDemand extends ViewRecord
             ->with('customField')
             ->get();
 
-        $entity = $this->getRecord()->entity;
-        $status = $this->getRecord()->processStatus;
-        $moneyVisibility = app(MoneyFieldVisibility::class);
-
         foreach ($fieldValues as $fv) {
-            if (! $fv->customField) {
-                continue;
+            if ($fv->customField) {
+                $data['field_data'][$fv->customField->key] = $fv->value;
             }
-
-            // O valor de campo de valor nem chega ao navegador (o estado do
-            // Livewire é serializado) para quem não pode vê-lo (a liberação
-            // pela matriz vale para a situação atual da demanda)
-            if ($moneyVisibility->isHiddenInDemand(auth()->user(), $fv->customField, $entity, $status)) {
-                continue;
-            }
-
-            $data['field_data'][$fv->customField->key] = $fv->value;
         }
 
         return $data;

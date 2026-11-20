@@ -47,7 +47,7 @@ class DemandTransitionService
         $matchedRule = null;
 
         if ($target->isConditional()) {
-            $decision = $this->decisionEvaluator->resolve($transition, $demand, $user);
+            $decision = $this->decisionEvaluator->resolve($transition, $demand);
 
             $target = ProcessStatus::findOrFail($decision->toStatusId);
             $matchedRule = $decision->matchedRule;
