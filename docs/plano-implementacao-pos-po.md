@@ -14,7 +14,7 @@ Legenda: ✅ feito · 🔄 em andamento (PR aberto) · ⬜ a fazer
 | PR #39 (limite de 15 caracteres no cadastro) | Gustavo | ✅ | Mergeado na `develop` junto com os PRs #31, #32, #34, #35, #40, #41, #42 e #43. |
 | R0 — `CustomFieldComponentFactory` | Filipi | ⬜ | |
 | T1 — Gestor obrigatório | Gustavo | 🔄 | PR aberto na branch `feat/gestor-obrigatorio`; validado manualmente no ambiente local. Falta homologação. |
-| T2 — Visibilidade de valores | Gustavo | ⬜ | Depende do T1 mergeado. Regra ajustada (ver T2). |
+| T2 — Visibilidade de valores | Gustavo | 🔄 | PR aberto na branch `feat/visibilidade-valores`, empilhado sobre o PR do T1; validado manualmente no ambiente local. Inclui o padrão de moeda `1.000,00`. Falta homologação. |
 | T3 — Cadeia de Valor | Gustavo | ⬜ | |
 | T4 — Campo Vínculo | Filipi | ⬜ | Depende do R0. |
 | T5 — Relatório de Cadastros | Gustavo | ⬜ | Depende de T2 e do formatter do T4. |
@@ -152,31 +152,53 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 
 ---
 
-### T2 — Visibilidade de valores (Gustavo, ~1 dia, depende de T1)
+### T2 — Visibilidade de valores (Gustavo, ~1 dia, depende de T1) 🔄
+
+> **Status:** implementado e com PR aberto (`feat/visibilidade-valores`, empilhado sobre o PR do T1); 228 testes passando; validado manualmente no ambiente local. Pendente: homologação.
+> **Acréscimo ao escopo original:** campo de moeda no padrão brasileiro `1.000,00` (pedido durante a validação).
 
 **Regra central**
-- Criar `app/Services/MoneyFieldVisibility.php` com `canView(User $user, Model $owner): bool`:
+- [x] `app/Services/MoneyFieldVisibility.php` com `canView(User $user, Model $owner): bool`:
   - `ADMIN` → `true`.
-  - `$owner` é `CustomEntity` → `$owner->manager_id === $user->id` **ou** `$owner->macroprocess->manager_id === $user->id` (o gestor do macroprocesso também enxerga os valores dos seus processos; resposta do PO).
-  - `$owner` é `CustomRecordType` → `$owner->managers->contains($user)` (qualquer um dos gestores do cadastro). Para os cadastros base (`custom_data`), resolver o tipo por `model_class`, como `HasCustomFields::getCustomRecordType()` já faz.
-  - Caso contrário → `false`.
+  - `$owner` é `CustomEntity` → `$owner->manager_id === $user->id` **ou** o gestor do macroprocesso ao qual ele pertence (resposta do PO).
+  - `$owner` é `CustomRecordType` → qualquer um dos gestores do cadastro. Para os cadastros base (`custom_data`), o tipo é resolvido por `model_class` (`canViewForModel`).
+  - Caso contrário (inclusive sem usuário) → `false`.
+- [x] `isHiddenFor()`, `viewableEntityIds()` (usado pela busca) e `preserveHiddenValues()` / `stripHiddenFromFormData()` (proteção de dados dos cadastros).
 
-**Pontos de aplicação** (todo lugar que hoje renderiza `CURRENCY`)
+**Pontos de aplicação**
 
-| Lugar | Mudança |
-|---|---|
-| `FieldPermissionResolver::resolve()` | Campos `CURRENCY` viram `HIDDEN` para quem não pode ver (cobre o formulário da demanda). |
-| `CustomRecordResource` (form e tabela) e `HasCustomFields::buildCustomFieldComponents` | Ocultar o componente e a coluna. |
-| `DemandReports` | Remover a coluna e o campo do CSV para quem não pode ver. |
-| `resources/views/pdf/demand-report.blade.php` e `DemandPdfController` | Omitir o valor no PDF. |
-| `ViewDemand` / infolists | Ocultar. |
-| `Demand::globalSearch` | A busca por valor preenchido não pode encontrar demanda por campo de valor para quem não tem permissão. |
+| Lugar | Mudança | Status |
+|---|---|---|
+| `FieldPermissionResolver::resolve()` | Campos `CURRENCY` viram `HIDDEN` para quem não pode ver (cobre o formulário da demanda, o descarte no save e a obrigatoriedade na tramitação). | [x] |
+| `EditDemand` / `ViewDemand` | O valor deixa de ser preenchido no estado do formulário (não chega ao navegador). | [x] |
+| `CustomRecordResource` (form e tabela) e `HasCustomFields::buildCustomFieldComponents` | Componente e coluna ocultos. | [x] |
+| Páginas de edição/visualização dos cadastros (12) | Trait `HidesMoneyValuesOnFill` tira o valor oculto do estado do formulário. | [x] |
+| `CustomRecord` e `HasCustomFields` (hook de saving) | Restauram no servidor o valor oculto, pois `data_json`/`custom_data` são regravados por inteiro. | [x] |
+| `DemandReports` | Coluna do campo de valor removida. O CSV de demandas hoje não exporta campos customizados, então não havia o que remover. | [x] |
+| `demand-report.blade.php` e `DemandPdfController` | Valor omitido no PDF. | [x] |
+| `Demand::globalSearch` | A busca por valor só encontra demandas de processos que o usuário pode ver. | [x] |
 
-**Riscos a verificar antes de codar**
-- Campo oculto pode **apagar** o valor ao salvar: conferir em `EditDemand` (por volta da linha 87) se os `demand_field_values` ausentes do payload são removidos. Se forem, só persistir as chaves enviadas.
-- `TransitionDecisionEvaluator` usa o valor no servidor para decidir transição; isso deve continuar funcionando independentemente de quem está logado (não passar pela camada de visibilidade).
+**Riscos do plano, o que se confirmou**
+- [x] Campo oculto apagando valor ao salvar a demanda: **não ocorre**. `saveFieldValues` já descartava campos bloqueados e só apagava valores de campos que saíram do processo. Teste de regressão adicionado.
+- [x] `TransitionDecisionEvaluator` lê o valor direto do banco e não passa pela camada de visibilidade.
+- Riscos novos, não previstos no plano, ambos cobertos por teste:
+  - o Filament envia o registro inteiro ao navegador, inclusive chaves sem componente;
+  - o JSON dos cadastros era regravado sem o valor oculto.
 
-**Testes:** executor sem gestão não vê o campo no formulário, no relatório, no CSV, no PDF nem na busca; gestor do processo vê; gestor de **outro** processo não vê; admin vê; salvar a demanda como usuário sem permissão não apaga o valor.
+**Padrão de moeda `1.000,00`**
+- [x] `App\Support\MoneyInput`: máscara pt-BR, completa as casas decimais ao sair do campo e abre valores gravados já formatados. O armazenamento continua numérico (`1500.50`), porque regras de transição, relatório e PDF dependem disso.
+- [x] Usado nos formulários da demanda, do registro de cadastro e dos cadastros base; a tabela de registros mostra `R$ 800,00`.
+- ⬜ Fora do escopo: o editor de regras de transição segue numérico e sem máscara.
+- ⬜ Para o R0 (Filipi): o caso `CURRENCY` da `CustomFieldComponentFactory` deve apontar para `MoneyInput::make()`.
+
+**Pontos de atenção**
+- A tramitação deixa de cobrar um campo de valor obrigatório de quem não o enxerga.
+- O `preco` do processo AQUI é `NUMBER`, não `CURRENCY`, então não é afetado. Se o PO quiser escondê-lo, é preciso mudar o tipo do campo.
+- ⬜ Não verificado: se o `ActivityLog` registra valores de `custom_data` e `demand_field_values`.
+- ⬜ A busca por `custom_data` nos resources base (`like %termo%`) pode revelar a existência de um valor por inferência.
+- ⬜ Pendente: validação em homologação.
+
+**Aceite:** executor sem gestão não vê o campo no formulário, no relatório, no PDF nem na busca; gestor do processo e do macroprocesso veem; gestor de **outro** processo não vê; admin vê; salvar a demanda sem permissão não apaga o valor; o campo de moeda segue o padrão `1.000,00`.
 
 ---
 
