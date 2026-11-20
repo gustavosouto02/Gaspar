@@ -4,14 +4,15 @@ namespace Tests\Feature;
 
 use App\Enums\UserRoleEnum;
 use App\Filament\Resources\CustomEntityResource\Pages\CreateCustomEntity;
+use App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity;
 use App\Filament\Resources\CustomRecordTypeResource\Pages\CreateCustomRecordType;
 use App\Filament\Resources\CustomRecordTypeResource\Pages\EditCustomRecordType;
-use App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity;
 use App\Filament\Resources\MacroprocessResource\Pages\CreateMacroprocess;
 use App\Filament\Resources\MacroprocessResource\Pages\EditMacroprocess;
 use App\Filament\Resources\UserResource\Pages\EditUser;
 use App\Filament\Resources\UserResource\Pages\ListUsers;
 use App\Filament\Resources\UserResource\Pages\ViewUser;
+use App\Models\ActivityLog;
 use App\Models\CustomEntity;
 use App\Models\CustomRecordType;
 use App\Models\Macroprocess;
@@ -477,6 +478,36 @@ class GestorObrigatorioTest extends TestCase
         $this->assertGestorSemVinculos($macro, $processo, $tipo, $outroGestor);
     }
 
+    public function test_limpar_a_gestao_registra_atividade_e_alcanca_itens_na_lixeira(): void
+    {
+        $this->actingAs($this->admin);
+        $macro = $this->macroprocesso(['manager_id' => $this->gestor->id]);
+        $ativo = $this->processo($macro, ['manager_id' => $this->gestor->id]);
+        $naLixeira = $this->processo($macro, ['name' => 'Na lixeira', 'manager_id' => $this->gestor->id]);
+        $naLixeira->delete();
+        $macroNaLixeira = $this->macroprocesso(['manager_id' => $this->gestor->id]);
+        $macroNaLixeira->delete();
+
+        $this->gestor->update(['is_active' => false]);
+
+        $this->assertNull(CustomEntity::withTrashed()->find($naLixeira->id)->manager_id);
+        $this->assertNull(Macroprocess::withTrashed()->find($macroNaLixeira->id)->manager_id);
+        $this->assertNull($macro->fresh()->manager_id);
+
+        // O model registra o log de quando o processo ficou "Sem gestor", inclusive na lixeira
+        foreach ([$ativo, $naLixeira] as $processo) {
+            $log = ActivityLog::where('auditable_type', CustomEntity::class)
+                ->where('auditable_id', (string) $processo->id)
+                ->where('event', 'updated')
+                ->get()
+                ->first(fn ($l) => array_key_exists('manager_id', $l->new_values ?? []));
+
+            $this->assertNotNull($log, 'sem log de "Sem gestor" para '.$processo->name);
+            $this->assertNull($log->new_values['manager_id']);
+            $this->assertEquals($this->gestor->id, $log->old_values['manager_id']);
+        }
+    }
+
     public function test_alterar_outros_dados_do_gestor_ou_manter_o_perfil_nao_limpa_o_vinculo(): void
     {
         [$macro, $processo, $tipo] = $this->cenarioDeGestao();
@@ -567,8 +598,10 @@ class GestorObrigatorioTest extends TestCase
         DB::table('users')->where('id', $this->gestor->id)->update(['user_role' => UserRoleEnum::EXECUTOR->value]);
 
         // O ex-gestor continua no estado carregado, para poder ser removido
-        Livewire::test(EditCustomRecordType::class, ['record' => $tipo->id])
-            ->assertFormSet(fn (array $state) => in_array($this->gestor->id, $state['managers'], true))
+        $component = Livewire::test(EditCustomRecordType::class, ['record' => $tipo->id]);
+        $this->assertContains($this->gestor->id, $component->get('data.managers'));
+
+        $component
             ->set('data.managers', [$ativo->id])
             ->call('save')
             ->assertHasNoFormErrors();
