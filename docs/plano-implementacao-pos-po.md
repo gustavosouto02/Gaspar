@@ -5,14 +5,34 @@
 
 Este documento consolida a resposta do PO (16/11/2026) em decisões de produto, descreve o que será construído em cada task, a ordem de execução e a divisão entre os dois devs. As estimativas são nossas, feitas a partir da leitura do código; não foram validadas em execução.
 
+### Andamento
+
+Legenda: ✅ feito · 🔄 em andamento (PR aberto) · ⬜ a fazer
+
+| Item | Dev | Status | Observação |
+|---|---|---|---|
+| PR #39 (limite de 15 caracteres no cadastro) | Gustavo | ✅ | Mergeado na `develop` junto com os PRs #31, #32, #34, #35, #40, #41, #42 e #43. |
+| R0 — `CustomFieldComponentFactory` | Filipi | ⬜ | |
+| T1 — Gestor obrigatório | Gustavo | 🔄 | PR aberto na branch `feat/gestor-obrigatorio`; validado manualmente no ambiente local. Falta homologação. |
+| T2 — Visibilidade de valores | Gustavo | ⬜ | Depende do T1 mergeado. Regra ajustada (ver T2). |
+| T3 — Cadeia de Valor | Gustavo | ⬜ | |
+| T4 — Campo Vínculo | Filipi | ⬜ | Depende do R0. |
+| T5 — Relatório de Cadastros | Gustavo | ⬜ | Depende de T2 e do formatter do T4. |
+| T6 — Versionamento de processos | Filipi | ⬜ | Depende do T1 mergeado (clona `manager_id`). |
+
+**Ajustes de regra confirmados pelo PO em 17/11/2026** (já refletidos nas seções abaixo):
+- O gestor de Macroprocesso e de Processo precisa ter o perfil `GESTOR` no sistema.
+- **Cadastro pode ter um ou mais gestores** (todos com perfil `GESTOR`); Macroprocesso e Processo têm exatamente um.
+- O gestor do Macroprocesso também enxerga os valores dos processos desse macroprocesso (T2).
+
 ---
 
 ## 1. Decisões de produto (resposta do PO + alinhamentos internos)
 
 | # | Task | Decisão |
 |---|---|---|
-| T1 | Gestor obrigatório | **Todo** Cadastro, Macroprocesso e Processo tem exatamente um Gestor, escolhido entre usuários com perfil `GESTOR`. O usuário Gestor passa a ter a relação inversa com tudo que gerencia. |
-| T2 | Visibilidade de valores | Campos de valor (`CURRENCY`) só aparecem para `ADMIN` e para o Gestor **do dono do campo**: o Processo (na demanda) ou o Cadastro (nas telas de cadastro). Vale para formulário, consultas, relatórios, CSV, PDF e busca. |
+| T1 | Gestor obrigatório | **Todo** Macroprocesso e Processo tem exatamente um Gestor; **todo Cadastro tem um ou mais Gestores**. Todos escolhidos entre usuários ativos com perfil `GESTOR`. O usuário Gestor passa a ter a relação inversa com tudo que gerencia. |
+| T2 | Visibilidade de valores | Campos de valor (`CURRENCY`) só aparecem para `ADMIN` e para o Gestor **do dono do campo**: o Processo (na demanda; também o gestor do Macroprocesso ao qual ele pertence) ou o Cadastro (nas telas de cadastro; qualquer um dos seus gestores). Vale para formulário, consultas, relatórios, CSV, PDF e busca. |
 | T3 | Cadeia de Valor | Visualização no Painel de Controle no desenho da cadeia de valor de Porter (apoio em faixas, primárias em colunas, seta de Margens), com os macroprocessos dentro de cada bloco e link para cada um. A "função na cadeia de valor" do Macroprocesso passa a seguir esses blocos. |
 | T4 | Campo Vínculo | Novo **tipo de campo** "Vínculo com cadastro". O campo é criado uma vez, aponta para uma origem (ex.: cadastro "Equipamentos") e pode ser anexado a processos (formulário da demanda) e a cadastros. Seleção única. |
 | T5 | Relatório de Cadastros | Escolhe-se o cadastro e filtram-se registros pelos campos dele (ex.: só impressoras; só uma cidade). Exporta CSV. |
@@ -30,7 +50,7 @@ Este documento consolida a resposta do PO (16/11/2026) em decisões de produto, 
 - **Campos de valor:** `FieldTypeEnum::CURRENCY` é renderizado/formatado em `DemandResource`, `CustomRecordResource`, `HasCustomFields`, `DemandReports`, `resources/views/pdf/demand-report.blade.php`, `RuleOperatorEnum`, `TransitionDecisionEvaluator` e `StatusTransitionsRelationManager`. Hoje nenhum aplica regra de papel.
 - **Permissão de campo por situação/papel:** `FieldPermissionResolver::resolve()` já devolve `REQUIRED/OPTIONAL/READONLY/HIDDEN` por campo. É o ponto natural para esconder valores.
 - **Relatórios:** `DemandReports` (consulta com botão "Consultar", CSV, `saved_reports` só para demandas).
-- **PR #39** (em aberto): limita o nome do cadastro a 15 caracteres e mexe em `CustomRecordTypeResource` e nos resources base. **Deve ser mergeado antes de T1**, porque T1 também altera `CustomRecordTypeResource`.
+- **PR #39** ✅ (mergeado): limita o nome do cadastro a 15 caracteres e mexe em `CustomRecordTypeResource` e nos resources base. Foi mergeado antes do T1, que também altera `CustomRecordTypeResource`.
 
 ---
 
@@ -91,35 +111,44 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 
 ---
 
-### T1 — Gestor obrigatório em Cadastro, Macroprocesso e Processo (Gustavo, ~1 dia)
+### T1 — Gestor obrigatório em Cadastro, Macroprocesso e Processo (Gustavo, ~1 dia) 🔄
+
+> **Status:** implementado e com PR aberto (`feat/gestor-obrigatorio`); suíte com 199 testes passando; validado manualmente no ambiente local. Pendente: homologação.
+> **Mudança em relação ao plano original:** o Cadastro passou a ter **N gestores** (tabela pivô), por resposta do PO em 17/11/2026. Macroprocesso e Processo seguem com 1.
 
 **Banco**
-- Uma migration por tabela, ou uma só, adicionando `manager_id` (uuid, **nullable**, FK para `users`, `nullOnDelete`) em:
-  - `custom_record_types` (cobre cadastros base e criados pelo admin)
-  - `macroprocesses`
-  - `custom_entities`
-- Nullable no banco porque já existem registros; a obrigatoriedade é do formulário.
+- [x] Uma migration (`2026_11_19_150000_add_managers_to_record_types_macroprocesses_and_entities`):
+  - `manager_id` (uuid, **nullable**, FK para `users`, `nullOnDelete`) em `macroprocesses` e `custom_entities`;
+  - pivô `custom_record_type_manager` (`custom_record_type_id`, `user_id`, unique composto, `cascadeOnDelete`) para os Cadastros, que têm um ou mais gestores (cobre cadastros base e criados pelo admin).
+- [x] Nullable no banco porque já existem registros; a obrigatoriedade é do formulário.
+- [x] `down()` reversível (testado com migrate, rollback e migrate).
 - Usar timestamp de migration **distinto** do que o Filipi usar na semana, para não haver colisão de ordenação.
 
 **Models**
-- `CustomRecordType`, `Macroprocess`, `CustomEntity`: `manager()` (`belongsTo User`) e `manager_id` em `$fillable`.
-- `User`: `managedRecordTypes()`, `managedMacroprocesses()`, `managedProcesses()` (`hasMany`). É a relação "perfil Gestor ↔ o que ele gerencia".
+- [x] `Macroprocess`, `CustomEntity`: `manager()` (`belongsTo User`) e `manager_id` em `$fillable`.
+- [x] `CustomRecordType`: `managers()` (`belongsToMany User`, via pivô).
+- [x] `User`: `managedRecordTypes()` (`belongsToMany`), `managedMacroprocesses()`, `managedProcesses()` (`hasMany`). É a relação "perfil Gestor ↔ o que ele gerencia".
 
 **Formulários e telas**
-- `CustomRecordTypeResource`, `MacroprocessResource`, `CustomEntityResource`: `Select::make('manager_id')->relationship('manager','name', fn ($q) => $q->where('user_role', UserRoleEnum::GESTOR)->where('is_active', true))`, `->required()`.
-- Coluna "Gestor" nas tabelas e entrada nos infolists.
-- Em `UserResource` (visualização do usuário Gestor): mostrar o que ele gerencia.
+- [x] Trait `App\Filament\Resources\Concerns\HasManagerField`, com dois seletores que só listam usuários `GESTOR` ativos e validam no servidor (`Rule::exists`):
+  - `managerSelect()` (único, obrigatório) em `MacroprocessResource` e `CustomEntityResource`;
+  - `managersSelect()` (múltiplo, `minItems(1)`) em `CustomRecordTypeResource`.
+- [x] Coluna "Gestor" / "Gestores" nas tabelas.
+- [x] Infolist do Macroprocesso. `CustomRecordTypeResource` não tem infolist (só formulário e tabela) e o Processo mostra o gestor no formulário desabilitado da `ViewCustomEntity`.
+- [x] `UserResource` (visualização do usuário Gestor): mostra o que ele gerencia.
 
 **Seeder e testes**
-- `AquiProcessSeeder`: criar/atribuir um gestor ao macroprocesso e ao processo do AQUI.
-- Ajustar `MacroprocessoAndProcessoValidationTest`, `DemandValidationTest`, `ProcessoAquiE2ETest` (e qualquer outro que crie esses registros sem gestor).
-- Novos testes: gestor obrigatório nos três formulários; seletor lista só usuários `GESTOR` ativos; relações inversas do `User`.
+- [x] `AquiProcessSeeder`: cria o usuário `gestor.aqui@gaspar.local` e o atribui ao macroprocesso e ao processo do AQUI.
+- [x] Ajustados `MacroprocessoAndProcessoValidationTest`, `CustomRecordTypeValidationTest` e `ProcessoAquiE2ETest`.
+- [x] Novos testes em `GestorObrigatorioTest`: gestor obrigatório nos três formulários; Cadastro aceita vários e Macroprocesso/Processo só um; seletor lista só `GESTOR` ativos; relações inversas do `User`; excluir um gestor remove só o vínculo.
 
 **Pontos de atenção**
-- Registros antigos ficam sem gestor até serem editados; o formulário passa a exigir ao salvar. Considerar um aviso/filtro "sem gestor" na listagem.
-- Dúvida aberta (ver seção 6): o gestor do cadastro vale para todos os registros desse cadastro (é o que assumimos).
+- Registros antigos (inclusive os 5 cadastros base) ficam sem gestor até serem editados; o formulário passa a exigir ao salvar. A listagem mostra "Sem gestor".
+- Se o gestor de um registro for desativado depois, a edição passa a exigir um novo gestor ativo.
+- ⬜ Opcional, ficou de fora: filtro "sem gestor" nas listagens.
+- ⬜ Pendente: validação em homologação (a pivô é criada pelo `migrate` do `/update-system`).
 
-**Aceite:** não é possível salvar Cadastro, Macroprocesso ou Processo sem gestor; o gestor aparece em tabelas e infolists; `$user->managedProcesses` funciona.
+**Aceite:** não é possível salvar Cadastro, Macroprocesso ou Processo sem gestor; o gestor aparece em tabelas; `$user->managedProcesses` funciona.
 
 ---
 
@@ -128,8 +157,8 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 **Regra central**
 - Criar `app/Services/MoneyFieldVisibility.php` com `canView(User $user, Model $owner): bool`:
   - `ADMIN` → `true`.
-  - `$owner` é `CustomEntity` → `$owner->manager_id === $user->id`.
-  - `$owner` é `CustomRecordType` → idem. Para os cadastros base (`custom_data`), resolver o tipo por `model_class`, como `HasCustomFields::getCustomRecordType()` já faz.
+  - `$owner` é `CustomEntity` → `$owner->manager_id === $user->id` **ou** `$owner->macroprocess->manager_id === $user->id` (o gestor do macroprocesso também enxerga os valores dos seus processos; resposta do PO).
+  - `$owner` é `CustomRecordType` → `$owner->managers->contains($user)` (qualquer um dos gestores do cadastro). Para os cadastros base (`custom_data`), resolver o tipo por `model_class`, como `HasCustomFields::getCustomRecordType()` já faz.
   - Caso contrário → `false`.
 
 **Pontos de aplicação** (todo lugar que hoje renderiza `CURRENCY`)
@@ -263,7 +292,7 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 
 ## 6. Perguntas abertas (responder cedo; nenhuma bloqueia a segunda-feira)
 
-1. **T1 — escopo do gestor do cadastro:** o gestor de um cadastro vale para todos os registros desse cadastro? (Assumido: sim.): SIM
+1. **T1 — escopo do gestor do cadastro:** o gestor de um cadastro vale para todos os registros desse cadastro? (Assumido: sim.): SIM. **Complemento (17/11):** o cadastro pode ter **um ou mais** gestores; Macroprocesso e Processo têm um só. Todos precisam ter o perfil `GESTOR`.
 2. **T2 — gestor de macroprocesso:** ele também enxerga os valores dos processos do seu macroprocesso? (Assumido: não; só o gestor do próprio processo.) : SIM
 3. **T3 — rótulos:** os 9 nomes de faixas/colunas da imagem são definitivos ou só exemplo? (Define o enum.) : Só exemplo, vamos utilizar o enum do sistema pra montar a imagem
 4. **T3 — dados antigos:** confirmar que zerar `value_chain_function` dos macroprocessos existentes e reclassificar manualmente é aceitável. : SIM
