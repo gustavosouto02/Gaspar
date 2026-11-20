@@ -3,14 +3,18 @@
 namespace App\Filament\Resources\Concerns;
 
 use App\Enums\UserRoleEnum;
+use App\Models\User;
 use Filament\Forms\Components\Select;
+use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Rule;
 
 trait HasManagerField
 {
     /**
-     * Seletor obrigatório do Gestor: só lista usuários ativos com perfil GESTOR.
+     * Seletor do Gestor: só lista usuários ativos com perfil GESTOR. Obrigatório na
+     * criação; na edição pode ficar vazio ("Sem gestor", ex.: o gestor foi desativado).
      */
     protected static function managerSelect(): Select
     {
@@ -25,7 +29,7 @@ trait HasManagerField
             )
             ->searchable()
             ->preload()
-            ->required()
+            ->required(fn ($livewire) => $livewire instanceof CreateRecord)
             ->rules([
                 // Gestor único: rejeita payload com lista de gestores
                 'string',
@@ -42,7 +46,8 @@ trait HasManagerField
     }
 
     /**
-     * Seletor de Gestores (um ou mais, mínimo 1): só lista usuários ativos com perfil GESTOR.
+     * Seletor de Gestores (um ou mais): só lista usuários ativos com perfil GESTOR.
+     * Mínimo 1 na criação; na edição pode ficar vazio ("Sem gestor").
      */
     protected static function managersSelect(): Select
     {
@@ -56,10 +61,23 @@ trait HasManagerField
                     ->where('user_role', UserRoleEnum::GESTOR)
                     ->where('is_active', true)
             )
+            // O filtro GESTOR/ativo vale só para as opções. Carregar e salvar sem ele
+            // evita vínculo fantasma: um gestor que virou EXECUTOR/inativo continua
+            // no estado, aparece como removível e sai da pivô ao salvar.
+            ->loadStateFromRelationshipsUsing(static function (Select $component): void {
+                $component->state(
+                    $component->getRelationship()
+                        ->pluck('users.id')
+                        ->map(static fn ($id): string => (string) $id)
+                        ->all()
+                );
+            })
+            ->getOptionLabelsUsing(static fn (array $values): array => User::withTrashed()->whereKey($values)->pluck('name', 'id')->all())
+            ->saveRelationshipsUsing(static fn (Model $record, ?array $state) => $record->managers()->sync($state ?? []))
             ->searchable()
             ->preload()
-            ->required()
-            ->minItems(1)
+            ->required(fn ($livewire) => $livewire instanceof CreateRecord)
+            ->minItems(fn ($livewire) => $livewire instanceof CreateRecord ? 1 : 0)
             ->nestedRecursiveRules([
                 Rule::exists('users', 'id')
                     ->where('user_role', UserRoleEnum::GESTOR->value)

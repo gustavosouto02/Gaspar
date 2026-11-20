@@ -6,7 +6,11 @@ use App\Enums\UserRoleEnum;
 use App\Filament\Resources\CustomEntityResource\Pages\CreateCustomEntity;
 use App\Filament\Resources\CustomRecordTypeResource\Pages\CreateCustomRecordType;
 use App\Filament\Resources\CustomRecordTypeResource\Pages\EditCustomRecordType;
+use App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity;
 use App\Filament\Resources\MacroprocessResource\Pages\CreateMacroprocess;
+use App\Filament\Resources\MacroprocessResource\Pages\EditMacroprocess;
+use App\Filament\Resources\UserResource\Pages\EditUser;
+use App\Filament\Resources\UserResource\Pages\ListUsers;
 use App\Filament\Resources\UserResource\Pages\ViewUser;
 use App\Models\CustomEntity;
 use App\Models\CustomRecordType;
@@ -14,6 +18,7 @@ use App\Models\Macroprocess;
 use App\Models\User;
 use Filament\Forms\Components\Select;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -145,15 +150,17 @@ class GestorObrigatorioTest extends TestCase
         );
     }
 
-    public function test_cadastro_antigo_sem_gestor_exige_gestor_ao_editar(): void
+    public function test_cadastro_antigo_sem_gestor_pode_ser_salvo_na_edicao_e_aceita_gestor(): void
     {
         $this->actingAs($this->admin);
 
         $tipo = $this->cadastro('Legado');
 
+        // Edição: gestor opcional ("Sem gestor"); obrigatório só na criação
         Livewire::test(EditCustomRecordType::class, ['record' => $tipo->id])
             ->call('save')
-            ->assertHasFormErrors(['managers' => 'required']);
+            ->assertHasNoFormErrors();
+        $this->assertCount(0, $tipo->fresh()->managers);
 
         Livewire::test(EditCustomRecordType::class, ['record' => $tipo->id])
             ->set('data.managers', [$this->gestor->id])
@@ -414,28 +421,176 @@ class GestorObrigatorioTest extends TestCase
         $this->assertTrue($processo->manager->is($this->gestor));
     }
 
-    public function test_excluir_gestor_zera_manager_id_sem_apagar_registros(): void
+    /**
+     * Macroprocesso e processo do gestor + um cadastro que ele gerencia junto com outro gestor.
+     *
+     * @return array{0: Macroprocess, 1: CustomEntity, 2: CustomRecordType, 3: User}
+     */
+    private function cenarioDeGestao(): array
     {
+        $outroGestor = $this->gestorAtivo('Gestor Dois');
+        $macro = $this->macroprocesso(['manager_id' => $this->gestor->id]);
+        $processo = $this->processo($macro, ['manager_id' => $this->gestor->id]);
+        $tipo = $this->cadastro();
+        $tipo->managers()->attach([$this->gestor->id, $outroGestor->id]);
+
+        return [$macro, $processo, $tipo, $outroGestor];
+    }
+
+    private function assertGestorSemVinculos(Macroprocess $macro, CustomEntity $processo, CustomRecordType $tipo, User $outroGestor): void
+    {
+        $this->assertNull($macro->fresh()->manager_id);
+        $this->assertNull($processo->fresh()->manager_id);
+        $this->assertEquals([$outroGestor->id], $tipo->managers()->pluck('users.id')->all());
+        $this->assertDatabaseMissing('custom_record_type_manager', ['user_id' => $this->gestor->id]);
+        // Os registros continuam existindo, só ficam "Sem gestor"
+        $this->assertNotNull($macro->fresh());
+        $this->assertNotNull($processo->fresh());
+    }
+
+    public function test_trocar_o_perfil_do_gestor_limpa_o_vinculo(): void
+    {
+        [$macro, $processo, $tipo, $outroGestor] = $this->cenarioDeGestao();
+
+        $this->gestor->update(['user_role' => UserRoleEnum::EXECUTOR]);
+
+        $this->assertGestorSemVinculos($macro, $processo, $tipo, $outroGestor);
+    }
+
+    public function test_desativar_o_gestor_limpa_o_vinculo(): void
+    {
+        [$macro, $processo, $tipo, $outroGestor] = $this->cenarioDeGestao();
+
+        $this->gestor->update(['is_active' => false]);
+
+        $this->assertGestorSemVinculos($macro, $processo, $tipo, $outroGestor);
+    }
+
+    public function test_excluir_o_gestor_limpa_o_vinculo(): void
+    {
+        [$macro, $processo, $tipo, $outroGestor] = $this->cenarioDeGestao();
+
+        // Soft delete: nullOnDelete/cascadeOnDelete da FK não disparam, o vínculo é limpo no model
+        $this->gestor->delete();
+
+        $this->assertSoftDeleted('users', ['id' => $this->gestor->id]);
+        $this->assertGestorSemVinculos($macro, $processo, $tipo, $outroGestor);
+    }
+
+    public function test_alterar_outros_dados_do_gestor_ou_manter_o_perfil_nao_limpa_o_vinculo(): void
+    {
+        [$macro, $processo, $tipo] = $this->cenarioDeGestao();
+
+        $this->gestor->update(['name' => 'Novo Nome', 'user_role' => UserRoleEnum::GESTOR, 'is_active' => true]);
+
+        $this->assertEquals($this->gestor->id, $macro->fresh()->manager_id);
+        $this->assertEquals($this->gestor->id, $processo->fresh()->manager_id);
+        $this->assertTrue($tipo->managers->contains($this->gestor));
+    }
+
+    public function test_formulario_do_usuario_troca_perfil_e_desativa_gestor_limpando_o_vinculo(): void
+    {
+        $this->actingAs($this->admin);
+        [$macro, $processo, $tipo, $outroGestor] = $this->cenarioDeGestao();
+
+        Livewire::test(EditUser::class, ['record' => $this->gestor->id])
+            ->fillForm(['user_role' => UserRoleEnum::EXECUTOR->value, 'is_active' => false])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertGestorSemVinculos($macro, $processo, $tipo, $outroGestor);
+    }
+
+    public function test_acao_de_excluir_do_usuario_limpa_o_vinculo(): void
+    {
+        $this->actingAs($this->admin);
+        [$macro, $processo, $tipo, $outroGestor] = $this->cenarioDeGestao();
+
+        Livewire::test(ListUsers::class)->callTableAction('delete', $this->gestor);
+
+        $this->assertSoftDeleted('users', ['id' => $this->gestor->id]);
+        $this->assertGestorSemVinculos($macro, $processo, $tipo, $outroGestor);
+    }
+
+    public function test_registros_sem_gestor_abrem_e_salvam_na_edicao_sem_escolher_gestor(): void
+    {
+        $this->actingAs($this->admin);
+        [$macro, $processo, $tipo] = $this->cenarioDeGestao();
+        $this->gestor->update(['is_active' => false]);
+
+        Livewire::test(EditMacroprocess::class, ['record' => $macro->id])
+            ->assertFormSet(['manager_id' => null])
+            ->fillForm(['name' => 'Macro Renomeado'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+        $this->assertSame('Macro Renomeado', $macro->fresh()->name);
+        $this->assertNull($macro->fresh()->manager_id);
+
+        Livewire::test(EditCustomEntity::class, ['record' => $processo->id])
+            ->fillForm(['name' => 'Processo Renomeado'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+        $this->assertSame('Processo Renomeado', $processo->fresh()->name);
+        $this->assertNull($processo->fresh()->manager_id);
+
+        $tipo->managers()->detach();
+        Livewire::test(EditCustomRecordType::class, ['record' => $tipo->id])
+            ->fillForm(['name' => 'Renomeado'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+        $this->assertSame('Renomeado', $tipo->fresh()->name);
+        $this->assertCount(0, $tipo->managers()->get());
+    }
+
+    public function test_edicao_aceita_remover_o_gestor_de_um_registro_que_tinha(): void
+    {
+        $this->actingAs($this->admin);
         $macro = $this->macroprocesso(['manager_id' => $this->gestor->id]);
 
-        // FK nullOnDelete: força a exclusão física (User usa SoftDeletes).
-        $this->gestor->forceDelete();
+        Livewire::test(EditMacroprocess::class, ['record' => $macro->id])
+            ->fillForm(['manager_id' => null])
+            ->call('save')
+            ->assertHasNoFormErrors();
 
         $this->assertNull($macro->fresh()->manager_id);
     }
 
-    public function test_excluir_gestor_remove_so_o_vinculo_do_cadastro(): void
+    public function test_gestor_que_virou_executor_por_fora_do_model_sai_da_pivo_ao_salvar_o_cadastro(): void
     {
-        $outroGestor = $this->gestorAtivo('Gestor Dois');
+        $this->actingAs($this->admin);
+
+        $ativo = $this->gestorAtivo('Gestor Dois');
         $tipo = $this->cadastro();
-        $tipo->managers()->attach([$this->gestor->id, $outroGestor->id]);
+        $tipo->managers()->attach([$this->gestor->id, $ativo->id]);
 
-        // FK cascadeOnDelete da pivô: força a exclusão física (User usa SoftDeletes).
-        $this->gestor->forceDelete();
+        // Mudança direto no banco, sem passar pelos eventos do model (defesa em profundidade)
+        DB::table('users')->where('id', $this->gestor->id)->update(['user_role' => UserRoleEnum::EXECUTOR->value]);
 
-        $this->assertNotNull($tipo->fresh());
-        $this->assertEquals([$outroGestor->id], $tipo->managers()->pluck('users.id')->all());
-        $this->assertDatabaseMissing('custom_record_type_manager', ['user_id' => $this->gestor->id]);
+        // O ex-gestor continua no estado carregado, para poder ser removido
+        Livewire::test(EditCustomRecordType::class, ['record' => $tipo->id])
+            ->assertFormSet(fn (array $state) => in_array($this->gestor->id, $state['managers'], true))
+            ->set('data.managers', [$ativo->id])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertEquals([$ativo->id], $tipo->managers()->pluck('users.id')->all());
+    }
+
+    public function test_cadastro_com_ex_gestor_no_estado_exige_remove_lo_para_salvar(): void
+    {
+        $this->actingAs($this->admin);
+
+        $ativo = $this->gestorAtivo('Gestor Dois');
+        $tipo = $this->cadastro();
+        $tipo->managers()->attach([$this->gestor->id, $ativo->id]);
+        DB::table('users')->where('id', $this->gestor->id)->update(['is_active' => false]);
+
+        // Mantê-lo no estado é rejeitado pela validação (só gestor ativo é aceito)
+        Livewire::test(EditCustomRecordType::class, ['record' => $tipo->id])
+            ->call('save')
+            ->assertHasFormErrors(['managers.0']);
+
+        $this->assertCount(2, $tipo->managers()->get());
     }
 
     public function test_visualizacao_do_usuario_gestor_mostra_o_que_ele_gerencia(): void

@@ -140,15 +140,15 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 **Seeder e testes**
 - [x] `AquiProcessSeeder`: cria o usuário `gestor.aqui@gaspar.local` e o atribui ao macroprocesso e ao processo do AQUI.
 - [x] Ajustados `MacroprocessoAndProcessoValidationTest`, `CustomRecordTypeValidationTest` e `ProcessoAquiE2ETest`.
-- [x] Novos testes em `GestorObrigatorioTest`: gestor obrigatório nos três formulários; Cadastro aceita vários e Macroprocesso/Processo só um; seletor lista só `GESTOR` ativos; relações inversas do `User`; excluir um gestor remove só o vínculo.
+- [x] Novos testes em `GestorObrigatorioTest`: gestor obrigatório nos três formulários; Cadastro aceita vários e Macroprocesso/Processo só um; seletor lista só `GESTOR` ativos; relações inversas do `User`; excluir, desativar ou trocar o perfil de quem gerencia limpa o vínculo ("Sem gestor"); edição sem gestor é permitida; o gestor que deixou de ser GESTOR/ativo por fora do model sai da pivô ao salvar o cadastro.
 
 **Pontos de atenção**
-- Registros antigos (inclusive os 5 cadastros base) ficam sem gestor até serem editados; o formulário passa a exigir ao salvar. A listagem mostra "Sem gestor".
-- Se o gestor de um registro for desativado depois, a edição passa a exigir um novo gestor ativo.
+- Registros antigos (inclusive os 5 cadastros base) ficam sem gestor até serem editados; o gestor é obrigatório na **criação**; na edição o campo pode ficar vazio ("Sem gestor"). A listagem mostra "Sem gestor".
+- Decisão da review: existe o estado "Sem gestor". Excluir (soft delete), desativar ou tirar o perfil GESTOR de um usuário limpa o que ele gerencia: `manager_id` vira nulo em macroprocesso e processo (coluna anulável) e ele sai da pivô dos cadastros. Isso é feito nos eventos `updated`/`deleted` do `User` (`clearManagement()`), porque `nullOnDelete`/`cascadeOnDelete` não disparam no soft delete. Sem gestor, só o admin (e quem tiver liberação na matriz, ver T2) vê valores.
 - ⬜ Opcional, ficou de fora: filtro "sem gestor" nas listagens.
 - ⬜ Pendente: validação em homologação (a pivô é criada pelo `migrate` do `/update-system`).
 
-**Aceite:** não é possível salvar Cadastro, Macroprocesso ou Processo sem gestor; o gestor aparece em tabelas; `$user->managedProcesses` funciona.
+**Aceite:** não é possível criar Cadastro, Macroprocesso ou Processo sem gestor; o gestor aparece em tabelas; `$user->managedProcesses` funciona.
 
 ---
 
