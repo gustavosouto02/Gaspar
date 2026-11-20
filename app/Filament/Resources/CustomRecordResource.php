@@ -106,11 +106,6 @@ class CustomRecordResource extends Resource
                 $fieldFactory = app(CustomFieldComponentFactory::class);
 
                 foreach ($type->fields as $field) {
-                    // Campos de valor só aparecem para ADMIN e para os gestores do cadastro
-                    if (app(\App\Services\MoneyFieldVisibility::class)->isHiddenFor(auth()->user(), $field, $type)) {
-                        continue;
-                    }
-
                     $component = $fieldFactory->make($field, "data_json.{$field->key}")
                         ->required($field->is_required);
 

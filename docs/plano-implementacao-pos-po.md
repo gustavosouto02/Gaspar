@@ -12,9 +12,9 @@ Legenda: ✅ feito · 🔄 em andamento (PR aberto) · ⬜ a fazer
 | Item | Dev | Status | Observação |
 |---|---|---|---|
 | PR #39 (limite de 15 caracteres no cadastro) | Gustavo | ✅ | Mergeado na `develop` junto com os PRs #31, #32, #34, #35, #40, #41, #42 e #43. |
-| R0 — `CustomFieldComponentFactory` | Filipi (feito por Gustavo) | 🔄 | PR aberto na branch `refactor/custom-field-component-factory` (sem mudança de comportamento; o `continue` por `MoneyFieldVisibility`, a obrigatoriedade e a permissão ficam nos chamadores). Filipi pode partir da `develop` para o T4 depois do merge. |
+| R0 — `CustomFieldComponentFactory` | Filipi (feito por Gustavo) | 🔄 | PR aberto na branch `refactor/custom-field-component-factory` (sem mudança de comportamento; a obrigatoriedade e a permissão ficam nos chamadores). Filipi pode partir da `develop` para o T4 depois do merge. |
 | T1 — Gestor obrigatório | Gustavo | ✅ | Mergeado na `develop` (PR #44). Falta homologação. |
-| T2 — Visibilidade de valores | Gustavo | ✅ | Mergeado na `develop` (PR #45). Inclui o padrão de moeda `1.000,00`. Falta homologação. |
+| T2 — Visibilidade de valores | Gustavo | ✅ | Mergeado na `develop` (PR #45). Inclui o padrão de moeda `1.000,00`. Correção de escopo (só consultas e relatórios, formulário livre) na branch `fix/money-visibility-only-queries`, PR a abrir. Falta homologação. |
 | T3 — Cadeia de Valor | Gustavo | ⬜ | |
 | T4 — Campo Vínculo | Filipi | ⬜ | Depende do R0. |
 | T5 — Relatório de Cadastros | Gustavo | ⬜ | Depende de T2 e do formatter do T4. |
@@ -32,7 +32,7 @@ Legenda: ✅ feito · 🔄 em andamento (PR aberto) · ⬜ a fazer
 | # | Task | Decisão |
 |---|---|---|
 | T1 | Gestor obrigatório | **Todo** Macroprocesso e Processo tem exatamente um Gestor; **todo Cadastro tem um ou mais Gestores**. Todos escolhidos entre usuários ativos com perfil `GESTOR`. O usuário Gestor passa a ter a relação inversa com tudo que gerencia. |
-| T2 | Visibilidade de valores | Campos de valor (`CURRENCY`) só aparecem para `ADMIN` e para o Gestor **do dono do campo**: o Processo (na demanda; também o gestor do Macroprocesso ao qual ele pertence) ou o Cadastro (nas telas de cadastro; qualquer um dos seus gestores). Vale para formulário, consultas, relatórios, CSV, PDF e busca. |
+| T2 | Visibilidade de valores | Regra do PO: *"Permitir a visualização de campos de Valores em consultas e relatórios apenas para Gestor e Administrador"*. Em **consultas e relatórios** (relatório de demandas, PDF, busca e listagens dos cadastros), campos de valor (`CURRENCY`) só aparecem para `ADMIN` e para o Gestor **do dono do campo**: o Processo (também o gestor do Macroprocesso ao qual ele pertence) ou o Cadastro (qualquer um dos seus gestores). **Formulários e telas de edição/visualização não são restritos**: quem pode preencher a demanda ou o registro vê e edita o valor. |
 | T3 | Cadeia de Valor | Visualização no Painel de Controle no desenho da cadeia de valor de Porter (apoio em faixas, primárias em colunas, seta de Margens), com os macroprocessos dentro de cada bloco e link para cada um. A "função na cadeia de valor" do Macroprocesso passa a seguir esses blocos. |
 | T4 | Campo Vínculo | Novo **tipo de campo** "Vínculo com cadastro". O campo é criado uma vez, aponta para uma origem (ex.: cadastro "Equipamentos") e pode ser anexado a processos (formulário da demanda) e a cadastros. Seleção única. |
 | T5 | Relatório de Cadastros | Escolhe-se o cadastro e filtram-se registros pelos campos dele (ex.: só impressoras; só uma cidade). Exporta CSV. |
@@ -48,7 +48,7 @@ Legenda: ✅ feito · 🔄 em andamento (PR aberto) · ⬜ a fazer
 - **Cadastros:** 5 cadastros base (`CustomRecordType` com `is_system = true`: Usuários, Clientes, Projetos, Fornecedores, Macroprocessos) usam `custom_data` JSON nas próprias tabelas. Cadastros criados pelo admin usam `custom_records.data_json`.
 - **Campos dinâmicos:** o `match` que monta o componente Filament por `FieldTypeEnum` está **copiado em 3 lugares**: `DemandResource::buildDynamicFieldSchema`, `CustomRecordResource::form` e `HasCustomFields::buildCustomFieldComponents`.
 - **Campos de valor:** `FieldTypeEnum::CURRENCY` é renderizado/formatado em `DemandResource`, `CustomRecordResource`, `HasCustomFields`, `DemandReports`, `resources/views/pdf/demand-report.blade.php`, `RuleOperatorEnum`, `TransitionDecisionEvaluator` e `StatusTransitionsRelationManager`. Hoje nenhum aplica regra de papel.
-- **Permissão de campo por situação/papel:** `FieldPermissionResolver::resolve()` já devolve `REQUIRED/OPTIONAL/READONLY/HIDDEN` por campo. É o ponto natural para esconder valores.
+- **Permissão de campo por situação/papel:** `FieldPermissionResolver::resolve()` já devolve `REQUIRED/OPTIONAL/READONLY/HIDDEN` por campo. Não é usado para esconder valores: a restrição do T2 vale só para consultas e relatórios.
 - **Relatórios:** `DemandReports` (consulta com botão "Consultar", CSV, `saved_reports` só para demandas).
 - **PR #39** ✅ (mergeado): limita o nome do cadastro a 15 caracteres e mexe em `CustomRecordTypeResource` e nos resources base. Foi mergeado antes do T1, que também altera `CustomRecordTypeResource`.
 
@@ -144,7 +144,7 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 
 **Pontos de atenção**
 - Registros antigos (inclusive os 5 cadastros base) ficam sem gestor até serem editados; o gestor é obrigatório na **criação**; na edição o campo pode ficar vazio ("Sem gestor"). A listagem mostra "Sem gestor".
-- Decisão da review: existe o estado "Sem gestor". Excluir (soft delete), desativar ou tirar o perfil GESTOR de um usuário limpa o que ele gerencia: `manager_id` vira nulo em macroprocesso e processo (coluna anulável) e ele sai da pivô dos cadastros. Isso é feito nos eventos `updated`/`deleted` do `User` (`clearManagement()`), porque `nullOnDelete`/`cascadeOnDelete` não disparam no soft delete. Sem gestor, só o admin (e quem tiver liberação na matriz, ver T2) vê valores.
+- Decisão da review: existe o estado "Sem gestor". Excluir (soft delete), desativar ou tirar o perfil GESTOR de um usuário limpa o que ele gerencia: `manager_id` vira nulo em macroprocesso e processo (coluna anulável) e ele sai da pivô dos cadastros. Isso é feito nos eventos `updated`/`deleted` do `User` (`clearManagement()`), porque `nullOnDelete`/`cascadeOnDelete` não disparam no soft delete. Sem gestor, só o admin vê valores nas consultas e relatórios (ver T2).
 - ⬜ Opcional, ficou de fora: filtro "sem gestor" nas listagens.
 - ⬜ Pendente: validação em homologação (a pivô é criada pelo `migrate` do `/update-system`).
 
@@ -155,7 +155,10 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 ### T2 — Visibilidade de valores (Gustavo, ~1 dia, depende de T1) ✅
 
 > **Status:** mergeado na `develop` (PR #45, depois do #44). Pendente: homologação.
+> **Correção de escopo:** o T2 original também restringia formulários, a tramitação/gateway e criou uma "liberação pela matriz". Isso foi removido porque a task do PO é só consultas e relatórios. A correção está na branch `fix/money-visibility-only-queries` (PR a abrir).
 > **Acréscimo ao escopo original:** campo de moeda no padrão brasileiro `1.000,00` (pedido durante a validação).
+
+**Escopo:** consultas e relatórios. O formulário da demanda, as telas de edição/visualização (demanda e cadastros), o salvar e a tramitação **não** são restritos: o campo de moeda aparece, é editável e é cobrado como qualquer outro campo, conforme a matriz de permissões de campos.
 
 **Regra central**
 - [x] `app/Services/MoneyFieldVisibility.php` com `canView(User $user, Model $owner): bool`:
@@ -163,52 +166,41 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
   - Quem não é `GESTOR` **ativo** → `false` (gestor que virou EXECUTOR ou foi desativado deixa de ver, mesmo se ainda constar como gestor).
   - `$owner` é `CustomEntity` → `$owner->manager_id === $user->id` **ou** o gestor do macroprocesso ao qual ele pertence (resposta do PO).
   - `$owner` é `CustomRecordType` → qualquer um dos gestores do cadastro. Para os cadastros base (`custom_data`), o tipo é resolvido por `model_class` (`CustomRecordType::where('model_class', …)`, como `HasCustomFields::getCustomRecordType()`).
-  - Caso contrário (inclusive sem usuário e registro "Sem gestor") → `false`: sem gestor, só o admin (e quem tiver liberação na matriz) vê.
-- [x] **Liberação por matriz (decisão do usuário):** se o admin liberou o campo na matriz de permissões de campos, o campo de valor fica liberado para aquela pessoa **naquela situação**, mesmo sem ser gestora. "Liberou" = existe linha **explícita** de `FieldPermission` (entidade, situação, campo), do papel da pessoa (`ProcessMember`) ou genérica, cuja permissão efetiva (a linha do papel vence a genérica, entre papéis vale a mais permissiva) é `OPTIONAL` ou `REQUIRED`. **Só Opcional e Obrigatório liberam**: `READONLY`, `HIDDEN` e a ausência de linha (fallback `READONLY`) mantêm o campo restrito (papel `READONLY` + genérica `OPTIONAL`: o papel vence e não libera). Nesse caso o resolver devolve a permissão da matriz (a pessoa vê e edita) e valem formulário, save, preenchimento, tramitação e gateway. Relatório, PDF e busca não dependem da situação e continuam só para admin e gestores.
-- [x] A grade de permissões grava todas as células, inclusive o padrão `READONLY` (também para campo de valor). Como `READONLY` não libera, as linhas gravadas pela grade (ou herdadas de um campo que mudou de tipo para valor) não expõem o valor: ele só é liberado ao marcar `OPTIONAL`/`REQUIRED`.
-- [x] `isHiddenFor()`, `viewableEntityIds()` (usado pela busca) e `preserveHiddenValues()` / `stripHiddenFromFormData()` (proteção de dados dos cadastros).
+  - Caso contrário (inclusive sem usuário e registro "Sem gestor") → `false`: sem gestor, só o admin vê.
+- [x] `isHiddenFor()` (campo `CURRENCY` que o usuário não pode ver neste dono) e `viewableEntityIds()` (usado pela busca).
 
-**Pontos de aplicação**
+**Pontos de aplicação (somente consultas e relatórios)**
 
 | Lugar | Mudança | Status |
 |---|---|---|
-| `FieldPermissionResolver::resolve()` | Campos `CURRENCY` viram `HIDDEN` para quem não pode ver e não foi liberado na matriz (cobre o formulário da demanda, o descarte no save e a obrigatoriedade na tramitação). | [x] |
-| `DemandResource::buildDynamicFieldSchema()` | Sem situação resolvida (criação com `?entity_id=`), o campo de valor é omitido de quem não pode vê-lo. | [x] |
-| `TransitionDecisionEvaluator` / `DemandTransitionService` | Gateway por valor com campo vazio que o ator não enxerga: mensagem "Aguardando o gestor do processo informar o campo X" em vez de citar o campo como a preencher. | [x] |
-| Matriz de permissões e editor de regras | Aviso sobre campos de valor (quem libera, o que fica restrito). | [x] |
-| `app:audit-currency-values` | Comando que lista valores de moeda no formato antigo `x.xxx` (lido como milhar), para conferir em homologação. Não altera dados. | [x] |
-| `EditDemand` / `ViewDemand` | O valor deixa de ser preenchido no estado do formulário (não chega ao navegador). | [x] |
-| `CustomRecordResource` (form e tabela) e `HasCustomFields::buildCustomFieldComponents` | Componente e coluna ocultos. | [x] |
-| Páginas de edição/visualização dos cadastros (12) | Trait `HidesMoneyValuesOnFill` tira o valor oculto do estado do formulário. | [x] |
-| `CustomRecord` e `HasCustomFields` (hook de saving) | Restauram no servidor o valor oculto, pois `data_json`/`custom_data` são regravados por inteiro. | [x] |
-| `DemandReports` | Coluna do campo de valor removida. O CSV de demandas hoje não exporta campos customizados, então não havia o que remover. | [x] |
+| `DemandReports` | Coluna do campo de valor removida para quem não pode ver. O CSV de demandas hoje não exporta campos customizados, então não havia o que remover. | [x] |
 | `demand-report.blade.php` e `DemandPdfController` | Valor omitido no PDF. | [x] |
 | `Demand::globalSearch` | A busca por valor só encontra demandas de processos que o usuário pode ver; nos campos adicionais de cliente/projeto, sem permissão a busca olha só as chaves não-moeda do `custom_data`. | [x] |
-| `DemandReports` / PDF | Valor exibido com `MoneyInput::display()`, o formatador único. | [x] |
+| `CustomRecordResource::table` | Coluna de moeda da listagem do cadastro oculta para quem não é admin nem gestor do cadastro. | [x] |
+| `DemandReports` / PDF / listagem do cadastro | Valor exibido com `MoneyInput::display()`, o formatador único. | [x] |
+| `app:audit-currency-values` | Comando que lista valores de moeda no formato antigo `x.xxx` (lido como milhar), para conferir em homologação. Não altera dados. | [x] |
 
-**Riscos do plano, o que se confirmou**
-- [x] Campo oculto apagando valor ao salvar a demanda: **não ocorre**. `saveFieldValues` já descartava campos bloqueados e só apagava valores de campos que saíram do processo. Teste de regressão adicionado.
-- [x] `TransitionDecisionEvaluator` lê o valor direto do banco e não passa pela camada de visibilidade.
-- Riscos novos, não previstos no plano, ambos cobertos por teste:
-  - o Filament envia o registro inteiro ao navegador, inclusive chaves sem componente;
-  - o JSON dos cadastros era regravado sem o valor oculto.
+**Removido na correção de escopo** (existia no T2 original, não faz parte da task do PO)
+- Restrição de formulário e tela: `FieldPermissionResolver` forçando `HIDDEN` para campo de valor, `continue` por visibilidade em `DemandResource::buildDynamicFieldSchema`, `CustomRecordResource::form` e `HasCustomFields::buildCustomFieldComponents`.
+- `EditDemand` / `ViewDemand` deixando de preencher o valor, e a trait `HidesMoneyValuesOnFill` nas 12 páginas de edição/visualização dos cadastros.
+- Hook de saving em `CustomRecord` e `HasCustomFields` que restaurava o valor oculto (`preserveHiddenValues`).
+- "Liberação por matriz" (`isReleasedByMatrix`, `rowsRelease`, `isHiddenInDemand`), os avisos na matriz de permissões e no editor de regras, e o tratamento especial da grade `READONLY` para campo de valor.
+- Tramitação e gateway: a mensagem "Aguardando o gestor do processo ou um administrador..." / "processo sem gestor" e o parâmetro `$actor` do `TransitionDecisionEvaluator`.
+- Mantida, por ser um bug real que afeta todos os usuários: a criação com `?entity_id=` (`CustomEntity::initialProcessStatus()`, o `default` do select de situação e o uso em `CreateDemand`).
 
 **Padrão de moeda `1.000,00`**
 - [x] `App\Support\MoneyInput`: máscara pt-BR, completa as casas decimais ao sair do campo e abre valores gravados já formatados. O armazenamento continua numérico (`1500.50`), porque regras de transição, relatório e PDF dependem disso.
-- [x] Usado nos formulários da demanda, do registro de cadastro e dos cadastros base; a tabela de registros mostra `R$ 800,00`.
+- [x] Usado nos formulários da demanda, do registro de cadastro e dos cadastros base (é padronização de formato, não restrição); a tabela de registros mostra `R$ 800,00`.
 - ⬜ Fora do escopo: o editor de regras de transição segue numérico e sem máscara.
 - ✅ Para o R0 (Filipi), na branch `refactor/custom-field-component-factory`: o caso `CURRENCY` da `CustomFieldComponentFactory` deve apontar para `MoneyInput::make()`.
 
 **Pontos de atenção**
-- A tramitação deixa de cobrar um campo de valor obrigatório de quem não o enxerga (sem liberação ele nem chega a ser `REQUIRED` para a pessoa).
-- Gateway por valor que o ator não enxerga: a mensagem pede para aguardar "o gestor do processo ou um administrador"; se processo e macroprocesso estão sem gestor, avisa que só um administrador pode informar o campo.
-- Criação com `?entity_id=`: a situação inicial ("Nova" ou a primeira do processo) é resolvida na tela, então a liberação da matriz vale já na criação; sem situação resolvível o campo de valor segue restrito.
 - Valores antigos no formato `1.500` (3 casas após o ponto) passam a ser lidos como milhar. Não há migração de dados: rodar `php artisan app:audit-currency-values` em homologação e conferir a lista.
 - O `preco` do processo AQUI é `NUMBER`, não `CURRENCY`, então não é afetado. Se o PO quiser escondê-lo, é preciso mudar o tipo do campo.
 - ✅ `ActivityLog` não vaza valores: `Client` e `Project` gravam `custom_data`, mas o `ActivityLogResource` é só do `ADMIN`; `DemandFieldValue` não registra log.
 - ⬜ Pendente: validação em homologação.
 
-**Aceite:** executor sem gestão não vê o campo no formulário, no relatório, no PDF nem na busca; gestor do processo e do macroprocesso veem; gestor de **outro** processo não vê; admin vê; salvar a demanda sem permissão não apaga o valor; o campo de moeda segue o padrão `1.000,00`.
+**Aceite:** executor sem gestão **vê e edita** o campo de valor no formulário da demanda e do cadastro (e salvar não apaga o valor), mas não o vê no relatório de demandas, no PDF, na busca nem na coluna da listagem do cadastro; gestor do processo e do macroprocesso veem nas consultas; gestor de **outro** processo não vê; admin vê; o campo de moeda segue o padrão `1.000,00`.
 
 ---
 
@@ -262,7 +254,7 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 - Nova página `app/Filament/Pages/CadastroReports.php`, grupo "Relatórios", seguindo o padrão do `DemandReports` (botão "Consultar", CSV).
 - Passos: escolher o cadastro (`CustomRecordType`) → o formulário gera um filtro por campo (texto contém, select igual, data por período, número por faixa) → tabela com os campos do tipo → exportar CSV.
 - Para cadastros dinâmicos, filtrar por `data_json->campo`. **Confirmar o driver de banco** (MySQL em produção/SQLite nos testes?) porque a sintaxe de JSON path difere.
-- Respeitar T2: campos de valor só aparecem para admin ou gestor do cadastro (tela e CSV).
+- Respeitar T2: por ser uma consulta, campos de valor só aparecem para admin ou gestor do cadastro (tela e CSV).
 - Usar o `CustomFieldValueFormatter` (T4) para campos de Vínculo e moeda.
 - **Consultas salvas:** `saved_reports` hoje só guarda `filters_json` de demandas. Se couber, adicionar `report_type` e `record_type_id`; senão, fica para depois.
 - **MVP:** cadastros dinâmicos. Clientes, Projetos, Fornecedores (que usam `custom_data`) entram depois como segunda fonte na mesma página.
@@ -314,7 +306,6 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 | `CustomEntityResource` | T1 (campo gestor) e T6 (ação nova versão e trava) |
 | `CustomRecordTypeResource` | PR #39, T1 |
 | `DemandResource::buildDynamicFieldSchema` | R0, T2, T4 |
-| `FieldPermissionResolver` | T2 |
 | `DemandReports` | T2, T4 |
 | `AquiProcessSeeder` e testes que criam macroprocesso/processo | T1, T3 |
 
@@ -357,7 +348,6 @@ As seguintes partes poderiam ser melhoradas:
 | Risco | Impacto | Mitigação |
 |---|---|---|
 | T6 estourar o prazo (3 dias, sem folga) | Versionamento fecha na semana seguinte | Cortar a trava de itens internos; entregar primeiro clone + seleção + trava de exclusão |
-| Campo oculto apagar valor ao salvar a demanda (T2) | Perda de dado financeiro | Verificar `EditDemand` antes; teste de regressão dedicado |
 | Conflito entre R0, T2 e T4 em `DemandResource` | Retrabalho de merge | R0 mergeado na segunda de manhã; avisos no chat |
 | Sintaxe de JSON diferente entre MySQL e SQLite (T5) | Filtro funciona em produção mas falha nos testes (ou vice-versa) | Confirmar driver; isolar a consulta em um método testado |
 | `code` único bloqueando o clone de processo (T6) | Falha na criação da versão | Verificar o índice no início de T6 |
