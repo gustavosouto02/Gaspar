@@ -7,6 +7,7 @@ use App\Concerns\HasSequentialCode;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
 
@@ -26,11 +27,20 @@ class Macroprocess extends Model
         'is_active',
         'value_chain_function',
         'created_by',
+        'manager_id',
     ];
 
     public function newUniqueId(): string
     {
         return (string) Str::uuid7();
+    }
+
+    /**
+     * Gestor responsável pelo macroprocesso
+     */
+    public function manager(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'manager_id');
     }
 
     public function processes()

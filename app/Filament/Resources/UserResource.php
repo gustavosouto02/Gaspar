@@ -19,6 +19,7 @@ use Filament\Tables;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Support\Collection;
 
 class UserResource extends Resource
 {
@@ -83,8 +84,36 @@ class UserResource extends Resource
                     ->label('Ativo')
                     ->default(true),
 
+                Placeholder::make('managed_record_types_placeholder')
+                    ->label('Cadastros que gerencia')
+                    ->content(fn (?User $record) => static::managedNames($record?->managedRecordTypes()->orderBy('custom_record_types.name')->pluck('custom_record_types.name')))
+                    ->visible(fn ($livewire, ?User $record) => static::showsManagedItems($livewire, $record)),
+
+                Placeholder::make('managed_macroprocesses_placeholder')
+                    ->label('Macroprocessos que gerencia')
+                    ->content(fn (?User $record) => static::managedNames($record?->managedMacroprocesses()->orderBy('name')->pluck('name')))
+                    ->visible(fn ($livewire, ?User $record) => static::showsManagedItems($livewire, $record)),
+
+                Placeholder::make('managed_processes_placeholder')
+                    ->label('Processos que gerencia')
+                    ->content(fn (?User $record) => static::managedNames($record?->managedProcesses()->orderBy('name')->pluck('name')))
+                    ->visible(fn ($livewire, ?User $record) => static::showsManagedItems($livewire, $record)),
+
                 ...array_filter([User::buildCustomFieldComponents()]),
             ]);
+    }
+
+    /**
+     * Na visualização de um usuário Gestor, mostra o que ele gerencia.
+     */
+    protected static function showsManagedItems($livewire, ?User $record): bool
+    {
+        return $livewire instanceof ViewRecord && $record?->user_role === UserRoleEnum::GESTOR;
+    }
+
+    protected static function managedNames(?Collection $names): string
+    {
+        return $names?->isNotEmpty() ? $names->implode(', ') : 'Nenhum';
     }
 
     public static function table(Table $table): Table

@@ -10,6 +10,8 @@ use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -97,6 +99,31 @@ class User extends Authenticatable implements FilamentUser
     public function processRole(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(ProcessRole::class, 'process_role_id');
+    }
+
+    /**
+     * Cadastros dos quais o usuário é Gestor (um cadastro pode ter vários gestores)
+     */
+    public function managedRecordTypes(): BelongsToMany
+    {
+        return $this->belongsToMany(CustomRecordType::class, 'custom_record_type_manager', 'user_id', 'custom_record_type_id')
+            ->withTimestamps();
+    }
+
+    /**
+     * Macroprocessos dos quais o usuário é Gestor
+     */
+    public function managedMacroprocesses(): HasMany
+    {
+        return $this->hasMany(Macroprocess::class, 'manager_id');
+    }
+
+    /**
+     * Processos dos quais o usuário é Gestor
+     */
+    public function managedProcesses(): HasMany
+    {
+        return $this->hasMany(CustomEntity::class, 'manager_id');
     }
 
     public function processes(): \Illuminate\Database\Eloquent\Relations\BelongsToMany

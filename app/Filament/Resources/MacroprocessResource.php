@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Enums\UserRoleEnum;
 use App\Filament\Resources\Concerns\CustomFieldsRelationManager;
+use App\Filament\Resources\Concerns\HasManagerField;
 use App\Filament\Resources\Concerns\HasRecordTypeLabel;
 use App\Filament\Resources\MacroprocessResource\Pages;
 use App\Models\Macroprocess;
@@ -25,7 +26,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class MacroprocessResource extends Resource
 {
-    use HasRecordTypeLabel;
+    use HasManagerField, HasRecordTypeLabel;
 
     protected static ?string $model = Macroprocess::class;
 
@@ -110,6 +111,8 @@ class MacroprocessResource extends Resource
                     ])
                     ->in(fn (Select $component): array => array_keys($component->getOptions())),
 
+                static::managerSelect(),
+
                 Textarea::make('description')
                     ->label('Descrição')
                     ->required()
@@ -145,6 +148,9 @@ class MacroprocessResource extends Resource
                             ->formatStateUsing(fn ($state) => $state ? 'ATIVO' : 'INATIVO'),
                         Infolists\Components\TextEntry::make('value_chain_function')
                             ->label('Função na Cadeia de Valor'),
+                        Infolists\Components\TextEntry::make('manager.name')
+                            ->label('Gestor')
+                            ->placeholder('Sem gestor'),
 
                         Infolists\Components\TextEntry::make('description')
                             ->label('Descrição')
@@ -184,6 +190,10 @@ class MacroprocessResource extends Resource
                     ->searchable(['name', 'acronym', 'custom_data']),
                 TextColumn::make('value_chain_function')
                     ->label('Função na Cadeia de Valor'),
+                TextColumn::make('manager.name')
+                    ->label('Gestor')
+                    ->placeholder('Sem gestor')
+                    ->sortable(),
                 IconColumn::make('is_active')
                     ->label('Ativo')
                     ->boolean(),

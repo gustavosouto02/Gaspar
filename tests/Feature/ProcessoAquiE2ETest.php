@@ -48,6 +48,20 @@ class ProcessoAquiE2ETest extends TestCase
         $this->quitador = User::where('email', 'plataforma@inct.org.br')->firstOrFail();
     }
 
+    public function test_seeder_atribui_gestor_ao_macroprocesso_e_ao_processo_aqui_de_forma_idempotente(): void
+    {
+        $this->seed(AquiProcessSeeder::class);
+
+        $gestor = User::where('email', 'gestor.aqui@gaspar.local')->firstOrFail();
+
+        $this->assertSame(UserRoleEnum::GESTOR, $gestor->user_role);
+        $this->assertSame($gestor->id, $this->processo->fresh()->manager_id);
+        $this->assertSame($gestor->id, $this->processo->macroprocess->fresh()->manager_id);
+        $this->assertSame(1, User::where('email', 'gestor.aqui@gaspar.local')->count());
+        $this->assertCount(1, $gestor->managedProcesses);
+        $this->assertCount(1, $gestor->managedMacroprocesses);
+    }
+
     public function test_gateway_licitacao_roteia_para_aprovando_alto_quando_preco_maior_que_10000(): void
     {
         $statusNova = ProcessStatus::where('system_key', 'new')->firstOrFail();

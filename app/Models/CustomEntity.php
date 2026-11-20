@@ -45,6 +45,7 @@ class CustomEntity extends Model
         'purpose',
         'sla_hours',
         'created_by',
+        'manager_id',
     ];
 
     public function macroprocess(): \Illuminate\Database\Eloquent\Relations\BelongsTo
@@ -82,6 +83,14 @@ class CustomEntity extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    /**
+     * Gestor responsável pelo processo
+     */
+    public function manager(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'manager_id');
     }
 
     /**
