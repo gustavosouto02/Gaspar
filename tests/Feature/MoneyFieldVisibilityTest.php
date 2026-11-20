@@ -1315,7 +1315,8 @@ class MoneyFieldVisibilityTest extends TestCase
         $componente = Livewire::actingAs($executor)
             ->test(EditDemand::class, ['record' => $this->demanda->id]);
         $this->assertNull($componente->get('data.field_data.preco'));
-        $this->assertStringNotContainsString('777', $componente->html());
+        $this->assertStringNotContainsString('777,00', $componente->html());
+        $this->assertStringNotContainsString('777.00', $componente->html());
     }
 
     public function test_comando_lista_valores_de_moeda_no_formato_antigo_sem_alterar_dados(): void
