@@ -154,7 +154,7 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 
 ### T2 — Visibilidade de valores (Gustavo, ~1 dia, depende de T1) 🔄
 
-> **Status:** implementado e com PR aberto (`feat/visibilidade-valores`, empilhado sobre o PR do T1); 228 testes passando; validado manualmente no ambiente local. Pendente: homologação.
+> **Status:** implementado e com PR aberto (`feat/visibilidade-valores`, empilhado sobre o PR do T1); 267 testes passando; validado manualmente no ambiente local. Pendente: homologação.
 > **Acréscimo ao escopo original:** campo de moeda no padrão brasileiro `1.000,00` (pedido durante a validação).
 
 **Regra central**
