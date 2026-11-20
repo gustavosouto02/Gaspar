@@ -5,6 +5,7 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\CustomRecordResource\Pages;
 use App\Filament\Resources\CustomRecordResource\RelationManagers;
 use App\Models\CustomRecord;
+use App\Services\CustomFieldComponentFactory;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -102,42 +103,16 @@ class CustomRecordResource extends Resource
         if ($typeId) {
             $type = \App\Models\CustomRecordType::with('fields')->find($typeId);
             if ($type) {
+                $fieldFactory = app(CustomFieldComponentFactory::class);
+
                 foreach ($type->fields as $field) {
                     // Campos de valor só aparecem para ADMIN e para os gestores do cadastro
                     if (app(\App\Services\MoneyFieldVisibility::class)->isHiddenFor(auth()->user(), $field, $type)) {
                         continue;
                     }
 
-                    $key = "data_json.{$field->key}";
-                    $component = match ($field->field_type) {
-                        \App\Enums\FieldTypeEnum::TEXT     => Forms\Components\TextInput::make($key),
-                        \App\Enums\FieldTypeEnum::TEXTAREA => Forms\Components\Textarea::make($key)->rows(3),
-                        \App\Enums\FieldTypeEnum::NUMBER   => Forms\Components\TextInput::make($key)->numeric(),
-                        \App\Enums\FieldTypeEnum::CURRENCY => \App\Support\MoneyInput::make($key),
-                        \App\Enums\FieldTypeEnum::DATE     => Forms\Components\DatePicker::make($key),
-                        \App\Enums\FieldTypeEnum::SELECT   => Forms\Components\Select::make($key)
-                            ->options($field->options_json
-                                ? array_combine($field->options_json, $field->options_json)
-                                : []),
-                        \App\Enums\FieldTypeEnum::RADIO    => Forms\Components\Radio::make($key)
-                            ->options($field->options_json
-                                ? array_combine($field->options_json, $field->options_json)
-                                : []),
-                        \App\Enums\FieldTypeEnum::CHECKBOX => Forms\Components\Toggle::make($key),
-                        \App\Enums\FieldTypeEnum::EMAIL    => Forms\Components\TextInput::make($key)->email(),
-                        default                            => Forms\Components\TextInput::make($key),
-                    };
-
-                    $component->label($field->name)
-                              ->required($field->is_required);
-
-                    if (method_exists($component, 'placeholder') && $field->placeholder) {
-                        $component->placeholder($field->placeholder);
-                    }
-
-                    if ($field->default_value) {
-                        $component->default($field->default_value);
-                    }
+                    $component = $fieldFactory->make($field, "data_json.{$field->key}")
+                        ->required($field->is_required);
 
                     $schema[] = $component;
                 }

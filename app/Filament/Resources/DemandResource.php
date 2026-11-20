@@ -5,7 +5,6 @@ namespace App\Filament\Resources;
 use App\Enums\DemandPriorityEnum;
 use App\Enums\DemandStatusEnum;
 use App\Enums\FieldPermissionEnum;
-use App\Enums\FieldTypeEnum;
 use App\Enums\ProcessStatusColorEnum;
 use App\Enums\UserRoleEnum;
 use App\Filament\Resources\DemandResource\Pages;
@@ -16,9 +15,9 @@ use App\Models\ProcessStatus;
 use App\Models\Project;
 use App\Models\Supplier;
 use App\Models\User;
+use App\Services\CustomFieldComponentFactory;
 use App\Services\FieldPermissionResolver;
 use App\Services\MoneyFieldVisibility;
-use App\Support\MoneyInput;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -351,6 +350,7 @@ class DemandResource extends Resource
         }
 
         $moneyVisibility = app(MoneyFieldVisibility::class);
+        $fieldFactory = app(CustomFieldComponentFactory::class);
 
         $schema = [];
         foreach ($fields as $field) {
@@ -360,27 +360,7 @@ class DemandResource extends Resource
                 continue;
             }
 
-            $key = "field_data.{$field->key}";
-            $component = match ($field->field_type) {
-                FieldTypeEnum::TEXT => Forms\Components\TextInput::make($key),
-                FieldTypeEnum::TEXTAREA => Forms\Components\Textarea::make($key)->rows(3),
-                FieldTypeEnum::NUMBER => Forms\Components\TextInput::make($key)->numeric(),
-                FieldTypeEnum::CURRENCY => MoneyInput::make($key),
-                FieldTypeEnum::DATE => Forms\Components\DatePicker::make($key),
-                FieldTypeEnum::SELECT => Forms\Components\Select::make($key)
-                    ->options($field->options_json
-                        ? array_combine($field->options_json, $field->options_json)
-                        : []),
-                FieldTypeEnum::RADIO => Forms\Components\Radio::make($key)
-                    ->options($field->options_json
-                        ? array_combine($field->options_json, $field->options_json)
-                        : []),
-                FieldTypeEnum::CHECKBOX => Forms\Components\Toggle::make($key),
-                FieldTypeEnum::EMAIL => Forms\Components\TextInput::make($key)->email(),
-                default => Forms\Components\TextInput::make($key),
-            };
-
-            $component->label($field->name);
+            $component = $fieldFactory->make($field, "field_data.{$field->key}");
 
             if ($permissions === null) {
                 // Sem situação/usuário resolvidos, mantém o comportamento original
@@ -395,14 +375,6 @@ class DemandResource extends Resource
                     ),
                     FieldPermissionEnum::OPTIONAL => $component->required(false),
                 };
-            }
-
-            if (method_exists($component, 'placeholder') && $field->placeholder) {
-                $component->placeholder($field->placeholder);
-            }
-
-            if ($field->default_value) {
-                $component->default($field->default_value);
             }
 
             $schema[] = $component;

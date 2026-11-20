@@ -12,7 +12,7 @@ Legenda: ✅ feito · 🔄 em andamento (PR aberto) · ⬜ a fazer
 | Item | Dev | Status | Observação |
 |---|---|---|---|
 | PR #39 (limite de 15 caracteres no cadastro) | Gustavo | ✅ | Mergeado na `develop` junto com os PRs #31, #32, #34, #35, #40, #41, #42 e #43. |
-| R0 — `CustomFieldComponentFactory` | Filipi | ⬜ | |
+| R0 — `CustomFieldComponentFactory` | Filipi | ✅ | Implementado na branch `refactor/custom-field-component-factory` (sem mudança de comportamento; o `continue` por `MoneyFieldVisibility`, a obrigatoriedade e a permissão ficam nos chamadores). |
 | T1 — Gestor obrigatório | Gustavo | 🔄 | PR aberto na branch `feat/gestor-obrigatorio`; validado manualmente no ambiente local. Falta homologação. |
 | T2 — Visibilidade de valores | Gustavo | 🔄 | PR aberto na branch `feat/visibilidade-valores`, empilhado sobre o PR do T1; validado manualmente no ambiente local. Inclui o padrão de moeda `1.000,00`. Falta homologação. |
 | T3 — Cadeia de Valor | Gustavo | ⬜ | |
@@ -197,7 +197,7 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 - [x] `App\Support\MoneyInput`: máscara pt-BR, completa as casas decimais ao sair do campo e abre valores gravados já formatados. O armazenamento continua numérico (`1500.50`), porque regras de transição, relatório e PDF dependem disso.
 - [x] Usado nos formulários da demanda, do registro de cadastro e dos cadastros base; a tabela de registros mostra `R$ 800,00`.
 - ⬜ Fora do escopo: o editor de regras de transição segue numérico e sem máscara.
-- ⬜ Para o R0 (Filipi): o caso `CURRENCY` da `CustomFieldComponentFactory` deve apontar para `MoneyInput::make()`.
+- ✅ Para o R0 (Filipi), na branch `refactor/custom-field-component-factory`: o caso `CURRENCY` da `CustomFieldComponentFactory` deve apontar para `MoneyInput::make()`.
 
 **Pontos de atenção**
 - A tramitação deixa de cobrar um campo de valor obrigatório de quem não o enxerga (sem liberação ele nem chega a ser `REQUIRED` para a pessoa).
