@@ -571,6 +571,13 @@ class GestorObrigatorioTest extends TestCase
             ->assertHasNoFormErrors();
         $this->assertSame($novo->id, $macro->fresh()->manager_id);
 
+        Livewire::test(EditCustomEntity::class, ['record' => $processo->id])
+            ->fillForm(['name' => 'Processo Renomeado', 'manager_id' => $novo->id])
+            ->call('save')
+            ->assertHasNoFormErrors();
+        $this->assertSame($novo->id, $processo->fresh()->manager_id);
+        $this->assertSame('Processo Renomeado', $processo->fresh()->name);
+
         // Cadastro segue opcional: salva sem nenhum gestor
         $tipo->managers()->detach();
         Livewire::test(EditCustomRecordType::class, ['record' => $tipo->id])

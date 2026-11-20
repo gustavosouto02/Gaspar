@@ -111,7 +111,7 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 
 ---
 
-### T1 — Gestor obrigatório em Cadastro, Macroprocesso e Processo (Gustavo, ~1 dia) 🔄
+### T1 — Gestor obrigatório em Macroprocesso e Processo; opcional no Cadastro (Gustavo, ~1 dia) 🔄
 
 > **Status:** implementado e com PR aberto (`feat/gestor-obrigatorio`); suíte com 199 testes passando; validado manualmente no ambiente local. Pendente: homologação.
 > **Mudança em relação ao plano original:** o Cadastro passou a ter **N gestores** (tabela pivô), por resposta do PO em 17/11/2026. Macroprocesso e Processo seguem com 1 (obrigatório); o gestor do Cadastro é opcional.
@@ -148,7 +148,7 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 - ⬜ Opcional, ficou de fora: filtro "sem gestor" nas listagens.
 - ⬜ Pendente: validação em homologação (a pivô é criada pelo `migrate` do `/update-system`).
 
-**Aceite:** não é possível criar Cadastro, Macroprocesso ou Processo sem gestor; o gestor aparece em tabelas; `$user->managedProcesses` funciona.
+**Aceite:** não é possível criar nem salvar Macroprocesso ou Processo sem gestor; o Cadastro aceita zero, um ou mais; o gestor aparece em tabelas; `$user->managedProcesses` funciona.
 
 ---
 
