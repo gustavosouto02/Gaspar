@@ -5,8 +5,8 @@ namespace App\Services;
 use App\Enums\FieldTypeEnum;
 use App\Models\CustomField;
 use App\Support\MoneyInput;
-use Filament\Forms\Components\Component;
 use Filament\Forms\Components\DatePicker;
+use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
@@ -24,7 +24,7 @@ use Filament\Forms\Components\Toggle;
  */
 class CustomFieldComponentFactory
 {
-    public function make(CustomField $field, string $statePath): Component
+    public function make(CustomField $field, string $statePath): Field
     {
         $component = match ($field->field_type) {
             FieldTypeEnum::TEXT => TextInput::make($statePath),
