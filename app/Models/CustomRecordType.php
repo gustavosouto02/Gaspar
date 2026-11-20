@@ -36,6 +36,15 @@ class CustomRecordType extends Model
         return (string) Str::uuid7();
     }
 
+    /**
+     * Gestores do cadastro (um ou mais; valem para todos os registros do cadastro)
+     */
+    public function managers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'custom_record_type_manager', 'custom_record_type_id', 'user_id')
+            ->withTimestamps();
+    }
+
     public function fields(): BelongsToMany
     {
         return $this->belongsToMany(CustomField::class, 'custom_record_type_custom_field', 'custom_record_type_id', 'custom_field_id')

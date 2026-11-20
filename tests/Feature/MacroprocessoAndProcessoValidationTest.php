@@ -29,12 +29,19 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
 
     private User $admin;
 
+    private User $gestor;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->admin = User::factory()->create([
             'user_role' => UserRoleEnum::ADMIN,
+            'is_active' => true,
+        ]);
+
+        $this->gestor = User::factory()->create([
+            'user_role' => UserRoleEnum::GESTOR,
             'is_active' => true,
         ]);
     }
@@ -49,6 +56,7 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
                 'acronym' => '',
                 'value_chain_function' => null,
                 'description' => '',
+                'manager_id' => null,
             ])
             ->call('create')
             ->assertHasFormErrors([
@@ -56,6 +64,7 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
                 'acronym' => 'required',
                 'value_chain_function' => 'required',
                 'description' => 'required',
+                'manager_id' => 'required',
             ]);
     }
 
@@ -69,6 +78,7 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
                 'acronym' => 'SUPRI',
                 'value_chain_function' => 'Suportar Processos',
                 'description' => 'Macroprocesso responsável pela aquisição e distribuição de insumos.',
+                'manager_id' => $this->gestor->id,
                 'is_active' => true,
             ])
             ->call('create')
@@ -78,6 +88,7 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
             'name' => 'Gestão de Suprimentos',
             'acronym' => 'SUPRI',
             'value_chain_function' => 'Suportar Processos',
+            'manager_id' => $this->gestor->id,
         ]);
 
         $macro = Macroprocess::where('acronym', 'SUPRI')->firstOrFail();
@@ -95,6 +106,7 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
                 'purpose' => null,
                 'sla_hours' => null,
                 'description' => '',
+                'manager_id' => null,
             ])
             ->call('create')
             ->assertHasFormErrors([
@@ -103,6 +115,7 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
                 'purpose' => 'required',
                 'sla_hours' => 'required',
                 'description' => 'required',
+                'manager_id' => 'required',
             ]);
     }
 
@@ -126,6 +139,7 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
                 'purpose' => 'Apoio',
                 'sla_hours' => 72,
                 'description' => 'Fluxo de aquisições até o limite de dispensa.',
+                'manager_id' => $this->gestor->id,
                 'is_active' => true,
             ])
             ->call('create')
@@ -136,6 +150,7 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
             'macroprocess_id' => $macro->id,
             'purpose' => 'Apoio',
             'sla_hours' => 72,
+            'manager_id' => $this->gestor->id,
         ]);
     }
 

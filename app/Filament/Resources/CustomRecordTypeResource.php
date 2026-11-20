@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\UserRoleEnum;
+use App\Filament\Resources\Concerns\HasManagerField;
 use App\Filament\Resources\CustomEntityResource\RelationManagers\FieldsRelationManager;
 use App\Filament\Resources\CustomRecordTypeResource\Pages;
 use App\Models\CustomRecordType;
@@ -15,6 +16,8 @@ use Illuminate\Support\Str;
 
 class CustomRecordTypeResource extends Resource
 {
+    use HasManagerField;
+
     protected static ?string $model = CustomRecordType::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
@@ -61,6 +64,8 @@ class CustomRecordTypeResource extends Resource
                     ->maxLength(255)
                     ->unique(ignoreRecord: true)
                     ->disabled(fn ($record) => $record?->is_system),
+                static::managersSelect()
+                    ->helperText('Vale para todos os registros deste cadastro. Pode haver mais de um gestor.'),
                 Forms\Components\Toggle::make('is_active')
                     ->label('Ativo')
                     ->default(true)
@@ -81,6 +86,10 @@ class CustomRecordTypeResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('slug')
                     ->searchable(),
+                Tables\Columns\TextColumn::make('managers.name')
+                    ->label('Gestores')
+                    ->badge()
+                    ->placeholder('Sem gestor'),
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Ativo')
                     ->boolean(),

@@ -10,6 +10,8 @@ use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -97,6 +99,61 @@ class User extends Authenticatable implements FilamentUser
     public function processRole(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(ProcessRole::class, 'process_role_id');
+    }
+
+    /**
+     * Cadastros dos quais o usuário é Gestor (um cadastro pode ter vários gestores)
+     */
+    public function managedRecordTypes(): BelongsToMany
+    {
+        return $this->belongsToMany(CustomRecordType::class, 'custom_record_type_manager', 'user_id', 'custom_record_type_id')
+            ->withTimestamps();
+    }
+
+    /**
+     * Macroprocessos dos quais o usuário é Gestor
+     */
+    public function managedMacroprocesses(): HasMany
+    {
+        return $this->hasMany(Macroprocess::class, 'manager_id');
+    }
+
+    /**
+     * Processos dos quais o usuário é Gestor
+     */
+    public function managedProcesses(): HasMany
+    {
+        return $this->hasMany(CustomEntity::class, 'manager_id');
+    }
+
+    /**
+     * Deixa o usuário sem nada sob sua gestão: macroprocessos e processos ficam
+     * "Sem gestor" (manager_id nulo) e ele sai da pivô dos cadastros.
+     * `manager_id` é anulável: a obrigatoriedade do gestor vale na criação.
+     * Itens na lixeira também são limpos (voltam sem gestor se restaurados) e a
+     * atualização passa pelo model para o log de atividade registrar o "Sem gestor".
+     */
+    public function clearManagement(): void
+    {
+        $this->managedMacroprocesses()->withTrashed()->get()->each->update(['manager_id' => null]);
+        $this->managedProcesses()->withTrashed()->get()->each->update(['manager_id' => null]);
+        $this->managedRecordTypes()->detach();
+    }
+
+    protected static function booted(): void
+    {
+        // Quem deixa de ser GESTOR ou é desativado deixa de gerenciar. O soft delete
+        // não dispara nullOnDelete/cascadeOnDelete da FK, então o vínculo é limpo aqui.
+        static::updated(function (User $user) {
+            $deixouDeSerGestor = $user->wasChanged('user_role') && $user->user_role !== UserRoleEnum::GESTOR;
+            $foiDesativado = $user->wasChanged('is_active') && ! $user->is_active;
+
+            if ($deixouDeSerGestor || $foiDesativado) {
+                $user->clearManagement();
+            }
+        });
+
+        static::deleted(fn (User $user) => $user->clearManagement());
     }
 
     public function processes(): \Illuminate\Database\Eloquent\Relations\BelongsToMany

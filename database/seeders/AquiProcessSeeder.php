@@ -115,6 +115,17 @@ class AquiProcessSeeder extends Seeder
             ]
         );
 
+        $gestor = User::updateOrCreate(
+            ['email' => 'gestor.aqui@gaspar.local'],
+            [
+                'name' => 'Gestor AQUI',
+                'password' => $defaultPassword,
+                'user_role' => UserRoleEnum::GESTOR,
+                'phone' => '(11) 98888-0007',
+                'is_active' => true,
+            ]
+        );
+
         // -------------------------------------------------------------
         // 2. CLIENTE E PROJETO
         // -------------------------------------------------------------
@@ -164,6 +175,7 @@ class AquiProcessSeeder extends Seeder
                 'description' => 'Aquisições, compras e contratação de serviços avulsos',
                 'value_chain_function' => 'Suportar Processos',
                 'is_active' => true,
+                'manager_id' => $gestor->id,
                 'created_by' => $admin->id,
             ]
         );
@@ -176,6 +188,7 @@ class AquiProcessSeeder extends Seeder
                 'purpose' => 'Apoio',
                 'sla_hours' => 120,
                 'is_active' => true,
+                'manager_id' => $gestor->id,
                 'created_by' => $admin->id,
             ]
         );

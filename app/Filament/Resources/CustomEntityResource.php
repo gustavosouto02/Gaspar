@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Resources\Concerns\HasManagerField;
 use App\Filament\Resources\CustomEntityResource\Pages;
 use App\Filament\Resources\CustomEntityResource\RelationManagers;
 use App\Models\CustomEntity;
@@ -16,6 +17,8 @@ use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class CustomEntityResource extends Resource
 {
+    use HasManagerField;
+
     protected static ?string $model = CustomEntity::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-cog-6-tooth';
@@ -59,6 +62,8 @@ class CustomEntityResource extends Resource
                     ->searchable(['name', 'acronym'])
                     ->preload()
                     ->required(),
+
+                static::managerSelect(),
 
                 Forms\Components\Toggle::make('is_active')
                     ->label('Situação (Ativo)')
@@ -116,6 +121,11 @@ class CustomEntityResource extends Resource
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Ativo')
                     ->boolean()
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('manager.name')
+                    ->label('Gestor')
+                    ->placeholder('Sem gestor')
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('creator.name')

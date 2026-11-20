@@ -23,12 +23,19 @@ class CustomRecordTypeValidationTest extends TestCase
 
     private User $admin;
 
+    private User $gestor;
+
     protected function setUp(): void
     {
         parent::setUp();
 
         $this->admin = User::factory()->create([
             'user_role' => UserRoleEnum::ADMIN,
+            'is_active' => true,
+        ]);
+
+        $this->gestor = User::factory()->create([
+            'user_role' => UserRoleEnum::GESTOR,
             'is_active' => true,
         ]);
     }
@@ -40,6 +47,7 @@ class CustomRecordTypeValidationTest extends TestCase
         Livewire::test(CreateCustomRecordType::class)
             ->set('data.name', '123456789012345') // 15 caracteres
             ->set('data.slug', 'teste-15-chars')
+            ->set('data.managers', [$this->gestor->id])
             ->call('create')
             ->assertHasNoFormErrors();
 
@@ -72,6 +80,7 @@ class CustomRecordTypeValidationTest extends TestCase
         Livewire::test(EditCustomRecordType::class, ['record' => $baseType->id])
             ->assertFormFieldIsEnabled('name')
             ->set('data.name', 'Parceiros')
+            ->set('data.managers', [$this->gestor->id])
             ->call('save')
             ->assertHasNoFormErrors();
 
@@ -124,6 +133,7 @@ class CustomRecordTypeValidationTest extends TestCase
 
         Livewire::test(EditCustomRecordType::class, ['record' => $legacyType->id])
             ->set('data.is_active', false)
+            ->set('data.managers', [$this->gestor->id])
             ->call('save')
             ->assertHasNoFormErrors();
 
