@@ -29,11 +29,12 @@ use Illuminate\Support\Collection;
  *   EXECUTOR ou foi desativado deixa de ver, mesmo ainda constando como gestor);
  * - qualquer outro caso (inclusive sem usuário autenticado): ninguém.
  *
- * Exceção por demanda: se o admin configurou acesso ao campo na matriz de
- * permissões (linha explícita da situação diferente de Oculto, do papel da
- * pessoa ou genérica), o campo é liberado nas telas da demanda naquela situação
- * (formulário, salvar, preenchimento e tramitação). Relatório, PDF e busca
- * não dependem da situação e continuam restritos a ADMIN e gestores.
+ * Exceção por demanda: se o admin liberou o campo na matriz de permissões
+ * (linha explícita da situação, do papel da pessoa ou genérica, marcada como
+ * Opcional ou Obrigatório), o campo é liberado nas telas da demanda naquela
+ * situação (formulário, salvar, preenchimento e tramitação). Somente leitura e
+ * Oculto mantêm o campo restrito. Relatório, PDF e busca não dependem da
+ * situação e continuam restritos a ADMIN e gestores.
  */
 class MoneyFieldVisibility
 {
@@ -96,8 +97,8 @@ class MoneyFieldVisibility
     /**
      * O admin liberou o campo de valor para esta pessoa nesta situação: existe
      * linha explícita na matriz (do papel dela no processo ou genérica) cuja
-     * permissão efetiva não é Oculto. A ausência de linha (fallback Somente
-     * leitura) não libera.
+     * permissão efetiva é Opcional ou Obrigatório. Somente leitura, Oculto e a
+     * ausência de linha (fallback Somente leitura) não liberam.
      */
     public function isReleasedByMatrix(?User $user, CustomField $field, ?CustomEntity $entity, ?ProcessStatus $status): bool
     {
@@ -124,8 +125,9 @@ class MoneyFieldVisibility
 
     /**
      * Linhas explícitas da matriz (já filtradas para o campo, a situação e a
-     * pessoa) que liberam o campo. Como na matriz, a linha do papel vence a
-     * genérica e, entre vários papéis, vale a mais permissiva.
+     * pessoa) que liberam o campo: só Opcional e Obrigatório liberam. Como na
+     * matriz, a linha do papel vence a genérica (papel Somente leitura com
+     * genérica Opcional não libera) e, entre vários papéis, vale a mais permissiva.
      *
      * @param  Collection<int, FieldPermission>  $rows
      */
@@ -139,7 +141,7 @@ class MoneyFieldVisibility
                 ->first()
             : $rows->whereNull('process_role_id')->first()?->permission;
 
-        return $effective !== null && $effective !== FieldPermissionEnum::HIDDEN;
+        return in_array($effective, [FieldPermissionEnum::OPTIONAL, FieldPermissionEnum::REQUIRED], true);
     }
 
     /**

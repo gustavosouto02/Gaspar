@@ -23,7 +23,8 @@ class TransitionDecisionEvaluator
     /**
      * Com `$actor`, um campo de valor vazio que ele não enxerga (e não foi liberado
      * para ele na matriz) não é citado como "precisa estar preenchido": a mensagem
-     * pede para aguardar o gestor do processo informá-lo.
+     * pede para aguardar o gestor do processo (ou um administrador) informá-lo e,
+     * se processo e macroprocesso estão sem gestor, avisa que só um administrador pode.
      *
      * @throws DemandTransitionException quando falta o "senão" ou um campo de entrada está vazio
      */
@@ -95,7 +96,12 @@ class TransitionDecisionEvaluator
 
         if ($isEmpty) {
             if ($actor && app(MoneyFieldVisibility::class)->isHiddenInDemand($actor, $field, $demand->entity, $demand->processStatus)) {
-                throw new DemandTransitionException("Aguardando o gestor do processo informar o campo \"{$field->name}\" para avaliar a transição condicional.");
+                $semGestor = $demand->entity->manager_id === null
+                    && $demand->entity->macroprocess?->manager_id === null;
+
+                throw new DemandTransitionException($semGestor
+                    ? "O processo está sem gestor: só um administrador pode informar o campo \"{$field->name}\" para avaliar a transição condicional."
+                    : "Aguardando o gestor do processo ou um administrador informar o campo \"{$field->name}\" para avaliar a transição condicional.");
             }
 
             throw new DemandTransitionException("O campo \"{$field->name}\" precisa estar preenchido para avaliar a transição condicional.");

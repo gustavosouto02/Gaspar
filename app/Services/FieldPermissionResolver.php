@@ -17,7 +17,7 @@ use App\Models\User;
  * (READONLY); ADMIN nunca fica abaixo de OPTIONAL.
  *
  * Campos de valor (CURRENCY) ficam ocultos para quem não é admin nem gestor do
- * dono do campo, a menos que a matriz tenha linha explícita liberando o campo.
+ * dono do campo, a menos que a matriz libere o campo com linha explícita Opcional ou Obrigatório.
  */
 class FieldPermissionResolver
 {
@@ -70,8 +70,8 @@ class FieldPermissionResolver
             }
 
             // Campos de valor só aparecem para ADMIN e para o gestor do dono do campo,
-            // salvo se o admin liberou o campo na matriz (linha explícita diferente de
-            // Oculto): aí vale a permissão da matriz. Sem liberação o campo vira HIDDEN:
+            // salvo se o admin liberou o campo na matriz (linha explícita Opcional ou
+            // Obrigatório): aí vale a permissão da matriz. Sem liberação o campo vira HIDDEN:
             // o formulário o oculta, o save descarta o payload e a tramitação não o cobra.
             if ($moneyVisibility->isHiddenFor($user, $field, $entity) && ! $moneyVisibility->rowsRelease($fieldRows)) {
                 $permission = FieldPermissionEnum::HIDDEN;

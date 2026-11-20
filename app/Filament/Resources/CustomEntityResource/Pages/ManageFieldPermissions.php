@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\CustomEntityResource\Pages;
 
 use App\Enums\FieldPermissionEnum;
-use App\Enums\FieldTypeEnum;
 use App\Enums\UserRoleEnum;
 use App\Filament\Resources\CustomEntityResource;
 use App\Models\FieldPermission;
@@ -118,12 +117,7 @@ class ManageFieldPermissions extends Page
      */
     public function save(): void
     {
-        $currencyFieldIds = $this->fields
-            ->where('field_type', FieldTypeEnum::CURRENCY)
-            ->pluck('id')
-            ->all();
-
-        DB::transaction(function () use ($currencyFieldIds) {
+        DB::transaction(function () {
             foreach ($this->matrix as $fieldId => $byStatus) {
                 foreach ($byStatus as $statusId => $permission) {
                     $keys = [
@@ -132,15 +126,6 @@ class ManageFieldPermissions extends Page
                         'process_status_id' => $statusId,
                         'process_role_id'   => $this->roleId,
                     ];
-
-                    // Campo de valor: linha explícita diferente de Oculto libera o campo a
-                    // quem não é gestor. Como a grade grava todas as células, "Somente
-                    // leitura" (o padrão) não é gravado, senão liberaria o valor a todos.
-                    if (in_array($fieldId, $currencyFieldIds, true) && in_array($permission, ['', FieldPermissionEnum::READONLY->value], true)) {
-                        FieldPermission::where($keys)->get()->each->delete();
-
-                        continue;
-                    }
 
                     FieldPermission::updateOrCreate(
                         $keys,
