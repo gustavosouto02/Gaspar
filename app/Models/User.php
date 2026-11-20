@@ -130,11 +130,13 @@ class User extends Authenticatable implements FilamentUser
      * Deixa o usuário sem nada sob sua gestão: macroprocessos e processos ficam
      * "Sem gestor" (manager_id nulo) e ele sai da pivô dos cadastros.
      * `manager_id` é anulável: a obrigatoriedade do gestor vale na criação.
+     * Itens na lixeira também são limpos (voltam sem gestor se restaurados) e a
+     * atualização passa pelo model para o log de atividade registrar o "Sem gestor".
      */
     public function clearManagement(): void
     {
-        $this->managedMacroprocesses()->update(['manager_id' => null]);
-        $this->managedProcesses()->update(['manager_id' => null]);
+        $this->managedMacroprocesses()->withTrashed()->get()->each->update(['manager_id' => null]);
+        $this->managedProcesses()->withTrashed()->get()->each->update(['manager_id' => null]);
         $this->managedRecordTypes()->detach();
     }
 
