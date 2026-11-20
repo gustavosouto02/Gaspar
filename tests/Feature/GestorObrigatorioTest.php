@@ -91,22 +91,23 @@ class GestorObrigatorioTest extends TestCase
         ]);
     }
 
-    public function test_cadastro_exige_ao_menos_um_gestor_na_criacao(): void
+    public function test_cadastro_pode_ser_criado_sem_gestor(): void
     {
         $this->actingAs($this->admin);
 
-        foreach ([null, []] as $vazio) {
+        foreach ([null, []] as $i => $vazio) {
             Livewire::test(CreateCustomRecordType::class)
                 ->fillForm([
-                    'name' => 'Produtos',
-                    'slug' => 'produtos',
+                    'name' => "Produtos {$i}",
+                    'slug' => "produtos-{$i}",
                     'managers' => $vazio,
                 ])
                 ->call('create')
-                ->assertHasFormErrors(['managers' => 'required']);
-        }
+                ->assertHasNoFormErrors();
 
-        $this->assertDatabaseMissing('custom_record_types', ['slug' => 'produtos']);
+            $tipo = CustomRecordType::where('slug', "produtos-{$i}")->firstOrFail();
+            $this->assertCount(0, $tipo->managers()->get());
+        }
     }
 
     public function test_cadastro_eh_salvo_com_um_gestor(): void
@@ -543,7 +544,7 @@ class GestorObrigatorioTest extends TestCase
         $this->assertGestorSemVinculos($macro, $processo, $tipo, $outroGestor);
     }
 
-    public function test_registros_sem_gestor_abrem_e_salvam_na_edicao_sem_escolher_gestor(): void
+    public function test_macroprocesso_e_processo_sem_gestor_exigem_gestor_na_edicao_e_cadastro_nao(): void
     {
         $this->actingAs($this->admin);
         [$macro, $processo, $tipo] = $this->cenarioDeGestao();
@@ -553,17 +554,31 @@ class GestorObrigatorioTest extends TestCase
             ->assertFormSet(['manager_id' => null])
             ->fillForm(['name' => 'Macro Renomeado'])
             ->call('save')
-            ->assertHasNoFormErrors();
-        $this->assertSame('Macro Renomeado', $macro->fresh()->name);
-        $this->assertNull($macro->fresh()->manager_id);
+            ->assertHasFormErrors(['manager_id' => 'required']);
+        $this->assertNotSame('Macro Renomeado', $macro->fresh()->name);
 
         Livewire::test(EditCustomEntity::class, ['record' => $processo->id])
             ->fillForm(['name' => 'Processo Renomeado'])
             ->call('save')
-            ->assertHasNoFormErrors();
-        $this->assertSame('Processo Renomeado', $processo->fresh()->name);
-        $this->assertNull($processo->fresh()->manager_id);
+            ->assertHasFormErrors(['manager_id' => 'required']);
+        $this->assertNotSame('Processo Renomeado', $processo->fresh()->name);
 
+        // Com um gestor ativo, a edição salva
+        $novo = User::factory()->create(['user_role' => UserRoleEnum::GESTOR, 'is_active' => true]);
+        Livewire::test(EditMacroprocess::class, ['record' => $macro->id])
+            ->fillForm(['name' => 'Macro Renomeado', 'manager_id' => $novo->id])
+            ->call('save')
+            ->assertHasNoFormErrors();
+        $this->assertSame($novo->id, $macro->fresh()->manager_id);
+
+        Livewire::test(EditCustomEntity::class, ['record' => $processo->id])
+            ->fillForm(['name' => 'Processo Renomeado', 'manager_id' => $novo->id])
+            ->call('save')
+            ->assertHasNoFormErrors();
+        $this->assertSame($novo->id, $processo->fresh()->manager_id);
+        $this->assertSame('Processo Renomeado', $processo->fresh()->name);
+
+        // Cadastro segue opcional: salva sem nenhum gestor
         $tipo->managers()->detach();
         Livewire::test(EditCustomRecordType::class, ['record' => $tipo->id])
             ->fillForm(['name' => 'Renomeado'])
@@ -573,7 +588,7 @@ class GestorObrigatorioTest extends TestCase
         $this->assertCount(0, $tipo->managers()->get());
     }
 
-    public function test_edicao_aceita_remover_o_gestor_de_um_registro_que_tinha(): void
+    public function test_edicao_nao_deixa_remover_o_gestor_de_macroprocesso_nem_de_processo(): void
     {
         $this->actingAs($this->admin);
         $macro = $this->macroprocesso(['manager_id' => $this->gestor->id]);
@@ -581,9 +596,9 @@ class GestorObrigatorioTest extends TestCase
         Livewire::test(EditMacroprocess::class, ['record' => $macro->id])
             ->fillForm(['manager_id' => null])
             ->call('save')
-            ->assertHasNoFormErrors();
+            ->assertHasFormErrors(['manager_id' => 'required']);
 
-        $this->assertNull($macro->fresh()->manager_id);
+        $this->assertSame($this->gestor->id, $macro->fresh()->manager_id);
     }
 
     public function test_gestor_que_virou_executor_por_fora_do_model_sai_da_pivo_ao_salvar_o_cadastro(): void

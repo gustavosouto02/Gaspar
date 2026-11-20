@@ -12,9 +12,9 @@ Legenda: ✅ feito · 🔄 em andamento (PR aberto) · ⬜ a fazer
 | Item | Dev | Status | Observação |
 |---|---|---|---|
 | PR #39 (limite de 15 caracteres no cadastro) | Gustavo | ✅ | Mergeado na `develop` junto com os PRs #31, #32, #34, #35, #40, #41, #42 e #43. |
-| R0 — `CustomFieldComponentFactory` | Filipi (feito por Gustavo) | 🔄 | PR aberto na branch `refactor/custom-field-component-factory` (sem mudança de comportamento; a obrigatoriedade e a permissão ficam nos chamadores). Filipi pode partir da `develop` para o T4 depois do merge. |
-| T1 — Gestor obrigatório | Gustavo | ✅ | Mergeado na `develop` (PR #44). Falta homologação. |
-| T2 — Visibilidade de valores | Gustavo | ✅ | Mergeado na `develop` (PR #45). Inclui o padrão de moeda `1.000,00`. Correção de escopo (só consultas e relatórios, formulário livre) na branch `fix/money-visibility-only-queries`, PR #47. Falta homologação. |
+| R0 — `CustomFieldComponentFactory` | Filipi (feito por Gustavo) | ✅ | Mergeado na `develop` (PR #46), sem mudança de comportamento; a obrigatoriedade e a permissão ficam nos chamadores. Filipi já pode partir da `develop` para o T4. |
+| T1 — Gestor obrigatório | Gustavo | ✅ | Mergeado na `develop` (PRs #44 e #48). Falta homologação. |
+| T2 — Visibilidade de valores | Gustavo | ✅ | Mergeado na `develop` (PR #45). Inclui o padrão de moeda `1.000,00`. Correção de escopo (só consultas e relatórios, formulário livre) mergeada na `develop` (PR #47). Falta homologação e validar com o PO a visibilidade nas telas de visualização. |
 | T3 — Cadeia de Valor | Gustavo | ⬜ | |
 | T4 — Campo Vínculo | Filipi | ⬜ | Depende do R0. |
 | T5 — Relatório de Cadastros | Gustavo | ⬜ | Depende de T2 e do formatter do T4. |
@@ -22,7 +22,7 @@ Legenda: ✅ feito · 🔄 em andamento (PR aberto) · ⬜ a fazer
 
 **Ajustes de regra confirmados pelo PO em 17/11/2026** (já refletidos nas seções abaixo):
 - O gestor de Macroprocesso e de Processo precisa ter o perfil `GESTOR` no sistema.
-- **Cadastro pode ter um ou mais gestores** (todos com perfil `GESTOR`); Macroprocesso e Processo têm exatamente um.
+- **Cadastro pode ter zero, um ou mais gestores** (todos com perfil `GESTOR`; gestor opcional no formulário); Macroprocesso e Processo têm exatamente um, obrigatório na criação e na edição.
 - O gestor do Macroprocesso também enxerga os valores dos processos desse macroprocesso (T2).
 
 ---
@@ -31,7 +31,7 @@ Legenda: ✅ feito · 🔄 em andamento (PR aberto) · ⬜ a fazer
 
 | # | Task | Decisão |
 |---|---|---|
-| T1 | Gestor obrigatório | **Todo** Macroprocesso e Processo tem exatamente um Gestor; **todo Cadastro tem um ou mais Gestores**. Todos escolhidos entre usuários ativos com perfil `GESTOR`. O usuário Gestor passa a ter a relação inversa com tudo que gerencia. |
+| T1 | Gestor obrigatório | **Todo** Macroprocesso e Processo tem exatamente um Gestor (obrigatório no formulário, na criação e na edição); **o Cadastro tem zero, um ou mais Gestores** (opcional). Todos escolhidos entre usuários ativos com perfil `GESTOR`. O usuário Gestor passa a ter a relação inversa com tudo que gerencia. |
 | T2 | Visibilidade de valores | Regra do PO: *"Permitir a visualização de campos de Valores em consultas e relatórios apenas para Gestor e Administrador"*. Em **consultas e relatórios** (relatório de demandas, PDF, busca e listagens dos cadastros), campos de valor (`CURRENCY`) só aparecem para `ADMIN` e para o Gestor **do dono do campo**: o Processo (também o gestor do Macroprocesso ao qual ele pertence) ou o Cadastro (qualquer um dos seus gestores). **Formulários e telas de edição/visualização não são restritos**: quem pode preencher a demanda ou o registro vê e edita o valor. |
 | T3 | Cadeia de Valor | Visualização no Painel de Controle no desenho da cadeia de valor de Porter (apoio em faixas, primárias em colunas, seta de Margens), com os macroprocessos dentro de cada bloco e link para cada um. A "função na cadeia de valor" do Macroprocesso passa a seguir esses blocos. |
 | T4 | Campo Vínculo | Novo **tipo de campo** "Vínculo com cadastro". O campo é criado uma vez, aponta para uma origem (ex.: cadastro "Equipamentos") e pode ser anexado a processos (formulário da demanda) e a cadastros. Seleção única. |
@@ -111,15 +111,15 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 
 ---
 
-### T1 — Gestor obrigatório em Cadastro, Macroprocesso e Processo (Gustavo, ~1 dia) ✅
+### T1 — Gestor obrigatório em Macroprocesso e Processo; opcional no Cadastro (Gustavo, ~1 dia) ✅
 
-> **Status:** mergeado na `develop` (PR #44). Pendente: homologação.
-> **Mudança em relação ao plano original:** o Cadastro passou a ter **N gestores** (tabela pivô), por resposta do PO em 17/11/2026. Macroprocesso e Processo seguem com 1.
+> **Status:** mergeado na `develop` (PR #44); a regra de obrigatoriedade na edição e o Cadastro opcional vieram no PR #48. Pendente: homologação.
+> **Mudança em relação ao plano original:** o Cadastro passou a ter **N gestores** (tabela pivô), por resposta do PO em 17/11/2026. Macroprocesso e Processo seguem com 1 (obrigatório); o gestor do Cadastro é opcional.
 
 **Banco**
 - [x] Uma migration (`2026_11_19_150000_add_managers_to_record_types_macroprocesses_and_entities`):
   - `manager_id` (uuid, **nullable**, FK para `users`, `nullOnDelete`) em `macroprocesses` e `custom_entities`;
-  - pivô `custom_record_type_manager` (`custom_record_type_id`, `user_id`, unique composto, `cascadeOnDelete`) para os Cadastros, que têm um ou mais gestores (cobre cadastros base e criados pelo admin).
+  - pivô `custom_record_type_manager` (`custom_record_type_id`, `user_id`, unique composto, `cascadeOnDelete`) para os Cadastros, que têm zero, um ou mais gestores (cobre cadastros base e criados pelo admin).
 - [x] Nullable no banco porque já existem registros; a obrigatoriedade é do formulário.
 - [x] `down()` reversível (testado com migrate, rollback e migrate).
 - Usar timestamp de migration **distinto** do que o Filipi usar na semana, para não haver colisão de ordenação.
@@ -132,7 +132,7 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 **Formulários e telas**
 - [x] Trait `App\Filament\Resources\Concerns\HasManagerField`, com dois seletores que só listam usuários `GESTOR` ativos e validam no servidor (`Rule::exists`):
   - `managerSelect()` (único, obrigatório) em `MacroprocessResource` e `CustomEntityResource`;
-  - `managersSelect()` (múltiplo, `minItems(1)`) em `CustomRecordTypeResource`.
+  - `managersSelect()` (múltiplo, opcional) em `CustomRecordTypeResource`.
 - [x] Coluna "Gestor" / "Gestores" nas tabelas.
 - [x] Infolist do Macroprocesso. `CustomRecordTypeResource` não tem infolist (só formulário e tabela) e o Processo mostra o gestor no formulário desabilitado da `ViewCustomEntity`.
 - [x] `UserResource` (visualização do usuário Gestor): mostra o que ele gerencia.
@@ -140,15 +140,15 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 **Seeder e testes**
 - [x] `AquiProcessSeeder`: cria o usuário `gestor.aqui@gaspar.local` e o atribui ao macroprocesso e ao processo do AQUI.
 - [x] Ajustados `MacroprocessoAndProcessoValidationTest`, `CustomRecordTypeValidationTest` e `ProcessoAquiE2ETest`.
-- [x] Novos testes em `GestorObrigatorioTest`: gestor obrigatório nos três formulários; Cadastro aceita vários e Macroprocesso/Processo só um; seletor lista só `GESTOR` ativos; relações inversas do `User`; excluir, desativar ou trocar o perfil de quem gerencia limpa o vínculo ("Sem gestor"); edição sem gestor é permitida; o gestor que deixou de ser GESTOR/ativo por fora do model sai da pivô ao salvar o cadastro.
+- [x] Novos testes em `GestorObrigatorioTest`: gestor obrigatório em Macroprocesso e Processo (criação e edição); Cadastro opcional e aceita vários, e Macroprocesso/Processo só um; seletor lista só `GESTOR` ativos; relações inversas do `User`; excluir, desativar ou trocar o perfil de quem gerencia limpa o vínculo ("Sem gestor"); o gestor que deixou de ser GESTOR/ativo por fora do model sai da pivô ao salvar o cadastro.
 
 **Pontos de atenção**
-- Registros antigos (inclusive os 5 cadastros base) ficam sem gestor até serem editados; o gestor é obrigatório na **criação**; na edição o campo pode ficar vazio ("Sem gestor"). A listagem mostra "Sem gestor".
+- Registros antigos (inclusive os 5 cadastros base) ficam sem gestor até serem editados; no Macroprocesso e no Processo o gestor é obrigatório na **criação e na edição**: um registro que ficou "Sem gestor" (ex.: o gestor foi desativado) só salva depois de escolher um gestor. No Cadastro o gestor é **opcional** (pode salvar sem nenhum). A listagem mostra "Sem gestor".
 - Decisão da review: existe o estado "Sem gestor". Excluir (soft delete), desativar ou tirar o perfil GESTOR de um usuário limpa o que ele gerencia: `manager_id` vira nulo em macroprocesso e processo (coluna anulável) e ele sai da pivô dos cadastros. Isso é feito nos eventos `updated`/`deleted` do `User` (`clearManagement()`), porque `nullOnDelete`/`cascadeOnDelete` não disparam no soft delete. Sem gestor, só o admin vê valores nas consultas e relatórios (ver T2).
 - ⬜ Opcional, ficou de fora: filtro "sem gestor" nas listagens.
 - ⬜ Pendente: validação em homologação (a pivô é criada pelo `migrate` do `/update-system`).
 
-**Aceite:** não é possível criar Cadastro, Macroprocesso ou Processo sem gestor; o gestor aparece em tabelas; `$user->managedProcesses` funciona.
+**Aceite:** não é possível criar nem salvar Macroprocesso ou Processo sem gestor; o Cadastro aceita zero, um ou mais; o gestor aparece em tabelas; `$user->managedProcesses` funciona.
 
 ---
 
@@ -317,7 +317,7 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 
 ## 6. Perguntas abertas (responder cedo; nenhuma bloqueia a segunda-feira)
 
-1. **T1 — escopo do gestor do cadastro:** o gestor de um cadastro vale para todos os registros desse cadastro? (Assumido: sim.): SIM. **Complemento (17/11):** o cadastro pode ter **um ou mais** gestores; Macroprocesso e Processo têm um só. Todos precisam ter o perfil `GESTOR`.
+1. **T1 — escopo do gestor do cadastro:** o gestor de um cadastro vale para todos os registros desse cadastro? (Assumido: sim.): SIM. **Complemento (17/11):** o cadastro pode ter **um ou mais** gestores; Macroprocesso e Processo têm um só, obrigatório. Todos precisam ter o perfil `GESTOR`. **Ajuste (20/11):** o gestor do Cadastro passa a ser opcional.
 2. **T2 — gestor de macroprocesso:** ele também enxerga os valores dos processos do seu macroprocesso? (Assumido: não; só o gestor do próprio processo.) : SIM
 3. **T3 — rótulos:** os 9 nomes de faixas/colunas da imagem são definitivos ou só exemplo? (Define o enum.) : Só exemplo, vamos utilizar o enum do sistema pra montar a imagem
 4. **T3 — dados antigos:** confirmar que zerar `value_chain_function` dos macroprocessos existentes e reclassificar manualmente é aceitável. : SIM

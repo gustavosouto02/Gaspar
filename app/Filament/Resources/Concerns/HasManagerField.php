@@ -5,7 +5,6 @@ namespace App\Filament\Resources\Concerns;
 use App\Enums\UserRoleEnum;
 use App\Models\User;
 use Filament\Forms\Components\Select;
-use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Rule;
@@ -13,8 +12,8 @@ use Illuminate\Validation\Rule;
 trait HasManagerField
 {
     /**
-     * Seletor do Gestor: só lista usuários ativos com perfil GESTOR. Obrigatório na
-     * criação; na edição pode ficar vazio ("Sem gestor", ex.: o gestor foi desativado).
+     * Seletor do Gestor (Macroprocesso e Processo): só lista usuários ativos com perfil
+     * GESTOR. Obrigatório e único, na criação e na edição.
      */
     protected static function managerSelect(): Select
     {
@@ -29,7 +28,7 @@ trait HasManagerField
             )
             ->searchable()
             ->preload()
-            ->required(fn ($livewire) => $livewire instanceof CreateRecord)
+            ->required()
             ->rules([
                 // Gestor único: rejeita payload com lista de gestores
                 'string',
@@ -46,8 +45,8 @@ trait HasManagerField
     }
 
     /**
-     * Seletor de Gestores (um ou mais): só lista usuários ativos com perfil GESTOR.
-     * Mínimo 1 na criação; na edição pode ficar vazio ("Sem gestor").
+     * Seletor de Gestores do Cadastro (zero, um ou mais): só lista usuários ativos com
+     * perfil GESTOR. Opcional.
      */
     protected static function managersSelect(): Select
     {
@@ -76,8 +75,6 @@ trait HasManagerField
             ->saveRelationshipsUsing(static fn (Model $record, ?array $state) => $record->managers()->sync($state ?? []))
             ->searchable()
             ->preload()
-            ->required(fn ($livewire) => $livewire instanceof CreateRecord)
-            ->minItems(fn ($livewire) => $livewire instanceof CreateRecord ? 1 : 0)
             ->nestedRecursiveRules([
                 Rule::exists('users', 'id')
                     ->where('user_role', UserRoleEnum::GESTOR->value)
@@ -85,8 +82,6 @@ trait HasManagerField
                     ->whereNull('deleted_at'),
             ])
             ->validationMessages([
-                'required' => 'Informe ao menos um gestor.',
-                'min' => 'Informe ao menos um gestor.',
                 'exists' => 'Selecione apenas usuários Gestor ativos.',
             ]);
     }
