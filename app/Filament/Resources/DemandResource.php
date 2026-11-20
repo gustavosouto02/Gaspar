@@ -17,6 +17,8 @@ use App\Models\Project;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Services\FieldPermissionResolver;
+use App\Services\MoneyFieldVisibility;
+use App\Support\MoneyInput;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -339,14 +341,22 @@ class DemandResource extends Resource
             $permissions = app(FieldPermissionResolver::class)->resolve($entity, $statusRecord, $user);
         }
 
+        $moneyVisibility = app(MoneyFieldVisibility::class);
+
         $schema = [];
         foreach ($fields as $field) {
+            // Sem situação resolvida (ex.: criação com ?entity_id= na URL) não há matriz
+            // a consultar: o campo de valor só aparece para quem pode vê-lo
+            if ($permissions === null && $moneyVisibility->isHiddenFor($user ?? auth()->user(), $field, $entity)) {
+                continue;
+            }
+
             $key = "field_data.{$field->key}";
             $component = match ($field->field_type) {
                 FieldTypeEnum::TEXT => Forms\Components\TextInput::make($key),
                 FieldTypeEnum::TEXTAREA => Forms\Components\Textarea::make($key)->rows(3),
                 FieldTypeEnum::NUMBER => Forms\Components\TextInput::make($key)->numeric(),
-                FieldTypeEnum::CURRENCY => \App\Support\MoneyInput::make($key),
+                FieldTypeEnum::CURRENCY => MoneyInput::make($key),
                 FieldTypeEnum::DATE => Forms\Components\DatePicker::make($key),
                 FieldTypeEnum::SELECT => Forms\Components\Select::make($key)
                     ->options($field->options_json

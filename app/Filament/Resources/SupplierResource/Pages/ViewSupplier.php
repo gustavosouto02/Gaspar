@@ -2,13 +2,14 @@
 
 namespace App\Filament\Resources\SupplierResource\Pages;
 
+use App\Filament\Resources\Concerns\HidesMoneyValuesOnFill;
 use App\Filament\Resources\SupplierResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ViewRecord;
 
 class ViewSupplier extends ViewRecord
 {
-    use \App\Filament\Resources\Concerns\HidesMoneyValuesOnFill;
+    use HidesMoneyValuesOnFill;
 
     protected static string $resource = SupplierResource::class;
 

@@ -246,6 +246,9 @@ class StatusTransitionsRelationManager extends RelationManager
                 ->label('Campo')
                 ->options($fieldOptions)
                 ->required()
+                ->helperText(fn (Get $get) => $fieldType($get) === FieldTypeEnum::CURRENCY
+                    ? 'Campo de valor: só administradores, gestores e papéis liberados na matriz de permissões enxergam e preenchem. Se quem tramita não tiver acesso e o valor estiver vazio, a transição aguarda o gestor do processo informá-lo.'
+                    : null)
                 ->live()
                 ->afterStateUpdated(function (Set $set) {
                     $set('operator', null);

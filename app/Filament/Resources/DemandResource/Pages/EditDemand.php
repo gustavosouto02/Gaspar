@@ -60,6 +60,7 @@ class EditDemand extends EditRecord
             ->get();
 
         $entity = $this->getRecord()->entity;
+        $status = $this->getRecord()->processStatus;
         $moneyVisibility = app(MoneyFieldVisibility::class);
 
         foreach ($fieldValues as $fv) {
@@ -68,8 +69,9 @@ class EditDemand extends EditRecord
             }
 
             // O valor de campo de valor nem chega ao navegador (o estado do
-            // Livewire é serializado) para quem não pode vê-lo
-            if ($moneyVisibility->isHiddenFor(auth()->user(), $fv->customField, $entity)) {
+            // Livewire é serializado) para quem não pode vê-lo (a liberação
+            // pela matriz vale para a situação atual da demanda)
+            if ($moneyVisibility->isHiddenInDemand(auth()->user(), $fv->customField, $entity, $status)) {
                 continue;
             }
 

@@ -25,13 +25,18 @@ class MoneyInput
             ->formatStateUsing(fn ($state) => self::format($state))
             ->dehydrateStateUsing(fn ($state) => self::normalize($state))
             ->rule(fn () => function (string $attribute, mixed $value, Closure $fail): void {
-                if (filled($value) && self::normalize($value) === null) {
+                if (is_array($value) || (filled($value) && self::normalize($value) === null)) {
                     $fail('Informe um valor válido, por exemplo 1.000,00.');
                 }
             })
             // Ao sair do campo, completa as casas decimais (1.000 vira 1.000,00)
             ->live(onBlur: true)
-            ->afterStateUpdated(fn ($state, TextInput $component) => $component->state(self::format($state)));
+            // (payload não escalar fica como veio para a regra acima rejeitar)
+            ->afterStateUpdated(function ($state, TextInput $component): void {
+                if (is_scalar($state)) {
+                    $component->state(self::format($state));
+                }
+            });
     }
 
     /**
@@ -40,7 +45,8 @@ class MoneyInput
      */
     public static function normalize(mixed $value): ?string
     {
-        if ($value === null) {
+        // Payload adulterado (array/objeto) não é valor: vira erro de validação, não 500
+        if (! is_scalar($value)) {
             return null;
         }
 
@@ -75,7 +81,7 @@ class MoneyInput
         $normalizado = self::normalize($value);
 
         if ($normalizado === null) {
-            return $value === null ? null : (string) $value;
+            return is_scalar($value) ? (string) $value : null;
         }
 
         return number_format((float) $normalizado, 2, ',', '.');

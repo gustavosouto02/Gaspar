@@ -12,6 +12,7 @@ use App\Models\CustomField;
 use App\Models\Demand;
 use App\Models\SavedReport;
 use App\Services\MoneyFieldVisibility;
+use App\Support\MoneyInput;
 use Filament\Forms;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
@@ -156,8 +157,8 @@ class DemandReports extends Page implements HasForms, HasTable
                         if (blank($fv?->value)) {
                             return '—';
                         }
-                        if ($field->field_type === FieldTypeEnum::CURRENCY && is_numeric($fv->value)) {
-                            return 'R$ '.number_format((float) $fv->value, 2, ',', '.');
+                        if ($field->field_type === FieldTypeEnum::CURRENCY) {
+                            return MoneyInput::display($fv->value);
                         }
 
                         return $fv->value;

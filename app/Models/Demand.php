@@ -459,6 +459,39 @@ class Demand extends Model
     }
 
     /**
+     * Busca nos campos adicionais (`custom_data`) de um cadastro base. Quando o
+     * usuário não pode ver os valores de moeda do cadastro, a busca deixa de usar
+     * o JSON inteiro e olha só as chaves visíveis (não-moeda), para não achar a
+     * demanda por um valor que ele não enxerga.
+     */
+    protected static function searchCustomData($query, string $modelClass, string $search): void
+    {
+        $type = CustomRecordType::where('model_class', $modelClass)
+            ->where('is_system', true)
+            ->with('fields')
+            ->first();
+
+        $user = auth()->user();
+        $moneyVisibility = app(MoneyFieldVisibility::class);
+
+        $hasHiddenMoney = $type && $type->fields->contains(
+            fn ($field) => $moneyVisibility->isHiddenFor($user, $field, $type)
+        );
+
+        if (! $hasHiddenMoney) {
+            $query->orWhere('custom_data', 'like', "%{$search}%");
+
+            return;
+        }
+
+        foreach ($type->fields as $field) {
+            if ($field->field_type !== FieldTypeEnum::CURRENCY) {
+                $query->orWhere("custom_data->{$field->key}", 'like', "%{$search}%");
+            }
+        }
+    }
+
+    /**
      * Escopo para pesquisa global em múltiplos parâmetros da demanda:
      * - Título e descrição
      * - Código ID (com ou sem hashtag)
@@ -507,14 +540,14 @@ class Demand extends Model
 
             // 5. Cliente (Nome e campos adicionais custom_data)
             $q->orWhereHas('client', function ($cq) use ($search) {
-                $cq->where('name', 'like', "%{$search}%")
-                    ->orWhere('custom_data', 'like', "%{$search}%");
+                $cq->where('name', 'like', "%{$search}%");
+                static::searchCustomData($cq, Client::class, $search);
             });
 
             // 6. Projeto (Nome, Número e campos adicionais custom_data)
             $q->orWhereHas('project', function ($pq) use ($search, $clean) {
-                $pq->where('name', 'like', "%{$search}%")
-                    ->orWhere('custom_data', 'like', "%{$search}%");
+                $pq->where('name', 'like', "%{$search}%");
+                static::searchCustomData($pq, Project::class, $search);
                 if ($clean !== '') {
                     $pq->orWhere('number', 'like', "%{$clean}%");
                 }

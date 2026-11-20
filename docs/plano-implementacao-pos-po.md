@@ -160,23 +160,31 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 **Regra central**
 - [x] `app/Services/MoneyFieldVisibility.php` com `canView(User $user, Model $owner): bool`:
   - `ADMIN` → `true`.
+  - Quem não é `GESTOR` **ativo** → `false` (gestor que virou EXECUTOR ou foi desativado deixa de ver, mesmo se ainda constar como gestor).
   - `$owner` é `CustomEntity` → `$owner->manager_id === $user->id` **ou** o gestor do macroprocesso ao qual ele pertence (resposta do PO).
-  - `$owner` é `CustomRecordType` → qualquer um dos gestores do cadastro. Para os cadastros base (`custom_data`), o tipo é resolvido por `model_class` (`canViewForModel`).
-  - Caso contrário (inclusive sem usuário) → `false`.
+  - `$owner` é `CustomRecordType` → qualquer um dos gestores do cadastro. Para os cadastros base (`custom_data`), o tipo é resolvido por `model_class` (`CustomRecordType::where('model_class', …)`, como `HasCustomFields::getCustomRecordType()`).
+  - Caso contrário (inclusive sem usuário e registro "Sem gestor") → `false`: sem gestor, só o admin (e quem tiver liberação na matriz) vê.
+- [x] **Liberação por matriz (decisão do usuário):** se o admin configurou acesso na matriz de permissões de campos, o campo de valor fica liberado para aquela pessoa **naquela situação**, mesmo sem ser gestora. "Configurou acesso" = existe linha **explícita** de `FieldPermission` (entidade, situação, campo), do papel da pessoa (`ProcessMember`) ou genérica, cuja permissão efetiva (a linha do papel vence a genérica, entre papéis vale a mais permissiva) não é `HIDDEN`. O fallback `READONLY` por ausência de linha **não** libera. Nesse caso o resolver devolve a permissão da matriz (a pessoa vê e, se `OPTIONAL`/`REQUIRED`, edita) e valem formulário, save, preenchimento, tramitação e gateway. Relatório, PDF e busca não dependem da situação e continuam só para admin e gestores.
+- [x] A grade de permissões grava todas as células, inclusive o padrão `READONLY`; para campo de valor, `READONLY` deixou de ser gravado (senão liberaria o valor a todos) e uma migration remove as linhas `READONLY` antigas desses campos. Na prática, só `OPTIONAL`/`REQUIRED` liberam pela tela.
 - [x] `isHiddenFor()`, `viewableEntityIds()` (usado pela busca) e `preserveHiddenValues()` / `stripHiddenFromFormData()` (proteção de dados dos cadastros).
 
 **Pontos de aplicação**
 
 | Lugar | Mudança | Status |
 |---|---|---|
-| `FieldPermissionResolver::resolve()` | Campos `CURRENCY` viram `HIDDEN` para quem não pode ver (cobre o formulário da demanda, o descarte no save e a obrigatoriedade na tramitação). | [x] |
+| `FieldPermissionResolver::resolve()` | Campos `CURRENCY` viram `HIDDEN` para quem não pode ver e não foi liberado na matriz (cobre o formulário da demanda, o descarte no save e a obrigatoriedade na tramitação). | [x] |
+| `DemandResource::buildDynamicFieldSchema()` | Sem situação resolvida (criação com `?entity_id=`), o campo de valor é omitido de quem não pode vê-lo. | [x] |
+| `TransitionDecisionEvaluator` / `DemandTransitionService` | Gateway por valor com campo vazio que o ator não enxerga: mensagem "Aguardando o gestor do processo informar o campo X" em vez de citar o campo como a preencher. | [x] |
+| Matriz de permissões e editor de regras | Aviso sobre campos de valor (quem libera, o que fica restrito). | [x] |
+| `app:audit-currency-values` | Comando que lista valores de moeda no formato antigo `x.xxx` (lido como milhar), para conferir em homologação. Não altera dados. | [x] |
 | `EditDemand` / `ViewDemand` | O valor deixa de ser preenchido no estado do formulário (não chega ao navegador). | [x] |
 | `CustomRecordResource` (form e tabela) e `HasCustomFields::buildCustomFieldComponents` | Componente e coluna ocultos. | [x] |
 | Páginas de edição/visualização dos cadastros (12) | Trait `HidesMoneyValuesOnFill` tira o valor oculto do estado do formulário. | [x] |
 | `CustomRecord` e `HasCustomFields` (hook de saving) | Restauram no servidor o valor oculto, pois `data_json`/`custom_data` são regravados por inteiro. | [x] |
 | `DemandReports` | Coluna do campo de valor removida. O CSV de demandas hoje não exporta campos customizados, então não havia o que remover. | [x] |
 | `demand-report.blade.php` e `DemandPdfController` | Valor omitido no PDF. | [x] |
-| `Demand::globalSearch` | A busca por valor só encontra demandas de processos que o usuário pode ver. | [x] |
+| `Demand::globalSearch` | A busca por valor só encontra demandas de processos que o usuário pode ver; nos campos adicionais de cliente/projeto, sem permissão a busca olha só as chaves não-moeda do `custom_data`. | [x] |
+| `DemandReports` / PDF | Valor exibido com `MoneyInput::display()`, o formatador único. | [x] |
 
 **Riscos do plano, o que se confirmou**
 - [x] Campo oculto apagando valor ao salvar a demanda: **não ocorre**. `saveFieldValues` já descartava campos bloqueados e só apagava valores de campos que saíram do processo. Teste de regressão adicionado.
@@ -192,10 +200,10 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 - ⬜ Para o R0 (Filipi): o caso `CURRENCY` da `CustomFieldComponentFactory` deve apontar para `MoneyInput::make()`.
 
 **Pontos de atenção**
-- A tramitação deixa de cobrar um campo de valor obrigatório de quem não o enxerga.
+- A tramitação deixa de cobrar um campo de valor obrigatório de quem não o enxerga (sem liberação ele nem chega a ser `REQUIRED` para a pessoa).
+- Valores antigos no formato `1.500` (3 casas após o ponto) passam a ser lidos como milhar. Não há migração de dados: rodar `php artisan app:audit-currency-values` em homologação e conferir a lista.
 - O `preco` do processo AQUI é `NUMBER`, não `CURRENCY`, então não é afetado. Se o PO quiser escondê-lo, é preciso mudar o tipo do campo.
 - ⬜ Não verificado: se o `ActivityLog` registra valores de `custom_data` e `demand_field_values`.
-- ⬜ A busca por `custom_data` nos resources base (`like %termo%`) pode revelar a existência de um valor por inferência.
 - ⬜ Pendente: validação em homologação.
 
 **Aceite:** executor sem gestão não vê o campo no formulário, no relatório, no PDF nem na busca; gestor do processo e do macroprocesso veem; gestor de **outro** processo não vê; admin vê; salvar a demanda sem permissão não apaga o valor; o campo de moeda segue o padrão `1.000,00`.

@@ -2,13 +2,17 @@
 
 namespace App\Services;
 
+use App\Enums\FieldPermissionEnum;
 use App\Enums\FieldTypeEnum;
 use App\Enums\UserRoleEnum;
 use App\Models\CustomEntity;
 use App\Models\CustomField;
 use App\Models\CustomRecord;
 use App\Models\CustomRecordType;
+use App\Models\FieldPermission;
 use App\Models\Macroprocess;
+use App\Models\ProcessMember;
+use App\Models\ProcessStatus;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
@@ -21,7 +25,15 @@ use Illuminate\Support\Collection;
  * - Processo (CustomEntity): o gestor do processo ou o gestor do macroprocesso
  *   ao qual ele pertence;
  * - Cadastro (CustomRecordType): qualquer um dos gestores do cadastro;
+ * - os gestores precisam continuar com perfil GESTOR e ativos (quem virou
+ *   EXECUTOR ou foi desativado deixa de ver, mesmo ainda constando como gestor);
  * - qualquer outro caso (inclusive sem usuário autenticado): ninguém.
+ *
+ * Exceção por demanda: se o admin configurou acesso ao campo na matriz de
+ * permissões (linha explícita da situação diferente de Oculto, do papel da
+ * pessoa ou genérica), o campo é liberado nas telas da demanda naquela situação
+ * (formulário, salvar, preenchimento e tramitação). Relatório, PDF e busca
+ * não dependem da situação e continuam restritos a ADMIN e gestores.
  */
 class MoneyFieldVisibility
 {
@@ -33,6 +45,10 @@ class MoneyFieldVisibility
 
         if ($user->user_role === UserRoleEnum::ADMIN) {
             return true;
+        }
+
+        if (! $this->isActiveManager($user)) {
+            return false;
         }
 
         if ($owner instanceof CustomEntity) {
@@ -51,16 +67,11 @@ class MoneyFieldVisibility
     }
 
     /**
-     * Cadastros base guardam os campos em `custom_data` na própria tabela;
-     * o dono do campo é o CustomRecordType do model (por `model_class`).
+     * Gestor só conta enquanto tem perfil GESTOR e está ativo.
      */
-    public function canViewForModel(?User $user, string $modelClass): bool
+    private function isActiveManager(User $user): bool
     {
-        $type = CustomRecordType::where('model_class', $modelClass)
-            ->where('is_system', true)
-            ->first();
-
-        return $this->canView($user, $type);
+        return $user->user_role === UserRoleEnum::GESTOR && (bool) $user->is_active;
     }
 
     /**
@@ -70,6 +81,65 @@ class MoneyFieldVisibility
     {
         return $field->field_type === FieldTypeEnum::CURRENCY
             && ! $this->canView($user, $owner);
+    }
+
+    /**
+     * Campo de valor que o usuário não pode ver na situação da demanda: além da
+     * regra do dono, vale a liberação por linha explícita da matriz de permissões.
+     */
+    public function isHiddenInDemand(?User $user, CustomField $field, ?CustomEntity $entity, ?ProcessStatus $status): bool
+    {
+        return $this->isHiddenFor($user, $field, $entity)
+            && ! $this->isReleasedByMatrix($user, $field, $entity, $status);
+    }
+
+    /**
+     * O admin liberou o campo de valor para esta pessoa nesta situação: existe
+     * linha explícita na matriz (do papel dela no processo ou genérica) cuja
+     * permissão efetiva não é Oculto. A ausência de linha (fallback Somente
+     * leitura) não libera.
+     */
+    public function isReleasedByMatrix(?User $user, CustomField $field, ?CustomEntity $entity, ?ProcessStatus $status): bool
+    {
+        if (! $user || ! $entity || ! $status || $field->field_type !== FieldTypeEnum::CURRENCY) {
+            return false;
+        }
+
+        $roleIds = ProcessMember::where('entity_id', $entity->id)
+            ->where('user_id', $user->id)
+            ->pluck('process_role_id')
+            ->all();
+
+        $rows = FieldPermission::where('entity_id', $entity->id)
+            ->where('process_status_id', $status->id)
+            ->where('custom_field_id', $field->id)
+            ->where(function ($q) use ($roleIds) {
+                $q->whereNull('process_role_id')
+                    ->orWhereIn('process_role_id', $roleIds);
+            })
+            ->get();
+
+        return $this->rowsRelease($rows);
+    }
+
+    /**
+     * Linhas explícitas da matriz (já filtradas para o campo, a situação e a
+     * pessoa) que liberam o campo. Como na matriz, a linha do papel vence a
+     * genérica e, entre vários papéis, vale a mais permissiva.
+     *
+     * @param  Collection<int, FieldPermission>  $rows
+     */
+    public function rowsRelease(Collection $rows): bool
+    {
+        $roleRows = $rows->whereNotNull('process_role_id');
+
+        $effective = $roleRows->isNotEmpty()
+            ? $roleRows->map(fn (FieldPermission $row) => $row->permission)
+                ->sortByDesc(fn (FieldPermissionEnum $p) => $p->rank())
+                ->first()
+            : $rows->whereNull('process_role_id')->first()?->permission;
+
+        return $effective !== null && $effective !== FieldPermissionEnum::HIDDEN;
     }
 
     /**
@@ -86,6 +156,10 @@ class MoneyFieldVisibility
 
         if ($user->user_role === UserRoleEnum::ADMIN) {
             return null;
+        }
+
+        if (! $this->isActiveManager($user)) {
+            return [];
         }
 
         return CustomEntity::query()

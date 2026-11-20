@@ -356,8 +356,8 @@
                                 $decoded = json_decode($val, true);
                                 if (is_array($decoded)) {
                                     $val = implode(', ', $decoded);
-                                } elseif ($fieldVal->customField->field_type === \App\Enums\FieldTypeEnum::CURRENCY && is_numeric($val)) {
-                                    $val = 'R$ ' . number_format((float) $val, 2, ',', '.');
+                                } elseif ($fieldVal->customField->field_type === \App\Enums\FieldTypeEnum::CURRENCY) {
+                                    $val = \App\Support\MoneyInput::display($val);
                                 }
                             @endphp
                             {{ $val ?: '—' }}
