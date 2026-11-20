@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Concerns\HasCustomFields;
 use App\Enums\DemandButtonEnum;
 use App\Enums\DemandStatusEnum;
 use App\Enums\FieldPermissionEnum;
@@ -10,9 +9,9 @@ use App\Enums\FieldTypeEnum;
 use App\Enums\UserRoleEnum;
 use App\Exceptions\DemandTransitionException;
 use App\Filament\Pages\DemandReports;
-use App\Filament\Resources\CustomEntityResource\Pages\ManageFieldPermissions;
+use App\Filament\Resources\CustomRecordResource\Pages\EditCustomRecord;
+use App\Filament\Resources\CustomRecordResource\Pages\ListCustomRecords;
 use App\Filament\Resources\CustomRecordResource\Pages\ViewCustomRecord;
-use App\Filament\Resources\DemandResource;
 use App\Filament\Resources\DemandResource\Pages\CreateDemand;
 use App\Filament\Resources\DemandResource\Pages\EditDemand;
 use App\Filament\Resources\DemandResource\Pages\ViewDemand;
@@ -30,21 +29,20 @@ use App\Models\ProcessRole;
 use App\Models\ProcessStatus;
 use App\Models\Project;
 use App\Models\StatusTransition;
-use App\Models\TransitionRule;
 use App\Models\User;
 use App\Services\DemandTransitionService;
-use App\Services\FieldPermissionResolver;
 use App\Services\MoneyFieldVisibility;
 use App\Support\MoneyInput;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
 use Tests\TestCase;
 
 /**
- * T2 — campos de valor (CURRENCY) só aparecem para ADMIN e para o gestor do
+ * T2 — campos de valor (CURRENCY) só aparecem em consultas e relatórios (relatório
+ * de demandas, PDF, busca e listagem dos cadastros) para ADMIN e para o gestor do
  * dono do campo: o Processo (e o gestor do seu Macroprocesso) ou o Cadastro.
+ * Formulários e telas de edição não são restritos.
  */
 class MoneyFieldVisibilityTest extends TestCase
 {
@@ -69,10 +67,6 @@ class MoneyFieldVisibilityTest extends TestCase
     private ProcessStatus $situacao;
 
     private Demand $demanda;
-
-    private ProcessRole $papelGestor;
-
-    private ProcessRole $papelSemAcesso;
 
     protected function setUp(): void
     {
@@ -130,17 +124,14 @@ class MoneyFieldVisibilityTest extends TestCase
             'display_order' => 0,
         ]);
 
-        // Papel com acesso explícito ao valor na matriz (os gestores do processo e do macro);
-        // o gestor de outro processo tem um papel sem linha para o campo de valor.
-        $this->papelGestor = ProcessRole::factory()->create();
-        $this->papelSemAcesso = ProcessRole::factory()->create();
+        // Os gestores do processo e do macro participam do processo (editam a demanda)
+        $papelGestor = ProcessRole::factory()->create();
         foreach ([$this->gestorProcesso, $this->gestorMacro] as $membro) {
-            $this->membro($membro, $this->papelGestor);
+            $this->membro($membro, $papelGestor);
         }
-        $this->membro($this->gestorOutro, $this->papelSemAcesso);
 
-        // Valor: só o papel dos gestores tem linha (uma linha genérica liberaria todo mundo)
-        $this->permissao($this->campoValor, FieldPermissionEnum::OPTIONAL, $this->papelGestor);
+        // Matriz: todos os campos Opcional (o campo de valor não é restrito no formulário)
+        $this->permissao($this->campoValor, FieldPermissionEnum::OPTIONAL);
         $this->permissao($this->campoTexto, FieldPermissionEnum::OPTIONAL);
 
         $this->demanda = Demand::factory()->create([
@@ -249,90 +240,8 @@ class MoneyFieldVisibilityTest extends TestCase
     }
 
     // ------------------------------------------------------------------
-    // Resolver (cobre formulário, salvar e obrigatoriedade na tramitação)
+    // Edição da demanda (formulário não é restrito)
     // ------------------------------------------------------------------
-
-    public function test_resolver_oculta_campo_de_valor_so_de_quem_nao_pode_ver(): void
-    {
-        $resolver = new FieldPermissionResolver;
-
-        $executor = $resolver->resolve($this->processo, $this->situacao, $this->executor);
-        $this->assertSame(FieldPermissionEnum::HIDDEN, $executor[$this->campoValor->id]);
-        $this->assertSame(FieldPermissionEnum::OPTIONAL, $executor[$this->campoTexto->id]);
-
-        foreach ([$this->admin, $this->gestorProcesso, $this->gestorMacro] as $usuario) {
-            $permissoes = $resolver->resolve($this->processo, $this->situacao, $usuario);
-            $this->assertSame(FieldPermissionEnum::OPTIONAL, $permissoes[$this->campoValor->id]);
-        }
-
-        $outro = $resolver->resolve($this->processo, $this->situacao, $this->gestorOutro);
-        $this->assertSame(FieldPermissionEnum::HIDDEN, $outro[$this->campoValor->id]);
-    }
-
-    public function test_campo_de_valor_obrigatorio_fica_oculto_e_nao_e_cobrado_de_quem_nao_ve(): void
-    {
-        FieldPermission::where('custom_field_id', $this->campoValor->id)
-            ->update(['permission' => FieldPermissionEnum::REQUIRED]);
-
-        $resolver = new FieldPermissionResolver;
-
-        $this->assertSame(
-            FieldPermissionEnum::HIDDEN,
-            $resolver->resolve($this->processo, $this->situacao, $this->executor)[$this->campoValor->id]
-        );
-        $this->assertSame(
-            FieldPermissionEnum::REQUIRED,
-            $resolver->resolve($this->processo, $this->situacao, $this->gestorProcesso)[$this->campoValor->id]
-        );
-    }
-
-    // ------------------------------------------------------------------
-    // Telas da demanda
-    // ------------------------------------------------------------------
-
-    public function test_visualizacao_da_demanda_nao_envia_o_valor_para_quem_nao_ve(): void
-    {
-        $componente = Livewire::actingAs($this->executor)
-            ->test(ViewDemand::class, ['record' => $this->demanda->id]);
-
-        $this->assertNull($componente->get('data.field_data.valor_estimado'));
-        $this->assertSame('texto original', $componente->get('data.field_data.observacao'));
-        $this->assertStringNotContainsString('1500.50', json_encode($componente->get('data')));
-    }
-
-    public function test_visualizacao_da_demanda_mostra_o_valor_para_gestor_e_admin(): void
-    {
-        foreach ([$this->gestorProcesso, $this->gestorMacro, $this->admin] as $usuario) {
-            $componente = Livewire::actingAs($usuario)
-                ->test(ViewDemand::class, ['record' => $this->demanda->id]);
-
-            $this->assertSame('1.500,50', $componente->get('data.field_data.valor_estimado'));
-        }
-    }
-
-    public function test_edicao_da_demanda_oculta_o_campo_de_valor_de_quem_nao_ve(): void
-    {
-        $componente = Livewire::actingAs($this->executor)
-            ->test(EditDemand::class, ['record' => $this->demanda->id]);
-
-        $this->assertNull($componente->get('data.field_data.valor_estimado'));
-        $this->assertStringNotContainsString('1500.50', json_encode($componente->get('data')));
-    }
-
-    public function test_salvar_a_demanda_sem_permissao_nao_apaga_nem_altera_o_valor(): void
-    {
-        $this->actingAs($this->executor);
-
-        Livewire::test(EditDemand::class, ['record' => $this->demanda->id])
-            ->set('data.field_data.observacao', 'texto alterado')
-            ->set('data.field_data.valor_estimado', '1')
-            ->call('save')
-            ->assertHasNoFormErrors();
-
-        $this->assertSame('texto alterado', DemandFieldValue::where('demand_id', $this->demanda->id)
-            ->where('custom_field_id', $this->campoTexto->id)->value('value'));
-        $this->assertSame('1500.50', $this->valorGravado());
-    }
 
     public function test_gestor_do_processo_edita_o_valor_normalmente(): void
     {
@@ -541,46 +450,6 @@ class MoneyFieldVisibilityTest extends TestCase
         return [$cadastro, $registro];
     }
 
-    public function test_tela_do_registro_do_cadastro_oculta_o_valor_de_quem_nao_e_gestor(): void
-    {
-        [$cadastro, $registro] = $this->cadastroComValor();
-
-        $executor = Livewire::actingAs($this->executor)
-            ->test(ViewCustomRecord::class, ['record' => $registro->id, 'type_id' => $cadastro->id]);
-        $this->assertNull($executor->get('data.data_json.preco_unit') ?? null);
-
-        foreach ([$this->gestorProcesso, $this->gestorOutro, $this->admin] as $usuario) {
-            $componente = Livewire::actingAs($usuario)
-                ->test(ViewCustomRecord::class, ['record' => $registro->id, 'type_id' => $cadastro->id]);
-            $this->assertSame('800,00', $componente->get('data.data_json.preco_unit'), $usuario->name);
-        }
-    }
-
-    public function test_gravar_registro_do_cadastro_sem_permissao_preserva_o_valor(): void
-    {
-        [, $registro] = $this->cadastroComValor();
-
-        $this->actingAs($this->executor);
-        $registro->data_json = ['modelo' => 'Impressora Y'];
-        $registro->save();
-        $this->assertSame(['modelo' => 'Impressora Y', 'preco_unit' => '800'], $registro->fresh()->data_json);
-
-        $registro->data_json = ['modelo' => 'Impressora Z', 'preco_unit' => '1'];
-        $registro->save();
-        $this->assertSame(['modelo' => 'Impressora Z', 'preco_unit' => '800'], $registro->fresh()->data_json);
-    }
-
-    public function test_gestor_do_cadastro_altera_o_valor_do_registro(): void
-    {
-        [, $registro] = $this->cadastroComValor();
-
-        $this->actingAs($this->gestorOutro);
-        $registro->data_json = ['modelo' => 'Impressora X', 'preco_unit' => '950'];
-        $registro->save();
-
-        $this->assertSame('950', $registro->fresh()->data_json['preco_unit']);
-    }
-
     // ------------------------------------------------------------------
     // Cadastros base (custom_data na própria tabela)
     // ------------------------------------------------------------------
@@ -596,54 +465,6 @@ class MoneyFieldVisibilityTest extends TestCase
         $tipo->fields()->attach($valor->id, ['field_order' => 99]);
 
         return $tipo;
-    }
-
-    public function test_formulario_do_cadastro_base_omite_o_campo_de_valor_de_quem_nao_e_gestor(): void
-    {
-        $this->cadastroBaseComValor();
-        $nomes = fn () => collect(Client::buildCustomFieldComponents()->getChildComponents())
-            ->map(fn ($componente) => $componente->getName())
-            ->all();
-
-        $this->actingAs($this->executor);
-        $this->assertNotContains('custom_data.contrato_anual', $nomes());
-
-        $this->actingAs($this->gestorOutro);
-        $this->assertNotContains('custom_data.contrato_anual', $nomes());
-
-        $this->actingAs($this->gestorProcesso);
-        $this->assertContains('custom_data.contrato_anual', $nomes());
-
-        $this->actingAs($this->admin);
-        $this->assertContains('custom_data.contrato_anual', $nomes());
-    }
-
-    public function test_gravar_cadastro_base_sem_permissao_preserva_o_valor(): void
-    {
-        $this->assertContains(HasCustomFields::class, class_uses_recursive(Client::class));
-        $this->cadastroBaseComValor();
-
-        $cliente = Client::create(['name' => 'Cliente Base', 'is_active' => true]);
-        $cliente->forceFill(['custom_data' => ['contrato_anual' => '120000']])->save();
-
-        $this->actingAs($this->executor);
-        $cliente->custom_data = ['outro' => 'x'];
-        $cliente->save();
-        $this->assertSame('120000', $cliente->fresh()->custom_data['contrato_anual']);
-
-        $cliente->custom_data = ['contrato_anual' => '1'];
-        $cliente->save();
-        $this->assertSame('120000', $cliente->fresh()->custom_data['contrato_anual']);
-    }
-
-    public function test_gravar_sem_usuario_autenticado_nao_altera_nada_seeders_e_console(): void
-    {
-        [, $registro] = $this->cadastroComValor();
-
-        $registro->data_json = ['modelo' => 'Via seeder', 'preco_unit' => '10'];
-        $registro->save();
-
-        $this->assertSame('10', $registro->fresh()->data_json['preco_unit']);
     }
 
     // ------------------------------------------------------------------
@@ -698,10 +519,7 @@ class MoneyFieldVisibilityTest extends TestCase
         $this->actingAs($this->gestorOutro->fresh());
 
         $this->assertSame(0, Demand::query()->globalSearch('1500')->count());
-        $this->assertSame(
-            FieldPermissionEnum::HIDDEN,
-            (new FieldPermissionResolver)->resolve($this->processo, $this->situacao, $this->gestorOutro->fresh())[$this->campoValor->id]
-        );
+        $this->assertNotContains('field_'.$this->campoValor->id, $this->colunasDeCamposDoRelatorio());
     }
 
     public function test_gestor_do_macroprocesso_que_virou_executor_deixa_de_ver(): void
@@ -801,397 +619,177 @@ class MoneyFieldVisibilityTest extends TestCase
     }
 
     // ------------------------------------------------------------------
-    // Liberação por linha explícita da matriz de permissões
+    // Regra do PO: restrição só em consultas e relatórios; formulários livres
     // ------------------------------------------------------------------
 
     /**
-     * Executor membro do processo com um papel próprio, sem nenhuma linha para o valor.
+     * @return array<int, User>
      */
-    private function executorMembro(): array
+    private function semPermissaoNoProcesso(): array
     {
-        $papel = ProcessRole::factory()->create();
-        $this->membro($this->executor, $papel);
-
-        return [$this->executor, $papel];
+        return [$this->executor, $this->gestorOutro];
     }
 
-    private function permissaoDoValorPara(User $usuario): FieldPermissionEnum
+    public function test_executor_ve_e_edita_o_valor_no_formulario_da_demanda_sem_apagar_o_gravado(): void
     {
-        return (new FieldPermissionResolver)
-            ->resolve($this->processo, $this->situacao, $usuario)[$this->campoValor->id];
-    }
+        $this->actingAs($this->executor);
 
-    public function test_sem_linha_na_matriz_o_fallback_somente_leitura_nao_libera(): void
-    {
-        [$executor] = $this->executorMembro();
+        $tela = Livewire::test(ViewDemand::class, ['record' => $this->demanda->id]);
+        $this->assertSame('1.500,50', $tela->get('data.field_data.valor_estimado'));
 
-        $this->assertSame(FieldPermissionEnum::HIDDEN, $this->permissaoDoValorPara($executor));
-        $this->assertFalse(app(MoneyFieldVisibility::class)->isReleasedByMatrix($executor, $this->campoValor, $this->processo, $this->situacao));
-    }
+        $edicao = Livewire::test(EditDemand::class, ['record' => $this->demanda->id]);
+        $this->assertSame('1.500,50', $edicao->get('data.field_data.valor_estimado'));
+        $this->assertStringContainsString('Valor estimado', $edicao->html());
 
-    public function test_linha_oculto_nao_libera(): void
-    {
-        [$executor, $papel] = $this->executorMembro();
-        $this->permissao($this->campoValor, FieldPermissionEnum::HIDDEN, $papel);
+        // Salvar outro campo não apaga nem altera o valor
+        $edicao
+            ->set('data.field_data.observacao', 'texto alterado')
+            ->call('save')
+            ->assertHasNoFormErrors();
+        $this->assertSame('1500.50', $this->valorGravado());
 
-        $this->assertSame(FieldPermissionEnum::HIDDEN, $this->permissaoDoValorPara($executor));
-    }
-
-    public function test_executor_com_linha_explicita_opcional_ou_obrigatoria_recebe_a_permissao_da_matriz(): void
-    {
-        [$executor, $papel] = $this->executorMembro();
-
-        foreach ([FieldPermissionEnum::OPTIONAL, FieldPermissionEnum::REQUIRED] as $permissao) {
-            $this->permissao($this->campoValor, $permissao, $papel);
-
-            $this->assertSame($permissao, $this->permissaoDoValorPara($executor));
-        }
-    }
-
-    public function test_linha_somente_leitura_nao_libera_nem_a_do_papel_nem_a_generica(): void
-    {
-        [$executor, $papel] = $this->executorMembro();
-        $regra = app(MoneyFieldVisibility::class);
-
-        $this->permissao($this->campoValor, FieldPermissionEnum::READONLY, $papel);
-        $this->assertSame(FieldPermissionEnum::HIDDEN, $this->permissaoDoValorPara($executor));
-        $this->assertFalse($regra->isReleasedByMatrix($executor, $this->campoValor, $this->processo, $this->situacao));
-        $this->assertTrue($regra->isHiddenInDemand($executor, $this->campoValor, $this->processo, $this->situacao));
-
-        FieldPermission::where('custom_field_id', $this->campoValor->id)->where('process_role_id', $papel->id)->delete();
-        $this->permissao($this->campoValor, FieldPermissionEnum::READONLY);
-        $this->assertSame(FieldPermissionEnum::HIDDEN, $this->permissaoDoValorPara($executor));
-    }
-
-    public function test_generica_opcional_com_papel_somente_leitura_nao_libera_porque_o_papel_vence(): void
-    {
-        [$executor, $papel] = $this->executorMembro();
-
-        $this->permissao($this->campoValor, FieldPermissionEnum::OPTIONAL);
-        $this->assertSame(FieldPermissionEnum::OPTIONAL, $this->permissaoDoValorPara($executor));
-
-        $this->permissao($this->campoValor, FieldPermissionEnum::READONLY, $papel);
-        $this->assertSame(FieldPermissionEnum::HIDDEN, $this->permissaoDoValorPara($executor));
-        $this->assertFalse(app(MoneyFieldVisibility::class)->isReleasedByMatrix($executor, $this->campoValor, $this->processo, $this->situacao));
-    }
-
-    public function test_entre_varios_papeis_vale_o_mais_permissivo_para_liberar(): void
-    {
-        [$executor, $papel] = $this->executorMembro();
-        $outroPapel = ProcessRole::factory()->create();
-        $this->membro($executor, $outroPapel);
-
-        $this->permissao($this->campoValor, FieldPermissionEnum::READONLY, $papel);
-        $this->permissao($this->campoValor, FieldPermissionEnum::HIDDEN, $outroPapel);
-        $this->assertSame(FieldPermissionEnum::HIDDEN, $this->permissaoDoValorPara($executor));
-
-        $this->permissao($this->campoValor, FieldPermissionEnum::REQUIRED, $outroPapel);
-        $this->assertSame(FieldPermissionEnum::REQUIRED, $this->permissaoDoValorPara($executor));
-    }
-
-    public function test_linha_generica_explicita_tambem_libera_e_a_do_papel_vence_a_generica(): void
-    {
-        [$executor, $papel] = $this->executorMembro();
-
-        $this->permissao($this->campoValor, FieldPermissionEnum::REQUIRED);
-        $this->assertSame(FieldPermissionEnum::REQUIRED, $this->permissaoDoValorPara($executor));
-
-        $this->permissao($this->campoValor, FieldPermissionEnum::HIDDEN, $papel);
-        $this->assertSame(FieldPermissionEnum::HIDDEN, $this->permissaoDoValorPara($executor));
-    }
-
-    public function test_liberacao_vale_so_para_a_situacao_da_linha(): void
-    {
-        [$executor, $papel] = $this->executorMembro();
-        $this->permissao($this->campoValor, FieldPermissionEnum::OPTIONAL, $papel);
-
-        $outraSituacao = $this->processo->processStatuses()->where('system_key', 'closed')->firstOrFail();
-        $permissoes = (new FieldPermissionResolver)->resolve($this->processo, $outraSituacao, $executor);
-
-        $this->assertSame(FieldPermissionEnum::HIDDEN, $permissoes[$this->campoValor->id]);
-    }
-
-    public function test_executor_liberado_ve_o_valor_na_demanda_e_salva_quando_opcional(): void
-    {
-        [$executor, $papel] = $this->executorMembro();
-        $this->permissao($this->campoValor, FieldPermissionEnum::OPTIONAL, $papel);
-
-        $componente = Livewire::actingAs($executor)
-            ->test(EditDemand::class, ['record' => $this->demanda->id]);
-        $this->assertSame('1.500,50', $componente->get('data.field_data.valor_estimado'));
-
-        $componente
+        // E o executor consegue alterar o valor
+        Livewire::test(EditDemand::class, ['record' => $this->demanda->id])
             ->set('data.field_data.valor_estimado', '3.000,00')
             ->call('save')
             ->assertHasNoFormErrors();
-
         $this->assertSame('3000.00', $this->valorGravado());
     }
 
-    public function test_executor_com_linha_somente_leitura_nao_ve_nem_altera_o_valor(): void
+    public function test_tramitacao_cobra_o_valor_obrigatorio_do_executor_como_qualquer_campo(): void
     {
-        [$executor, $papel] = $this->executorMembro();
-        $this->permissao($this->campoValor, FieldPermissionEnum::READONLY, $papel);
-
-        $componente = Livewire::actingAs($executor)
-            ->test(EditDemand::class, ['record' => $this->demanda->id]);
-        $this->assertNull($componente->get('data.field_data.valor_estimado'));
-        $this->assertStringNotContainsString('Valor estimado', $componente->html());
-
-        $componente
-            ->set('data.field_data.valor_estimado', '1')
-            ->call('save');
-
-        $this->assertSame('1500.50', $this->valorGravado());
-    }
-
-    public function test_executor_liberado_com_campo_obrigatorio_e_cobrado_na_tramitacao(): void
-    {
-        [$executor, $papel] = $this->executorMembro();
-        $this->permissao($this->campoValor, FieldPermissionEnum::REQUIRED, $papel);
+        FieldPermission::where('custom_field_id', $this->campoValor->id)
+            ->update(['permission' => FieldPermissionEnum::REQUIRED]);
         DemandFieldValue::where('custom_field_id', $this->campoValor->id)->delete();
-
         $transicao = StatusTransition::where('entity_id', $this->processo->id)->firstOrFail();
 
         $this->expectException(DemandTransitionException::class);
         $this->expectExceptionMessage('Valor estimado');
 
-        app(DemandTransitionService::class)->execute($this->demanda->fresh(), $transicao, $executor);
+        app(DemandTransitionService::class)->execute($this->demanda->fresh(), $transicao, $this->executor);
     }
 
-    public function test_executor_sem_liberacao_nao_e_cobrado_do_valor_na_tramitacao(): void
+    public function test_criacao_pela_url_com_processo_usa_a_situacao_inicial_e_salva_o_valor_do_executor(): void
     {
-        Notification::fake();
-        [$executor] = $this->executorMembro();
-        DemandFieldValue::where('custom_field_id', $this->campoValor->id)->delete();
-
-        $transicao = StatusTransition::where('entity_id', $this->processo->id)->firstOrFail();
-
-        $destino = app(DemandTransitionService::class)->execute($this->demanda->fresh(), $transicao, $executor);
-
-        $this->assertSame('closed', $destino->system_key);
-    }
-
-    public function test_relatorio_pdf_e_busca_continuam_restritos_mesmo_com_liberacao_na_matriz(): void
-    {
-        [$executor, $papel] = $this->executorMembro();
-        $this->permissao($this->campoValor, FieldPermissionEnum::OPTIONAL, $papel);
-
-        $this->actingAs($executor);
-
-        $this->assertFalse(app(MoneyFieldVisibility::class)->canView($executor, $this->processo));
-        $this->assertSame(0, Demand::query()->globalSearch('1500')->count());
-        $this->assertNotContains('field_'.$this->campoValor->id, $this->colunasDeCamposDoRelatorio());
-    }
-
-    // ------------------------------------------------------------------
-    // Gateway por valor com campo que o ator não enxerga
-    // ------------------------------------------------------------------
-
-    private function transicaoCondicionalPorValor(): StatusTransition
-    {
-        $condicional = ProcessStatus::findBySystemKey('conditional');
-        $fechada = $this->processo->processStatuses()->where('system_key', 'closed')->firstOrFail();
-
-        $transicao = StatusTransition::create([
-            'entity_id' => $this->processo->id,
-            'from_status_id' => $this->situacao->id,
-            'to_status_id' => $condicional->id,
-            'default_to_status_id' => $fechada->id,
-            'label' => DemandButtonEnum::cases()[0]->value,
-            'allowed_role_ids' => [],
-            'display_order' => 1,
-        ]);
-
-        TransitionRule::create([
-            'status_transition_id' => $transicao->id,
-            'rule_order' => 0,
-            'conditions' => [['field_id' => $this->campoValor->id, 'operator' => 'gt', 'value' => '1000']],
-            'to_status_id' => $fechada->id,
-        ]);
-
-        DemandFieldValue::where('custom_field_id', $this->campoValor->id)->delete();
-
-        return $transicao;
-    }
-
-    public function test_gateway_por_valor_pede_para_aguardar_o_gestor_quando_o_ator_nao_enxerga_o_campo(): void
-    {
-        [$executor] = $this->executorMembro();
-        $transicao = $this->transicaoCondicionalPorValor();
-
-        try {
-            app(DemandTransitionService::class)->execute($this->demanda->fresh(), $transicao, $executor);
-            $this->fail('A transição deveria aguardar o gestor.');
-        } catch (DemandTransitionException $e) {
-            $this->assertStringContainsString('Aguardando o gestor do processo ou um administrador informar', $e->getMessage());
-            $this->assertStringContainsString('Valor estimado', $e->getMessage());
-            $this->assertStringNotContainsString('precisa estar preenchido', $e->getMessage());
-            $this->assertStringNotContainsString('sem gestor', $e->getMessage());
-        }
-    }
-
-    public function test_gateway_por_valor_avisa_que_so_o_admin_informa_quando_processo_e_macro_estao_sem_gestor(): void
-    {
-        [$executor] = $this->executorMembro();
-        $transicao = $this->transicaoCondicionalPorValor();
-
-        // Só o gestor do macroprocesso: ainda há quem informe
-        $this->processo->update(['manager_id' => null]);
-        try {
-            app(DemandTransitionService::class)->execute($this->demanda->fresh(), $transicao, $executor);
-            $this->fail('A transição deveria aguardar o gestor.');
-        } catch (DemandTransitionException $e) {
-            $this->assertStringContainsString('Aguardando o gestor do processo ou um administrador informar', $e->getMessage());
-        }
-
-        // Processo e macroprocesso sem gestor: só um administrador pode informar
-        $this->processo->macroprocess->update(['manager_id' => null]);
-        try {
-            app(DemandTransitionService::class)->execute($this->demanda->fresh(), $transicao, $executor);
-            $this->fail('A transição deveria avisar que não há gestor.');
-        } catch (DemandTransitionException $e) {
-            $this->assertStringContainsString('O processo está sem gestor', $e->getMessage());
-            $this->assertStringContainsString('só um administrador pode informar o campo "Valor estimado"', $e->getMessage());
-            $this->assertStringNotContainsString('Aguardando', $e->getMessage());
-        }
-    }
-
-    public function test_gateway_por_valor_mantem_a_mensagem_original_para_quem_enxerga_o_campo(): void
-    {
-        $transicao = $this->transicaoCondicionalPorValor();
-
-        try {
-            app(DemandTransitionService::class)->execute($this->demanda->fresh(), $transicao, $this->gestorProcesso);
-            $this->fail('A transição deveria exigir o valor.');
-        } catch (DemandTransitionException $e) {
-            $this->assertStringContainsString('precisa estar preenchido', $e->getMessage());
-        }
-    }
-
-    public function test_gateway_por_valor_avalia_normalmente_quando_o_ator_foi_liberado_na_matriz(): void
-    {
-        Notification::fake();
-        [$executor, $papel] = $this->executorMembro();
-        $this->permissao($this->campoValor, FieldPermissionEnum::OPTIONAL, $papel);
-        $transicao = $this->transicaoCondicionalPorValor();
-
-        DemandFieldValue::create([
-            'demand_id' => $this->demanda->id,
-            'custom_field_id' => $this->campoValor->id,
-            'value' => '5000.00',
-        ]);
-
-        $destino = app(DemandTransitionService::class)->execute($this->demanda->fresh(), $transicao, $executor);
-
-        $this->assertSame('closed', $destino->system_key);
-    }
-
-    // ------------------------------------------------------------------
-    // Criação com ?entity_id= (sem situação resolvida)
-    // ------------------------------------------------------------------
-
-    public function test_criacao_com_processo_pre_selecionado_nao_mostra_o_campo_de_valor_ao_executor(): void
-    {
-        $nomes = fn (User $usuario) => collect(DemandResource::buildDynamicFieldSchema($this->processo->id, null, $usuario))
-            ->map(fn ($componente) => $componente->getName())
-            ->all();
-
-        $this->assertNotContains('field_data.valor_estimado', $nomes($this->executor));
-        $this->assertContains('field_data.observacao', $nomes($this->executor));
-        $this->assertContains('field_data.valor_estimado', $nomes($this->gestorProcesso));
-        $this->assertContains('field_data.valor_estimado', $nomes($this->admin));
-
-        $this->actingAs($this->executor);
-        $this->assertNotContains('field_data.valor_estimado', $nomes($this->executor));
-    }
-
-    public function test_criacao_pela_url_com_processo_nao_renderiza_o_campo_de_valor_ao_executor(): void
-    {
-        $this->actingAs($this->executor);
-
-        $componente = Livewire::withQueryParams(['entity_id' => $this->processo->id])
-            ->test(CreateDemand::class);
-
-        $html = $componente->html();
-        $this->assertStringNotContainsString('Valor estimado', $html);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function dadosDeCriacao(string $titulo): array
-    {
-        return [
-            'client_id' => Client::create(['name' => 'Cliente Criação', 'is_active' => true])->id,
-            'project_id' => 'none',
-            'supplier_id' => 'none',
-            'title' => $titulo,
-            'field_data.valor_estimado' => '2.500,00',
-        ];
-    }
-
-    private function valorDaDemandaCriada(string $titulo): ?string
-    {
-        $criada = Demand::where('title', $titulo)->firstOrFail();
-
-        return DemandFieldValue::where('demand_id', $criada->id)
-            ->where('custom_field_id', $this->campoValor->id)
-            ->value('value');
-    }
-
-    public function test_criacao_pela_url_respeita_linha_opcional_na_situacao_inicial_do_executor(): void
-    {
-        [$executor, $papel] = $this->executorMembro();
-        $this->permissao($this->campoValor, FieldPermissionEnum::OPTIONAL, $papel);
-
-        $componente = Livewire::actingAs($executor)
+        $componente = Livewire::actingAs($this->executor)
             ->withQueryParams(['entity_id' => $this->processo->id])
             ->test(CreateDemand::class);
+
         $this->assertStringContainsString('Valor estimado', $componente->html());
 
         $componente
-            ->fillForm($this->dadosDeCriacao('Criada com liberação'))
+            ->fillForm([
+                'client_id' => Client::create(['name' => 'Cliente Criação', 'is_active' => true])->id,
+                'project_id' => 'none',
+                'supplier_id' => 'none',
+                'title' => 'Criada pela URL',
+                'field_data.valor_estimado' => '2.500,00',
+            ])
             ->call('create')
             ->assertHasNoFormErrors();
 
-        $this->assertSame('2500.00', $this->valorDaDemandaCriada('Criada com liberação'));
+        $criada = Demand::where('title', 'Criada pela URL')->firstOrFail();
+        $this->assertSame($this->situacao->id, $criada->process_status_id);
+        $this->assertSame('2500.00', DemandFieldValue::where('demand_id', $criada->id)
+            ->where('custom_field_id', $this->campoValor->id)->value('value'));
     }
 
-    public function test_criacao_pela_url_sem_linha_na_situacao_inicial_nao_mostra_nem_salva_o_valor(): void
+    public function test_quem_nao_pode_ver_o_valor_nao_o_encontra_nas_consultas_da_demanda(): void
     {
-        [$executor] = $this->executorMembro();
+        $demanda = Demand::with(['entity.macroprocess', 'fieldValues.customField'])->find($this->demanda->id);
+        $regra = app(MoneyFieldVisibility::class);
 
-        $componente = Livewire::actingAs($executor)
-            ->withQueryParams(['entity_id' => $this->processo->id])
-            ->test(CreateDemand::class);
-        $this->assertStringNotContainsString('Valor estimado', $componente->html());
+        foreach ($this->semPermissaoNoProcesso() as $usuario) {
+            $this->actingAs($usuario);
 
-        $componente
-            ->fillForm($this->dadosDeCriacao('Criada sem liberação'))
-            ->call('create')
+            $this->assertSame(0, Demand::query()->globalSearch('1500')->count(), $usuario->name);
+            $this->assertNotContains('field_'.$this->campoValor->id, $this->colunasDeCamposDoRelatorio(), $usuario->name);
+
+            $pdf = view('pdf.demand-report', [
+                'demand' => $demanda,
+                'transitionsHistory' => collect(),
+                'canViewMoney' => $regra->canView($usuario, $demanda->entity),
+            ])->render();
+            $this->assertStringNotContainsString('1.500,50', $pdf, $usuario->name);
+            $this->assertStringNotContainsString('Valor estimado', $pdf, $usuario->name);
+        }
+
+        foreach ([$this->gestorProcesso, $this->gestorMacro, $this->admin] as $usuario) {
+            $this->actingAs($usuario);
+
+            $this->assertSame(1, Demand::query()->globalSearch('1500')->count(), $usuario->name);
+            $this->assertContains('field_'.$this->campoValor->id, $this->colunasDeCamposDoRelatorio(), $usuario->name);
+
+            $pdf = view('pdf.demand-report', [
+                'demand' => $demanda,
+                'transitionsHistory' => collect(),
+                'canViewMoney' => $regra->canView($usuario, $demanda->entity),
+            ])->render();
+            $this->assertStringContainsString('R$ 1.500,50', $pdf, $usuario->name);
+        }
+    }
+
+    public function test_executor_ve_e_edita_o_valor_no_registro_do_cadastro_mas_nao_na_listagem(): void
+    {
+        [$cadastro, $registro] = $this->cadastroComValor();
+        // Só o criador (ou admin) edita o registro
+        $registro->forceFill(['created_by' => $this->executor->id])->save();
+        $colunas = fn () => array_keys(
+            Livewire::test(ListCustomRecords::class, ['type_id' => $cadastro->id])->instance()->getTable()->getColumns()
+        );
+
+        // Formulário: o executor vê o valor e o grava
+        $this->actingAs($this->executor);
+        $tela = Livewire::test(ViewCustomRecord::class, ['record' => $registro->id, 'type_id' => $cadastro->id]);
+        $this->assertSame('800,00', $tela->get('data.data_json.preco_unit'));
+
+        $edicao = Livewire::test(EditCustomRecord::class, ['record' => $registro->id, 'type_id' => $cadastro->id]);
+        $this->assertStringContainsString('Preço', $edicao->html());
+        $edicao
+            ->set('data.data_json.modelo', 'Impressora Y')
+            ->call('save')
             ->assertHasNoFormErrors();
+        $this->assertSame(['modelo' => 'Impressora Y', 'preco_unit' => '800.00'], $registro->fresh()->data_json);
 
-        $this->assertNull($this->valorDaDemandaCriada('Criada sem liberação'));
+        Livewire::test(EditCustomRecord::class, ['record' => $registro->id, 'type_id' => $cadastro->id])
+            ->set('data.data_json.preco_unit', '950,00')
+            ->call('save')
+            ->assertHasNoFormErrors();
+        $this->assertSame('950.00', $registro->fresh()->data_json['preco_unit']);
+
+        // Listagem: a coluna de moeda só aparece para admin e gestores do cadastro
+        foreach ([$this->executor, $this->gestorMacro] as $usuario) {
+            $this->actingAs($usuario);
+            $this->assertContains('data_json.modelo', $colunas(), $usuario->name);
+            $this->assertNotContains('data_json.preco_unit', $colunas(), $usuario->name);
+        }
+
+        foreach ([$this->gestorProcesso, $this->gestorOutro, $this->admin] as $usuario) {
+            $this->actingAs($usuario);
+            $this->assertContains('data_json.preco_unit', $colunas(), $usuario->name);
+        }
     }
 
-    public function test_criacao_sem_situacao_resolve_a_inicial_e_sem_inicial_resolvivel_mantem_restrito(): void
+    public function test_formulario_do_cadastro_base_mostra_o_valor_e_o_model_grava_para_quem_nao_e_gestor(): void
     {
-        [$executor, $papel] = $this->executorMembro();
-        $this->permissao($this->campoValor, FieldPermissionEnum::OPTIONAL, $papel);
-        $nomes = fn (bool $criando) => collect(DemandResource::buildDynamicFieldSchema($this->processo->id, null, $executor, creating: $criando))
+        $this->cadastroBaseComValor();
+        $nomes = fn () => collect(Client::buildCustomFieldComponents()->getChildComponents())
             ->map(fn ($componente) => $componente->getName())
             ->all();
 
-        // Situação nula na criação: vale a situação inicial e a linha OPTIONAL libera
-        $this->assertContains('field_data.valor_estimado', $nomes(true));
-        // Fora da criação, sem situação, segue restrito
-        $this->assertNotContains('field_data.valor_estimado', $nomes(false));
+        foreach ([$this->executor, $this->gestorOutro, $this->gestorProcesso, $this->admin] as $usuario) {
+            $this->actingAs($usuario);
+            $this->assertContains('custom_data.contrato_anual', $nomes(), $usuario->name);
+        }
 
-        // Sem situação inicial resolvível, segue restrito mesmo na criação
-        $this->processo->processStatuses()->detach();
-        $this->assertNotContains('field_data.valor_estimado', $nomes(true));
-        $this->assertContains('field_data.observacao', $nomes(true));
+        $cliente = Client::create(['name' => 'Cliente Base', 'is_active' => true]);
+        $cliente->forceFill(['custom_data' => ['contrato_anual' => '120000']])->save();
+
+        $this->actingAs($this->executor);
+        $cliente->custom_data = ['contrato_anual' => '130000'];
+        $cliente->save();
+
+        $this->assertSame('130000', $cliente->fresh()->custom_data['contrato_anual']);
     }
 
     // ------------------------------------------------------------------
@@ -1242,81 +840,6 @@ class MoneyFieldVisibilityTest extends TestCase
         $coluna = $componente->instance()->getTable()->getColumns()['field_'.$this->campoValor->id];
         $registro = Demand::with('fieldValues')->find($this->demanda->id);
         $this->assertSame('R$ 1.500,50', $coluna->record($registro)->getState());
-    }
-
-    // ------------------------------------------------------------------
-    // Matriz de permissões e valores antigos
-    // ------------------------------------------------------------------
-
-    public function test_salvar_a_matriz_grava_somente_leitura_para_campo_de_valor_sem_liberar(): void
-    {
-        $this->actingAs($this->admin);
-        FieldPermission::where('custom_field_id', $this->campoValor->id)->delete();
-
-        [$executor, $papel] = $this->executorMembro();
-
-        $componente = Livewire::test(ManageFieldPermissions::class, ['record' => $this->processo->id])
-            ->set('roleId', $papel->id)
-            ->call('save');
-
-        // A grade grava todas as células, inclusive o padrão Somente leitura do campo de valor
-        $this->assertDatabaseHas('field_permissions', [
-            'custom_field_id' => $this->campoValor->id,
-            'process_role_id' => $papel->id,
-            'permission' => 'READONLY',
-        ]);
-        $this->assertDatabaseHas('field_permissions', ['custom_field_id' => $this->campoTexto->id, 'permission' => 'READONLY']);
-        $this->assertSame(FieldPermissionEnum::HIDDEN, $this->permissaoDoValorPara($executor));
-
-        $componente
-            ->set('matrix.'.$this->campoValor->id.'.'.$this->situacao->id, FieldPermissionEnum::OPTIONAL->value)
-            ->call('save');
-        $this->assertSame(FieldPermissionEnum::OPTIONAL, $this->permissaoDoValorPara($executor));
-
-        // Voltar para Somente leitura grava a linha e deixa de liberar
-        $componente
-            ->set('matrix.'.$this->campoValor->id.'.'.$this->situacao->id, FieldPermissionEnum::READONLY->value)
-            ->call('save');
-        $this->assertDatabaseHas('field_permissions', [
-            'custom_field_id' => $this->campoValor->id,
-            'process_role_id' => $papel->id,
-            'permission' => 'READONLY',
-        ]);
-        $this->assertSame(FieldPermissionEnum::HIDDEN, $this->permissaoDoValorPara($executor));
-    }
-
-    public function test_campo_number_com_linhas_da_grade_que_vira_moeda_nao_libera_o_valor_ao_executor(): void
-    {
-        $campo = CustomField::factory()->create([
-            'name' => 'Preço',
-            'key' => 'preco',
-            'field_type' => FieldTypeEnum::NUMBER,
-        ]);
-        $this->processo->fields()->attach($campo->id, ['field_order' => 2]);
-        DemandFieldValue::create(['demand_id' => $this->demanda->id, 'custom_field_id' => $campo->id, 'value' => '777.00']);
-        [$executor, $papel] = $this->executorMembro();
-
-        // A grade (genérica e do papel) grava Somente leitura para o campo ainda NUMBER
-        $this->actingAs($this->admin);
-        foreach ([null, $papel->id] as $papelDaGrade) {
-            Livewire::test(ManageFieldPermissions::class, ['record' => $this->processo->id])
-                ->set('roleId', $papelDaGrade)
-                ->call('save');
-        }
-        $this->assertDatabaseHas('field_permissions', ['custom_field_id' => $campo->id, 'permission' => 'READONLY', 'process_role_id' => $papel->id]);
-
-        // Troca do tipo para moeda: as linhas READONLY gravadas não expõem o valor
-        $campo->update(['field_type' => FieldTypeEnum::CURRENCY]);
-
-        $permissoes = (new FieldPermissionResolver)->resolve($this->processo, $this->situacao, $executor);
-        $this->assertSame(FieldPermissionEnum::HIDDEN, $permissoes[$campo->id]);
-        $this->assertTrue(app(MoneyFieldVisibility::class)->isHiddenInDemand($executor, $campo->fresh(), $this->processo, $this->situacao));
-
-        $componente = Livewire::actingAs($executor)
-            ->test(EditDemand::class, ['record' => $this->demanda->id]);
-        $this->assertNull($componente->get('data.field_data.preco'));
-        $this->assertStringNotContainsString('777,00', $componente->html());
-        $this->assertStringNotContainsString('777.00', $componente->html());
     }
 
     public function test_comando_lista_valores_de_moeda_no_formato_antigo_sem_alterar_dados(): void

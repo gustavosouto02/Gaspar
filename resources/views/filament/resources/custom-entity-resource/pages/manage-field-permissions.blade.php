@@ -50,9 +50,6 @@
                             <tr>
                                 <td class="px-4 py-2 font-medium text-gray-900 dark:text-white whitespace-nowrap">
                                     {{ $field->name }}
-                                    @if ($field->field_type === \App\Enums\FieldTypeEnum::CURRENCY)
-                                        <span class="block text-xs font-normal text-gray-500 dark:text-gray-400">Campo de valor</span>
-                                    @endif
                                 </td>
                                 @foreach ($this->statuses as $status)
                                     @php
@@ -75,17 +72,6 @@
                     </tbody>
                 </table>
             </div>
-
-            @if ($this->fields->contains(fn ($field) => $field->field_type === \App\Enums\FieldTypeEnum::CURRENCY))
-                <div class="rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300">
-                    <strong>Campos de valor</strong> só aparecem para administradores e gestores do processo.
-                    Marcar <em>Opcional</em> ou <em>Obrigatório</em> libera o campo, naquela situação, para o papel
-                    selecionado mesmo que a pessoa não seja gestora ("Todos os papéis" libera para todos).
-                    <em>Somente leitura</em> e <em>Oculto</em> mantêm o campo restrito. Relatórios, PDF e busca
-                    continuam só para administradores e gestores. Um campo de valor obrigatório ou usado em regra de
-                    decisão numa situação em que o papel não tem acesso fica aguardando o gestor informá-lo.
-                </div>
-            @endif
 
             <div>
                 <x-filament::button wire:click="save" icon="heroicon-o-check">

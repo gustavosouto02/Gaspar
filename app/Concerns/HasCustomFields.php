@@ -4,36 +4,10 @@ namespace App\Concerns;
 
 use App\Models\CustomRecordType;
 use App\Services\CustomFieldComponentFactory;
-use App\Services\MoneyFieldVisibility;
 use Filament\Forms;
 
 trait HasCustomFields
 {
-    /**
-     * Boot da trait: campos de valor de quem não pode vê-los nunca são regravados
-     * (o formulário os omite, e o JSON de custom_data é salvo por inteiro).
-     */
-    public static function bootHasCustomFields(): void
-    {
-        static::saving(function ($model) {
-            if (! auth()->check() || ! $model->isDirty('custom_data')) {
-                return;
-            }
-
-            $type = $model->getCustomRecordType();
-            if (! $type) {
-                return;
-            }
-
-            $model->custom_data = app(MoneyFieldVisibility::class)->preserveHiddenValues(
-                $type,
-                (array) $model->custom_data,
-                (array) $model->getOriginal('custom_data'),
-                $type->fields
-            );
-        });
-    }
-
     /**
      * Initialize the trait — merge custom_data cast.
      */
@@ -93,15 +67,9 @@ trait HasCustomFields
 
         $components = [];
 
-        $moneyVisibility = app(MoneyFieldVisibility::class);
         $fieldFactory = app(CustomFieldComponentFactory::class);
 
         foreach ($type->fields as $field) {
-            // Campos de valor só aparecem para ADMIN e para os gestores do cadastro
-            if ($moneyVisibility->isHiddenFor(auth()->user(), $field, $type)) {
-                continue;
-            }
-
             $component = $fieldFactory->make($field, "custom_data.{$field->key}")
                 ->required($field->is_required);
 

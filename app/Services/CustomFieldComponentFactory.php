@@ -19,9 +19,8 @@ use Filament\Forms\Components\Toggle;
  * Concentra o que era repetido na demanda, nos registros de cadastro e nos
  * cadastros base: componente por tipo, label, placeholder e valor padrão.
  *
- * Fica de fora, por ser decisão de cada tela: visibilidade (MoneyFieldVisibility),
- * obrigatoriedade e permissão (FieldPermissionResolver na demanda, is_required
- * nos cadastros).
+ * Fica de fora, por ser decisão de cada tela: obrigatoriedade e permissão
+ * (FieldPermissionResolver na demanda, is_required nos cadastros).
  */
 class CustomFieldComponentFactory
 {

@@ -17,7 +17,6 @@ use App\Models\Supplier;
 use App\Models\User;
 use App\Services\CustomFieldComponentFactory;
 use App\Services\FieldPermissionResolver;
-use App\Services\MoneyFieldVisibility;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -255,7 +254,6 @@ class DemandResource extends Resource
                         $get('entity_id'),
                         $record?->process_status_id ?? $get('process_status_id'),
                         auth()->user(),
-                        creating: $record === null,
                     ))
                     ->columns(2)
                     ->visible(fn (Get $get) => filled($get('entity_id')))
@@ -311,12 +309,8 @@ class DemandResource extends Resource
      * Usa "field_data.{key}" como namespace — interceptado nas Pages para salvar em demand_field_values.
      * Quando situação e usuário são informados, aplica a matriz de permissões
      * de campos (obrigatório/opcional/somente leitura/oculto).
-     * Na criação (`$creating`) sem situação informada (ex.: processo pré-selecionado
-     * por `?entity_id=`, cujo select de situação ainda não foi preenchido), vale a
-     * situação inicial do processo, a mesma que o CreateDemand grava; sem situação
-     * resolvível, o campo de valor segue restrito a quem pode vê-lo.
      */
-    public static function buildDynamicFieldSchema(?string $entityId, ?string $processStatusId = null, ?User $user = null, bool $creating = false): array
+    public static function buildDynamicFieldSchema(?string $entityId, ?string $processStatusId = null, ?User $user = null): array
     {
         if (! $entityId) {
             return [];
@@ -341,25 +335,14 @@ class DemandResource extends Resource
         $permissions = null;
         $statusRecord = $processStatusId ? ProcessStatus::find($processStatusId) : null;
 
-        if (! $statusRecord && $creating) {
-            $statusRecord = $entity->initialProcessStatus();
-        }
-
         if ($statusRecord && $user) {
             $permissions = app(FieldPermissionResolver::class)->resolve($entity, $statusRecord, $user);
         }
 
-        $moneyVisibility = app(MoneyFieldVisibility::class);
         $fieldFactory = app(CustomFieldComponentFactory::class);
 
         $schema = [];
         foreach ($fields as $field) {
-            // Sem situação resolvível não há matriz a consultar: o campo de valor
-            // só aparece para quem pode vê-lo
-            if ($permissions === null && $moneyVisibility->isHiddenFor($user ?? auth()->user(), $field, $entity)) {
-                continue;
-            }
-
             $component = $fieldFactory->make($field, "field_data.{$field->key}");
 
             if ($permissions === null) {

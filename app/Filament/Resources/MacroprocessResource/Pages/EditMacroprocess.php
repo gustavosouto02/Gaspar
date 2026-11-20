@@ -8,7 +8,5 @@ use Filament\Resources\Pages\EditRecord;
 
 class EditMacroprocess extends EditRecord
 {
-    use \App\Filament\Resources\Concerns\HidesMoneyValuesOnFill;
-
     protected static string $resource = MacroprocessResource::class;
 }
