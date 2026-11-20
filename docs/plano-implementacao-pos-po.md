@@ -14,7 +14,7 @@ Legenda: ✅ feito · 🔄 em andamento (PR aberto) · ⬜ a fazer
 | PR #39 (limite de 15 caracteres no cadastro) | Gustavo | ✅ | Mergeado na `develop` junto com os PRs #31, #32, #34, #35, #40, #41, #42 e #43. |
 | R0 — `CustomFieldComponentFactory` | Filipi (feito por Gustavo) | 🔄 | PR aberto na branch `refactor/custom-field-component-factory` (sem mudança de comportamento; a obrigatoriedade e a permissão ficam nos chamadores). Filipi pode partir da `develop` para o T4 depois do merge. |
 | T1 — Gestor obrigatório | Gustavo | ✅ | Mergeado na `develop` (PR #44). Falta homologação. |
-| T2 — Visibilidade de valores | Gustavo | ✅ | Mergeado na `develop` (PR #45). Inclui o padrão de moeda `1.000,00`. Correção de escopo (só consultas e relatórios, formulário livre) na branch `fix/money-visibility-only-queries`, PR a abrir. Falta homologação. |
+| T2 — Visibilidade de valores | Gustavo | ✅ | Mergeado na `develop` (PR #45). Inclui o padrão de moeda `1.000,00`. Correção de escopo (só consultas e relatórios, formulário livre) na branch `fix/money-visibility-only-queries`, PR #47. Falta homologação. |
 | T3 — Cadeia de Valor | Gustavo | ⬜ | |
 | T4 — Campo Vínculo | Filipi | ⬜ | Depende do R0. |
 | T5 — Relatório de Cadastros | Gustavo | ⬜ | Depende de T2 e do formatter do T4. |
@@ -155,10 +155,12 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 ### T2 — Visibilidade de valores (Gustavo, ~1 dia, depende de T1) ✅
 
 > **Status:** mergeado na `develop` (PR #45, depois do #44). Pendente: homologação.
-> **Correção de escopo:** o T2 original também restringia formulários, a tramitação/gateway e criou uma "liberação pela matriz". Isso foi removido porque a task do PO é só consultas e relatórios. A correção está na branch `fix/money-visibility-only-queries` (PR a abrir).
+> **Correção de escopo:** o T2 original também restringia formulários, a tramitação/gateway e criou uma "liberação pela matriz". Isso foi removido porque a task do PO é só consultas e relatórios. A correção está na branch `fix/money-visibility-only-queries` (PR #47).
 > **Acréscimo ao escopo original:** campo de moeda no padrão brasileiro `1.000,00` (pedido durante a validação).
 
 **Escopo:** consultas e relatórios. O formulário da demanda, as telas de edição/visualização (demanda e cadastros), o salvar e a tramitação **não** são restritos: o campo de moeda aparece, é editável e é cobrado como qualquer outro campo, conforme a matriz de permissões de campos.
+
+> **Pendência (validar com o PO):** telas de visualização (`ViewDemand`, `ViewCustomRecord`, cadastros base) exibem o valor a qualquer usuário autenticado; a restrição vale só para listagem, busca e relatório. Decisão atual: manter assim até a validação com o PO.
 
 **Regra central**
 - [x] `app/Services/MoneyFieldVisibility.php` com `canView(User $user, Model $owner): bool`:
