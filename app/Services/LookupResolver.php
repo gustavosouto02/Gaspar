@@ -183,7 +183,9 @@ class LookupResolver
             $query->where(function (Builder $q) use ($term, $key) {
                 $q->where('code', 'like', "%{$term}%");
                 if ($key) {
-                    $q->orWhere("data_json->{$key}", 'like', "%{$term}%");
+                    // Case-insensitive: no MySQL o JSON é comparado em utf8mb4_bin.
+                    $column = $q->getQuery()->getGrammar()->wrap("data_json->{$key}");
+                    $q->orWhereRaw("LOWER({$column}) LIKE ?", ['%'.mb_strtolower($term).'%']);
                 }
             });
         }

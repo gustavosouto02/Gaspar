@@ -93,6 +93,18 @@ class LookupFieldTest extends TestCase
         $this->assertSame([], (new LookupResolver)->search($config, 'scanner'));
     }
 
+    public function test_busca_em_registro_de_cadastro_ignora_caixa_do_termo(): void
+    {
+        [$tipo, $registro] = $this->cadastroEquipamentos();
+        $registro->update(['data_json' => ['nome' => 'Notebook Dell']]);
+        $config = ['source' => 'record_type', 'record_type_id' => $tipo->id];
+
+        $this->assertCount(1, (new LookupResolver)->search($config, 'notebook'));
+        $this->assertCount(1, (new LookupResolver)->search($config, 'NOTEBOOK'));
+        $this->assertCount(1, (new LookupResolver)->search($config, 'bOOk De'));
+        $this->assertSame([], (new LookupResolver)->search($config, 'scanner'));
+    }
+
     public function test_origem_sem_configuracao_nao_quebra(): void
     {
         $this->assertSame([], (new LookupResolver)->search([], 'x'));
@@ -292,6 +304,39 @@ class LookupFieldTest extends TestCase
         $campo = $campo->fresh();
         $this->assertSame(FieldTypeEnum::COMBO, $campo->field_type);
         $this->assertSame(['source' => 'client'], $campo->options_json);
+    }
+
+    public function test_edicao_nunca_altera_a_chave_do_campo(): void
+    {
+        $this->actingAs($this->admin);
+        $campo = $this->campo(['source' => 'client']);
+
+        Livewire::test(EditCustomField::class, ['record' => $campo->id])
+            ->set('data.key', 'outra')
+            ->call('save');
+
+        $this->assertSame('vinculo', $campo->fresh()->key);
+    }
+
+    public function test_valor_em_registro_de_cadastro_excluido_tambem_bloqueia(): void
+    {
+        [$tipo, $registro] = $this->cadastroEquipamentos();
+        $campo = $this->campo(['source' => 'client']);
+        $tipo->fields()->attach($campo->id, ['field_order' => 1]);
+        $registro->update(['data_json' => ['nome' => 'Impressora HP', 'vinculo' => 'abc']]);
+        $registro->delete();
+
+        $this->assertTrue($campo->fresh()->hasStoredValues());
+    }
+
+    public function test_valor_vazio_em_registro_de_cadastro_nao_bloqueia(): void
+    {
+        [$tipo, $registro] = $this->cadastroEquipamentos();
+        $campo = $this->campo(['source' => 'client']);
+        $tipo->fields()->attach($campo->id, ['field_order' => 1]);
+        $registro->update(['data_json' => ['nome' => 'Impressora HP', 'vinculo' => '']]);
+
+        $this->assertFalse($campo->fresh()->hasStoredValues());
     }
 
     public function test_campo_em_uso_em_registro_de_cadastro_tambem_bloqueia(): void
