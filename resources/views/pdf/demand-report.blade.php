@@ -328,9 +328,11 @@
     <!-- SEÇÃO 5: CAMPOS CUSTOMIZADOS DO PROCESSO (METADADOS) -->
     @php
         $currentFieldIds = $demand->entity ? $demand->entity->fields()->pluck('custom_fields.id')->all() : [];
+        // Campo que saiu do formulário só aparece quando tem valor preenchido
         $visibleFieldValues = ($demand->fieldValues ?? collect())->filter(
             fn ($fv) => $fv->customField
                 && (($canViewMoney ?? false) || $fv->customField->field_type !== \App\Enums\FieldTypeEnum::CURRENCY)
+                && (in_array($fv->custom_field_id, $currentFieldIds, true) || filled($fv->value))
         );
     @endphp
     @if($visibleFieldValues->isNotEmpty())

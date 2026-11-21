@@ -262,6 +262,26 @@ class HistoricoValoresCamposTest extends TestCase
         $this->assertArrayHasKey($nome, $colunas());
     }
 
+    public function test_relatorio_e_pdf_ignoram_campo_fora_do_formulario_com_valor_vazio(): void
+    {
+        $this->campoAntigo->delete();
+        DemandFieldValue::where('custom_field_id', $this->campoAntigo->id)->update(['value' => '']);
+
+        $componente = Livewire::test(DemandReports::class)
+            ->set('tableFilters.entity_id.value', $this->processo->id)
+            ->call('$refresh');
+        $this->assertArrayNotHasKey('field_'.$this->campoAntigo->id, $componente->instance()->getTable()->getColumns());
+
+        $demanda = Demand::with(['entity.macroprocess', 'fieldValues.customField'])->find($this->demanda->id);
+        $html = view('pdf.demand-report', [
+            'demand' => $demanda,
+            'transitionsHistory' => collect(),
+            'canViewMoney' => true,
+        ])->render();
+        $this->assertStringNotContainsString('Campo Antigo', $html);
+        $this->assertStringContainsString('Campo Atual', $html);
+    }
+
     public function test_campo_com_valores_nao_pode_ser_excluido_definitivamente(): void
     {
         $this->expectException(\RuntimeException::class);
