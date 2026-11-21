@@ -27,6 +27,9 @@ class EditCustomField extends EditRecord
     {
         $record = $this->getRecord();
 
+        // A chave nunca é editável na tela: o payload não pode alterá-la.
+        $data['key'] = $record->key;
+
         // Garantia no servidor: com valores gravados, tipo e origem não mudam
         // mesmo que o payload tente alterar o campo desabilitado.
         if ($record->hasStoredValues()) {

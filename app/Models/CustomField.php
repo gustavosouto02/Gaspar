@@ -89,8 +89,13 @@ class CustomField extends Model
 
         foreach ($this->customRecordTypes()->get() as $type) {
             $query = $type->is_system && $type->model_class
-                ? $type->model_class::withoutGlobalScopes()->whereNotNull("custom_data->{$this->key}")
-                : CustomRecord::where('custom_record_type_id', $type->id)->whereNotNull("data_json->{$this->key}");
+                ? $type->model_class::withoutGlobalScopes()
+                    ->whereNotNull("custom_data->{$this->key}")
+                    ->where("custom_data->{$this->key}", '!=', '')
+                : CustomRecord::withTrashed()
+                    ->where('custom_record_type_id', $type->id)
+                    ->whereNotNull("data_json->{$this->key}")
+                    ->where("data_json->{$this->key}", '!=', '');
 
             if ($query->exists()) {
                 return true;
