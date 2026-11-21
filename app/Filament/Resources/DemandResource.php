@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Services\CustomFieldComponentFactory;
 use App\Services\CustomFieldValueFormatter;
 use App\Services\FieldPermissionResolver;
+use App\Services\MoneyFieldVisibility;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -326,7 +327,7 @@ class DemandResource extends Resource
 
         $fields = $entity->fields()->get();
         $statusRecord = $processStatusId ? ProcessStatus::find($processStatusId) : null;
-        $historyFields = static::historyFieldsSchema($record, $fields);
+        $historyFields = static::historyFieldsSchema($record, $entity, $fields, $statusRecord, $user);
 
         if ($fields->isEmpty() && empty($historyFields)) {
             return [
@@ -378,11 +379,11 @@ class DemandResource extends Resource
      * @param  Collection<int, \App\Models\CustomField>  $currentFields
      * @return array<int, Forms\Components\Component>
      */
-    private static function historyFieldsSchema(?Demand $record, \Illuminate\Support\Collection $currentFields): array
+    private static function historyFieldsSchema(?Demand $record, CustomEntity $entity, \Illuminate\Support\Collection $currentFields, ?ProcessStatus $status, ?User $user): array
     {
         $formatter = app(CustomFieldValueFormatter::class);
 
-        return static::historyValues($record, $currentFields)
+        return static::visibleHistoryValues($record, $entity, $currentFields, $status, $user)
             ->map(fn (DemandFieldValue $fv) => Forms\Components\Placeholder::make("history_{$fv->custom_field_id}")
                 ->label($fv->customField->name.' (fora do formulário atual)')
                 ->content($formatter->format($fv->customField, $fv->value)))
@@ -391,22 +392,36 @@ class DemandResource extends Resource
     }
 
     /**
-     * Valores preenchidos de campos fora do processo.
+     * Valores de campos fora do processo que o usuário pode ver. Segue a mesma
+     * regra do PDF e do relatório: descarta os ocultos pela matriz de permissões
+     * e os de moeda que o usuário não pode ver.
      *
-     * @param  \Illuminate\Support\Collection<int, \App\Models\CustomField>  $currentFields
+     * @param  Collection<int, \App\Models\CustomField>  $currentFields
      * @return \Illuminate\Support\Collection<int, DemandFieldValue>
      */
-    public static function historyValues(?Demand $record, \Illuminate\Support\Collection $currentFields): \Illuminate\Support\Collection
+    public static function visibleHistoryValues(?Demand $record, CustomEntity $entity, \Illuminate\Support\Collection $currentFields, ?ProcessStatus $status, ?User $user): \Illuminate\Support\Collection
     {
         if (! $record) {
             return collect();
         }
 
-        return $record->fieldValues()
+        $values = $record->fieldValues()
             ->whereNotIn('custom_field_id', $currentFields->pluck('id')->all())
             ->with('customField')
             ->get()
             ->filter(fn (DemandFieldValue $fv) => $fv->customField && filled($fv->value));
+
+        if ($values->isEmpty()) {
+            return $values;
+        }
+
+        $permissions = $status && $user
+            ? app(FieldPermissionResolver::class)->resolveFor($entity, $status, $user, $values->pluck('customField')->unique('id'))
+            : [];
+        $money = app(MoneyFieldVisibility::class);
+
+        return $values->reject(fn (DemandFieldValue $fv) => ($permissions[$fv->custom_field_id] ?? null) === FieldPermissionEnum::HIDDEN
+            || $money->isHiddenFor($user, $fv->customField, $entity));
     }
 
     /**
