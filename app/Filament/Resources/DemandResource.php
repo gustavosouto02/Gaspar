@@ -11,11 +11,13 @@ use App\Filament\Resources\DemandResource\Pages;
 use App\Models\ActivityLog;
 use App\Models\CustomEntity;
 use App\Models\Demand;
+use App\Models\DemandFieldValue;
 use App\Models\ProcessStatus;
 use App\Models\Project;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Services\CustomFieldComponentFactory;
+use App\Services\CustomFieldValueFormatter;
 use App\Services\FieldPermissionResolver;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -323,7 +325,8 @@ class DemandResource extends Resource
         }
 
         $fields = $entity->fields()->get();
-        $historyFields = static::historyFieldsSchema($record, $fields->pluck('id')->all());
+        $statusRecord = $processStatusId ? ProcessStatus::find($processStatusId) : null;
+        $historyFields = static::historyFieldsSchema($record, $fields);
 
         if ($fields->isEmpty() && empty($historyFields)) {
             return [
@@ -335,7 +338,6 @@ class DemandResource extends Resource
         }
 
         $permissions = null;
-        $statusRecord = $processStatusId ? ProcessStatus::find($processStatusId) : null;
 
         if ($statusRecord && $user) {
             $permissions = app(FieldPermissionResolver::class)->resolve($entity, $statusRecord, $user);
@@ -370,34 +372,60 @@ class DemandResource extends Resource
 
     /**
      * Campos que a demanda preencheu mas que não fazem mais parte do processo
-     * (desvinculados ou excluídos). Aparecem só para leitura, com o valor da época.
+     * (desvinculados ou excluídos). Aparecem só como texto, com o valor da época:
+     * sem estado em field_data (a chave do campo não é única) e sem validação.
      *
-     * @param  array<string>  $currentFieldIds
+     * @param  Collection<int, \App\Models\CustomField>  $currentFields
      * @return array<int, Forms\Components\Component>
      */
-    private static function historyFieldsSchema(?Demand $record, array $currentFieldIds): array
+    private static function historyFieldsSchema(?Demand $record, \Illuminate\Support\Collection $currentFields): array
     {
-        if (! $record) {
-            return [];
-        }
+        $formatter = app(CustomFieldValueFormatter::class);
 
-        $factory = app(CustomFieldComponentFactory::class);
-
-        $components = $record->fieldValues()
-            ->whereNotIn('custom_field_id', $currentFieldIds)
-            ->with('customField')
-            ->get()
-            ->filter(fn ($fv) => $fv->customField && filled($fv->value))
-            ->map(fn ($fv) => $factory->make($fv->customField, "field_data.{$fv->customField->key}")
+        return static::historyValues($record, $currentFields)
+            ->map(fn (DemandFieldValue $fv) => Forms\Components\Placeholder::make("history_{$fv->custom_field_id}")
                 ->label($fv->customField->name.' (fora do formulário atual)')
-                ->default(null)
-                ->disabled()
-                ->dehydrated(false)
-                ->required(false))
+                ->content($formatter->format($fv->customField, $fv->value)))
             ->values()
             ->all();
+    }
 
-        return $components;
+    /**
+     * Valores preenchidos de campos fora do processo.
+     *
+     * @param  \Illuminate\Support\Collection<int, \App\Models\CustomField>  $currentFields
+     * @return \Illuminate\Support\Collection<int, DemandFieldValue>
+     */
+    public static function historyValues(?Demand $record, \Illuminate\Support\Collection $currentFields): \Illuminate\Support\Collection
+    {
+        if (! $record) {
+            return collect();
+        }
+
+        return $record->fieldValues()
+            ->whereNotIn('custom_field_id', $currentFields->pluck('id')->all())
+            ->with('customField')
+            ->get()
+            ->filter(fn (DemandFieldValue $fv) => $fv->customField && filled($fv->value));
+    }
+
+    /**
+     * Valores gravados para preencher field_data ao abrir a demanda. Só entram
+     * campos atuais do processo: os que saíram dele viram texto (histórico).
+     *
+     * @return array<string, mixed> mapa key => valor
+     */
+    public static function fieldDataForFill(Demand $demand): array
+    {
+        $fields = $demand->entity?->fields()->get() ?? collect();
+        $keys = $fields->pluck('key', 'id');
+
+        $data = [];
+        foreach ($demand->fieldValues()->whereIn('custom_field_id', $keys->keys())->get() as $fv) {
+            $data[$keys[$fv->custom_field_id]] = $fv->value;
+        }
+
+        return $data;
     }
 
     public static function table(Table $table): Table

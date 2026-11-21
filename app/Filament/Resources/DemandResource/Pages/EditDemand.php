@@ -49,19 +49,13 @@ class EditDemand extends EditRecord
 
     /**
      * Ao carregar o form para edição, injeta os valores salvos em
-     * demand_field_values de volta no namespace field_data.{key}.
+     * demand_field_values de volta no namespace field_data.{key}. Só campos atuais do
+     * processo e visíveis ao usuário: os fora do processo viram texto (histórico).
      */
     protected function mutateFormDataBeforeFill(array $data): array
     {
-        $fieldValues = $this->getRecord()
-            ->fieldValues()
-            ->with('customField')
-            ->get();
-
-        foreach ($fieldValues as $fv) {
-            if ($fv->customField) {
-                $data['field_data'][$fv->customField->key] = $fv->value;
-            }
+        foreach (DemandResource::fieldDataForFill($this->getRecord()) as $key => $value) {
+            $data['field_data'][$key] = $value;
         }
 
         return $data;

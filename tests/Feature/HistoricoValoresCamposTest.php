@@ -11,6 +11,8 @@ use App\Filament\Resources\DemandResource\Pages\ViewDemand;
 use App\Models\Client;
 use App\Models\CustomEntity;
 use App\Models\CustomField;
+use App\Models\CustomRecord;
+use App\Models\CustomRecordType;
 use App\Models\Demand;
 use App\Models\DemandFieldValue;
 use App\Models\FieldPermission;
@@ -103,17 +105,21 @@ class HistoricoValoresCamposTest extends TestCase
         $this->assertSame('valor da época', $this->valorGravado($this->campoAntigo));
     }
 
-    public function test_demanda_mostra_campo_desvinculado_somente_leitura_com_o_valor_da_epoca(): void
+    public function test_demanda_mostra_campo_desvinculado_como_texto_com_o_valor_da_epoca(): void
     {
         $this->processo->fields()->detach($this->campoAntigo->id);
 
-        Livewire::test(EditDemand::class, ['record' => $this->demanda->id])
-            ->assertFormSet(['field_data.campo_antigo' => 'valor da época'])
-            ->assertFormFieldIsDisabled('field_data.campo_antigo')
+        $edicao = Livewire::test(EditDemand::class, ['record' => $this->demanda->id])
+            ->assertSee('Campo Antigo (fora do formulário atual)')
+            ->assertSee('valor da época')
+            ->assertFormSet(['field_data.campo_atual' => 'valor atual'])
             ->assertFormFieldIsEnabled('field_data.campo_atual');
+        // sem estado em field_data: o histórico não é um campo do formulário
+        $this->assertNull($edicao->get('data.field_data.campo_antigo'));
 
         Livewire::test(ViewDemand::class, ['record' => $this->demanda->id])
-            ->assertFormSet(['field_data.campo_antigo' => 'valor da época']);
+            ->assertSee('Campo Antigo (fora do formulário atual)')
+            ->assertSee('valor da época');
     }
 
     public function test_campo_excluido_continua_aparecendo_na_demanda_e_mantem_o_valor(): void
@@ -123,12 +129,87 @@ class HistoricoValoresCamposTest extends TestCase
         $this->assertSame('valor da época', $this->valorGravado($this->campoAntigo));
 
         Livewire::test(EditDemand::class, ['record' => $this->demanda->id])
-            ->assertFormSet(['field_data.campo_antigo' => 'valor da época'])
-            ->assertFormFieldIsDisabled('field_data.campo_antigo')
+            ->assertSee('Campo Antigo (fora do formulário atual)')
+            ->assertSee('valor da época')
             ->call('save')
             ->assertHasNoFormErrors();
 
         $this->assertSame('valor da época', $this->valorGravado($this->campoAntigo));
+    }
+
+    public function test_campo_novo_com_a_mesma_chave_de_campo_texto_excluido_nao_herda_o_valor(): void
+    {
+        $this->campoAntigo->delete();
+        $novo = CustomField::factory()->create(['name' => 'Campo Antigo', 'key' => 'campo_antigo', 'field_type' => FieldTypeEnum::TEXT]);
+        $this->processo->fields()->attach($novo->id, ['field_order' => 2]);
+
+        $edicao = Livewire::test(EditDemand::class, ['record' => $this->demanda->id])
+            ->assertSee('valor da época');
+        $this->assertNull($edicao->get('data.field_data.campo_antigo'));
+
+        $edicao->call('save')->assertHasNoFormErrors();
+
+        $this->assertEmpty($this->valorGravado($novo));
+        $this->assertSame('valor da época', $this->valorGravado($this->campoAntigo));
+    }
+
+    /**
+     * Combo antigo (clientes, desvinculado) e novo de mesma chave (cadastro de equipamentos).
+     *
+     * @return array{0: CustomField, 1: CustomField, 2: CustomRecord, 3: Client}
+     */
+    private function combosComMesmaChave(): array
+    {
+        $cliente = Client::create(['name' => 'Cliente Velho', 'is_active' => true]);
+        $antigo = CustomField::factory()->create([
+            'name' => 'Equipamento', 'key' => 'equipamento',
+            'field_type' => FieldTypeEnum::COMBO, 'options_json' => ['source' => 'client'],
+        ]);
+        DemandFieldValue::create(['demand_id' => $this->demanda->id, 'custom_field_id' => $antigo->id, 'value' => $cliente->id]);
+
+        $nome = CustomField::factory()->create(['name' => 'Nome', 'key' => 'nome', 'field_type' => FieldTypeEnum::TEXT]);
+        $tipo = CustomRecordType::create(['name' => 'Equipamentos', 'slug' => 'equipamentos', 'is_system' => false]);
+        $tipo->fields()->attach($nome->id, ['field_order' => 0]);
+        $registro = CustomRecord::create([
+            'custom_record_type_id' => $tipo->id,
+            'created_by' => $this->admin->id,
+            'data_json' => ['nome' => 'Impressora HP'],
+        ]);
+
+        $novo = CustomField::factory()->create([
+            'name' => 'Equipamento', 'key' => 'equipamento', 'field_type' => FieldTypeEnum::COMBO,
+            'options_json' => ['source' => 'record_type', 'record_type_id' => $tipo->id],
+        ]);
+        $this->processo->fields()->attach($novo->id, ['field_order' => 2]);
+
+        return [$antigo, $novo, $registro, $cliente];
+    }
+
+    public function test_combo_novo_com_a_mesma_chave_de_combo_desvinculado_nao_grava_o_uuid_do_cliente(): void
+    {
+        [$antigo, $novo, , $cliente] = $this->combosComMesmaChave();
+
+        $edicao = Livewire::test(EditDemand::class, ['record' => $this->demanda->id])
+            ->assertSee('Cliente Velho');
+        $this->assertNull($edicao->get('data.field_data.equipamento'));
+
+        $edicao->call('save')->assertHasNoFormErrors();
+
+        $this->assertEmpty($this->valorGravado($novo));
+        $this->assertSame($cliente->id, $this->valorGravado($antigo));
+    }
+
+    public function test_combo_novo_aceita_equipamento_valido_mesmo_com_historico_de_mesma_chave(): void
+    {
+        [$antigo, $novo, $registro, $cliente] = $this->combosComMesmaChave();
+
+        Livewire::test(EditDemand::class, ['record' => $this->demanda->id])
+            ->set('data.field_data.equipamento', $registro->id)
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame($registro->id, $this->valorGravado($novo));
+        $this->assertSame($cliente->id, $this->valorGravado($antigo));
     }
 
     public function test_pdf_traz_campo_desvinculado_e_excluido_com_marca_de_historico(): void
