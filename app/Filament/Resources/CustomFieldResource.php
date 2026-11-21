@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\CustomFieldResource\Pages;
 use App\Models\CustomField;
+use App\Services\LookupResolver;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -63,6 +64,7 @@ class CustomFieldResource extends Resource
                         ->options(\App\Enums\FieldTypeEnum::options())
                         ->required()
                         ->live()
+                        ->afterStateUpdated(fn (Forms\Set $set) => $set('options_json', []))
                         ->label('Tipo do Campo'),
 
                     Forms\Components\TextInput::make('placeholder')
@@ -82,10 +84,58 @@ class CustomFieldResource extends Resource
                         ]))
                         ->columnSpanFull(),
 
+                    Forms\Components\Select::make('lookup_source')
+                        ->label('Origem do vínculo')
+                        ->options(LookupResolver::sourceOptions())
+                        ->required()
+                        ->live()
+                        ->afterStateUpdated(fn (Forms\Set $set) => $set('lookup_record_type_id', null))
+                        ->helperText('Cadastro de onde o usuário vai escolher o registro (seleção única).')
+                        ->visible(fn (Forms\Get $get) => $get('field_type') === \App\Enums\FieldTypeEnum::COMBO->value),
+
+                    Forms\Components\Select::make('lookup_record_type_id')
+                        ->label('Cadastro')
+                        ->options(fn () => \App\Models\CustomRecordType::where('is_system', false)->orderBy('name')->pluck('name', 'id')->all())
+                        ->searchable()
+                        ->required()
+                        ->visible(fn (Forms\Get $get) => $get('field_type') === \App\Enums\FieldTypeEnum::COMBO->value
+                            && $get('lookup_source') === LookupResolver::RECORD_TYPE),
+
                     Forms\Components\Hidden::make('created_by')
                         ->default(fn () => auth()->id()),
                 ])->columns(2),
             ]);
+    }
+
+    /**
+     * Vínculo: os selects da tela são campos planos (lookup_*) e viram o
+     * options_json do campo ao salvar. Um caminho aninhado dentro de
+     * options_json colidiria com o TagsInput das opções no navegador.
+     */
+    public static function packLookup(array $data): array
+    {
+        if (($data['field_type'] ?? null) === \App\Enums\FieldTypeEnum::COMBO->value) {
+            $source = $data['lookup_source'] ?? null;
+            $data['options_json'] = array_filter([
+                'source' => $source,
+                'record_type_id' => $source === LookupResolver::RECORD_TYPE ? ($data['lookup_record_type_id'] ?? null) : null,
+            ]);
+        }
+
+        unset($data['lookup_source'], $data['lookup_record_type_id']);
+
+        return $data;
+    }
+
+    public static function unpackLookup(array $data): array
+    {
+        if (($data['field_type'] ?? null) === \App\Enums\FieldTypeEnum::COMBO->value) {
+            $data['lookup_source'] = $data['options_json']['source'] ?? null;
+            $data['lookup_record_type_id'] = $data['options_json']['record_type_id'] ?? null;
+            $data['options_json'] = [];
+        }
+
+        return $data;
     }
 
     public static function table(Table $table): Table

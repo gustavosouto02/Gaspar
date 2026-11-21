@@ -352,13 +352,7 @@
                         </td>
                         <td>
                             @php
-                                $val = $fieldVal->value;
-                                $decoded = json_decode($val, true);
-                                if (is_array($decoded)) {
-                                    $val = implode(', ', $decoded);
-                                } elseif ($fieldVal->customField->field_type === \App\Enums\FieldTypeEnum::CURRENCY) {
-                                    $val = \App\Support\MoneyInput::display($val);
-                                }
+                                $val = app(\App\Services\CustomFieldValueFormatter::class)->format($fieldVal->customField, $fieldVal->value, '');
                             @endphp
                             {{ $val ?: '—' }}
                         </td>

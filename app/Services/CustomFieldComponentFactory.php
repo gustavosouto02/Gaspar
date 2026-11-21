@@ -38,6 +38,7 @@ class CustomFieldComponentFactory
                 ->options($this->options($field)),
             FieldTypeEnum::CHECKBOX => Toggle::make($statePath),
             FieldTypeEnum::EMAIL => TextInput::make($statePath)->email(),
+            FieldTypeEnum::COMBO => $this->lookup($field, $statePath),
             default => TextInput::make($statePath),
         };
 
@@ -52,6 +53,17 @@ class CustomFieldComponentFactory
         }
 
         return $component;
+    }
+
+    private function lookup(CustomField $field, string $statePath): Select
+    {
+        $resolver = app(LookupResolver::class);
+        $config = $field->options_json ?? [];
+
+        return Select::make($statePath)
+            ->searchable()
+            ->getSearchResultsUsing(fn (string $search): array => $resolver->search($config, $search))
+            ->getOptionLabelUsing(fn ($value): ?string => $resolver->label($config, $value) ?? LookupResolver::REMOVED);
     }
 
     /**

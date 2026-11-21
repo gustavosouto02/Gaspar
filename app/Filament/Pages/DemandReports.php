@@ -11,6 +11,7 @@ use App\Models\CustomEntity;
 use App\Models\CustomField;
 use App\Models\Demand;
 use App\Models\SavedReport;
+use App\Services\CustomFieldValueFormatter;
 use App\Services\MoneyFieldVisibility;
 use App\Support\MoneyInput;
 use Filament\Forms;
@@ -154,14 +155,7 @@ class DemandReports extends Page implements HasForms, HasTable
                     ->label($field->name)
                     ->getStateUsing(function (Demand $record) use ($field) {
                         $fv = $record->fieldValues->firstWhere('custom_field_id', $field->id);
-                        if (blank($fv?->value)) {
-                            return '—';
-                        }
-                        if ($field->field_type === FieldTypeEnum::CURRENCY) {
-                            return MoneyInput::display($fv->value);
-                        }
-
-                        return $fv->value;
+                        return app(CustomFieldValueFormatter::class)->format($field, $fv?->value);
                     })
                     ->toggleable(isToggledHiddenByDefault: true); // Campos customizados vêm ocultos por padrão
             }

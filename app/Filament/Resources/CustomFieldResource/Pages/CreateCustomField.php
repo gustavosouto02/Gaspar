@@ -3,7 +3,6 @@
 namespace App\Filament\Resources\CustomFieldResource\Pages;
 
 use App\Filament\Resources\CustomFieldResource;
-use Filament\Actions;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateCustomField extends CreateRecord
@@ -16,6 +15,6 @@ class CreateCustomField extends CreateRecord
             $data['key'] = str($data['name'])->slug('_')->toString();
         }
 
-        return $data;
+        return CustomFieldResource::packLookup($data);
     }
 }

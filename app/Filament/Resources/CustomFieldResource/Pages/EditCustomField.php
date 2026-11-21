@@ -16,4 +16,14 @@ class EditCustomField extends EditRecord
             Actions\DeleteAction::make(),
         ];
     }
+
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        return CustomFieldResource::unpackLookup($data);
+    }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        return CustomFieldResource::packLookup($data);
+    }
 }
