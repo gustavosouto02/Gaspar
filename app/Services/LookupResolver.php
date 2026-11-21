@@ -31,6 +31,9 @@ class LookupResolver
 
     private const LIMIT = 50;
 
+    /** @var array<string, string|null> chave do campo-rótulo por cadastro */
+    private array $labelKeys = [];
+
     /**
      * @return array<string, string>
      */
@@ -64,7 +67,7 @@ class LookupResolver
         $source = $config['source'] ?? null;
 
         if ($source === self::RECORD_TYPE) {
-            return $this->searchRecords($query, $term);
+            return $this->searchRecords($query, $term, (string) $config['record_type_id']);
         }
 
         if ($term !== '') {
@@ -77,6 +80,11 @@ class LookupResolver
         }
 
         $with = $source === 'process' ? ['macroprocess'] : [];
+
+        if ($source === 'process') {
+            // Só processos ativos, como no formulário da demanda
+            $query->where('is_active', true);
+        }
 
         return $query->with($with)->orderBy('name')->limit(self::LIMIT)->get()
             ->mapWithKeys(fn ($model) => [$model->getKey() => $this->modelLabel($source, $model)])
@@ -139,28 +147,49 @@ class LookupResolver
      */
     private function recordLabel(CustomRecord $record): string
     {
-        $type = CustomRecordType::with('fields')->find($record->custom_record_type_id);
-        $first = $type?->fields->first(
-            fn ($f) => $f->field_type !== FieldTypeEnum::CURRENCY
-                && $f->field_type !== FieldTypeEnum::COMBO
-        );
-        $value = $first ? ($record->data_json[$first->key] ?? null) : null;
+        $key = $this->labelKey($record->custom_record_type_id);
+        $value = $key ? ($record->data_json[$key] ?? null) : null;
 
         return is_scalar($value) && filled($value)
             ? "{$record->code} - {$value}"
             : (string) $record->code;
     }
 
-    private function searchRecords(Builder $query, string $term): array
+    /**
+     * Chave do campo usado no rótulo, descoberta uma vez por cadastro.
+     */
+    private function labelKey(string $recordTypeId): ?string
     {
-        $records = $query->orderBy('code')->limit($term === '' ? self::LIMIT : 500)->get();
-
-        $options = $records->mapWithKeys(fn (CustomRecord $r) => [$r->getKey() => $this->recordLabel($r)]);
-
-        if ($term !== '') {
-            $options = $options->filter(fn ($label) => mb_stripos($label, $term) !== false);
+        if (! array_key_exists($recordTypeId, $this->labelKeys)) {
+            $type = CustomRecordType::with('fields')->find($recordTypeId);
+            $this->labelKeys[$recordTypeId] = $type?->fields->first(
+                fn ($f) => $f->field_type !== FieldTypeEnum::CURRENCY
+                    && $f->field_type !== FieldTypeEnum::COMBO
+            )?->key;
         }
 
-        return $options->take(self::LIMIT)->all();
+        return $this->labelKeys[$recordTypeId];
+    }
+
+    /**
+     * A busca é feita no banco (código e campo-rótulo), então não depende
+     * do total de registros do cadastro.
+     */
+    private function searchRecords(Builder $query, string $term, string $recordTypeId): array
+    {
+        if ($term !== '') {
+            $key = $this->labelKey($recordTypeId);
+
+            $query->where(function (Builder $q) use ($term, $key) {
+                $q->where('code', 'like', "%{$term}%");
+                if ($key) {
+                    $q->orWhere("data_json->{$key}", 'like', "%{$term}%");
+                }
+            });
+        }
+
+        return $query->orderBy('code')->limit(self::LIMIT)->get()
+            ->mapWithKeys(fn (CustomRecord $r) => [$r->getKey() => $this->recordLabel($r)])
+            ->all();
     }
 }

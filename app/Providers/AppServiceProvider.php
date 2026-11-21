@@ -37,6 +37,9 @@ class AppServiceProvider extends ServiceProvider
         }
 
         // Override do LivewireManager para corrigir o getUpdateUri em subpastas
+        // Uma instância por requisição: guarda em memória o campo-rótulo de cada cadastro
+        $this->app->scoped(\App\Services\LookupResolver::class);
+
         $this->app->singleton('livewire', \App\Livewire\CustomLivewireManager::class);
     }
 }

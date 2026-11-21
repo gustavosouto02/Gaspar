@@ -32,7 +32,9 @@ class CustomFieldValueFormatter
 
         if (is_string($value)) {
             $decoded = json_decode($value, true);
-            if (is_array($decoded)) {
+            // Só junta listas planas de valores simples; JSON aninhado fica como texto
+            if (is_array($decoded) && array_is_list($decoded)
+                && collect($decoded)->every(fn ($v) => is_scalar($v) || $v === null)) {
                 return implode(', ', $decoded);
             }
         }

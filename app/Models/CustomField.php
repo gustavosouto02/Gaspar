@@ -52,6 +52,43 @@ class CustomField extends Model
         ];
     }
 
+    private ?bool $storedValuesCache = null;
+
+    /**
+     * O campo já tem valor gravado em alguma demanda, registro de cadastro
+     * ou cadastro base? Nesse caso tipo e origem não podem mais mudar.
+     */
+    public function hasStoredValues(): bool
+    {
+        if (! $this->exists) {
+            return false;
+        }
+
+        return $this->storedValuesCache ??= $this->detectStoredValues();
+    }
+
+    private function detectStoredValues(): bool
+    {
+        $inDemands = DemandFieldValue::where('custom_field_id', $this->id)
+            ->whereNotNull('value')->where('value', '!=', '')->exists();
+
+        if ($inDemands) {
+            return true;
+        }
+
+        foreach ($this->customRecordTypes()->get() as $type) {
+            $query = $type->is_system && $type->model_class
+                ? $type->model_class::withoutGlobalScopes()->whereNotNull("custom_data->{$this->key}")
+                : CustomRecord::where('custom_record_type_id', $type->id)->whereNotNull("data_json->{$this->key}");
+
+            if ($query->exists()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     /**
      * Relacionamento com CustomEntities
      */

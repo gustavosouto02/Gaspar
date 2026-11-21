@@ -4,7 +4,10 @@ namespace App\Services;
 
 use App\Enums\FieldTypeEnum;
 use App\Models\CustomField;
+use App\Models\CustomRecord;
+use App\Models\Demand;
 use App\Support\MoneyInput;
+use Closure;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\Radio;
@@ -12,6 +15,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * Monta o componente de formulário de um campo customizado a partir do tipo.
@@ -63,7 +67,26 @@ class CustomFieldComponentFactory
         return Select::make($statePath)
             ->searchable()
             ->getSearchResultsUsing(fn (string $search): array => $resolver->search($config, $search))
-            ->getOptionLabelUsing(fn ($value): ?string => $resolver->label($config, $value) ?? LookupResolver::REMOVED);
+            ->getOptionLabelUsing(fn ($value): ?string => $resolver->label($config, $value) ?? LookupResolver::REMOVED)
+            // O Select não valida a origem sozinho; um UUID forjado no payload seria gravado.
+            // O valor que já estava gravado continua aceito (registro removido depois).
+            ->rule(fn (?Model $record) => function (string $attribute, mixed $value, Closure $fail) use ($resolver, $config, $field, $record) {
+                if (blank($value) || $value === $this->storedValue($record, $field)) {
+                    return;
+                }
+                if ($resolver->label($config, $value) === null) {
+                    $fail('Selecione um registro válido.');
+                }
+            });
+    }
+
+    private function storedValue(?Model $record, CustomField $field): mixed
+    {
+        return match (true) {
+            $record instanceof Demand => $record->fieldValues()->where('custom_field_id', $field->id)->value('value'),
+            $record instanceof CustomRecord => $record->data_json[$field->key] ?? null,
+            default => $record?->custom_data[$field->key] ?? null,
+        };
     }
 
     /**
