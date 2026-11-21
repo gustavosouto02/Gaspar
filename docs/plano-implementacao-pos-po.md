@@ -16,8 +16,8 @@ Legenda: ✅ feito · 🔄 em andamento (PR aberto) · ⬜ a fazer
 | T1 — Gestor obrigatório | Gustavo | ✅ | Mergeado na `develop` (PRs #44 e #48). Falta homologação. |
 | T2 — Visibilidade de valores | Gustavo | ✅ | Mergeado na `develop` (PR #45). Inclui o padrão de moeda `1.000,00`. Correção de escopo (só consultas e relatórios, formulário livre) mergeada na `develop` (PR #47). Falta homologação e validar com o PO a visibilidade nas telas de visualização. |
 | T3 — Cadeia de Valor | Gustavo | ⬜ | |
-| T4 — Campo Vínculo | Filipi | ⬜ | Depende do R0. |
-| T5 — Relatório de Cadastros | Gustavo | ⬜ | Depende de T2 e do formatter do T4. |
+| T4 — Campo Vínculo | Filipi (feito por Gustavo) | ✅ | Mergeado na `develop` (PRs #49 e #50). O tipo se chama `FieldTypeEnum::COMBO` ("Combo"). Tipo e origem travam quando o campo já tem valores. Valores de campos desvinculados ou excluídos ficam preservados e aparecem somente leitura na demanda, no relatório e no PDF. Falta homologação. |
+| T5 — Relatório de Cadastros | Gustavo | ⬜ | Depende de T2 e do formatter do T4 (`CustomFieldValueFormatter`, já na `develop`). |
 | T6 — Versionamento de processos | Filipi | ⬜ | Depende do T1 mergeado (clona `manager_id`). |
 
 **Ajustes de regra confirmados pelo PO em 17/11/2026** (já refletidos nas seções abaixo):
@@ -227,7 +227,22 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 
 ---
 
-### T4 — Campo "Vínculo com cadastro" (Filipi, ~2 dias, depende de R0)
+### T4 — Campo "Vínculo com cadastro" (Filipi, ~2 dias, depende de R0) ✅
+
+> **Status:** mergeado na `develop` (PR #49, o campo; PR #50, o histórico de valores). Pendente: homologação, em especial a busca do Combo no MySQL (a suíte roda em SQLite, que ignora maiúsculas e minúsculas por padrão).
+> **Mudanças em relação ao plano original:**
+> - O tipo é `FieldTypeEnum::COMBO`, e não `LOOKUP`.
+> - **Bloqueio:** com valores gravados (demandas, registros de cadastro ou cadastros base), o campo não troca de tipo, de origem nem de cadastro; para corrigir uma origem errada, cria-se um campo novo e troca-se no formulário do processo. A guarda vale também no servidor, e a chave (`key`) nunca é editável.
+> - **Histórico (PR #50):** campo desvinculado do processo ou excluído (soft delete) mantém os valores das demandas. A demanda os mostra em texto, com a marca "(fora do formulário atual)", respeitando a matriz de permissões (HIDDEN) e a regra de moeda; o relatório ganha colunas do histórico e o PDF marca esses campos. O salvar da demanda não apaga mais esses valores, e `forceDelete` de campo com valores é bloqueado. Valores de campos HIDDEN também deixaram de ir para o estado do Livewire.
+> - Busca de "Outros Cadastros" feita no banco (limite de 50, sem diferenciar maiúsculas); o campo não tem Valor Padrão; o servidor valida que o UUID pertence à origem.
+> - O CSV do relatório de demandas só exporta colunas fixas, então não há campo customizado a formatar nele.
+> - Testes: `LookupFieldTest`, `HistoricoValoresCamposTest` e `HistoricoPermissoesTest`. Suíte da `develop` após os merges: 300 testes.
+> **Pendências / decisões em aberto:**
+> - Seleção múltipla, filtro em cascata e Combo em regras de transição continuam fora.
+> - A busca global de demandas compara o texto com o UUID guardado, então não acha a demanda pelo nome do registro vinculado, e a coluna do Combo na tabela de registros não é ordenável nem pesquisável.
+> - Regra de gateway sobre campo desvinculado agora decide pelo valor congelado (antes travava a demanda): avaliar um aviso ao desvincular campo usado em regra.
+> - `custom_fields.key` não é único no banco; o histórico já não depende disso, mas vale um card para a unicidade.
+> - Nome do campo, opções e rótulo do Combo vêm do campo atual; congelar isso no PDF antigo exigiria gravar nome e rótulo junto com o valor.
 
 **Modelo de dados**
 - `FieldTypeEnum::LOOKUP` ("Vínculo com cadastro").
