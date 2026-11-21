@@ -426,14 +426,29 @@ class DemandResource extends Resource
 
     /**
      * Valores gravados para preencher field_data ao abrir a demanda. Só entram
-     * campos atuais do processo: os que saíram dele viram texto (histórico).
+     * campos atuais do processo e nunca os ocultos para o usuário na situação
+     * atual (o estado do Livewire vai inteiro para o navegador).
      *
      * @return array<string, mixed> mapa key => valor
      */
-    public static function fieldDataForFill(Demand $demand): array
+    public static function fieldDataForFill(Demand $demand, ?User $user = null): array
     {
-        $fields = $demand->entity?->fields()->get() ?? collect();
-        $keys = $fields->pluck('key', 'id');
+        $entity = $demand->entity;
+        if (! $entity) {
+            return [];
+        }
+
+        $fields = $entity->fields()->get();
+
+        $status = $demand->processStatus;
+        $hidden = $status && $user
+            ? array_keys(array_filter(
+                app(FieldPermissionResolver::class)->resolveFor($entity, $status, $user, $fields),
+                fn (FieldPermissionEnum $permission) => $permission === FieldPermissionEnum::HIDDEN
+            ))
+            : [];
+
+        $keys = $fields->reject(fn ($field) => in_array($field->id, $hidden, true))->pluck('key', 'id');
 
         $data = [];
         foreach ($demand->fieldValues()->whereIn('custom_field_id', $keys->keys())->get() as $fv) {

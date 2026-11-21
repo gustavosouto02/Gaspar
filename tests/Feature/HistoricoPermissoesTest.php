@@ -148,4 +148,37 @@ class HistoricoPermissoesTest extends TestCase
                 ->assertSee('12.345,67');
         }
     }
+
+    public function test_estado_do_formulario_nao_leva_o_valor_de_campo_oculto_e_salvar_nao_o_apaga(): void
+    {
+        $parecer = $this->campo('Parecer interno', 'parecer', FieldTypeEnum::TEXT, FieldPermissionEnum::HIDDEN, 'segredo-xyz');
+        $obs = $this->campo('Observação', 'obs', FieldTypeEnum::TEXT, FieldPermissionEnum::OPTIONAL, 'obs inicial');
+
+        $this->actingAs($this->executor);
+
+        foreach ([ViewDemand::class, EditDemand::class] as $pagina) {
+            $tela = Livewire::test($pagina, ['record' => $this->demanda->id]);
+            $this->assertNull($tela->get('data.field_data.parecer'));
+            $this->assertSame('obs inicial', $tela->get('data.field_data.obs'));
+            $this->assertStringNotContainsString('segredo-xyz', json_encode($tela->get('data')));
+        }
+
+        Livewire::test(EditDemand::class, ['record' => $this->demanda->id])
+            ->set('data.field_data.obs', 'obs editada')
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame('obs editada', $this->valorGravado($obs));
+        $this->assertSame('segredo-xyz', $this->valorGravado($parecer));
+    }
+
+    public function test_admin_continua_com_o_valor_de_campo_oculto_no_estado(): void
+    {
+        $this->campo('Parecer interno', 'parecer', FieldTypeEnum::TEXT, FieldPermissionEnum::HIDDEN, 'segredo-xyz');
+
+        $this->actingAs($this->admin);
+
+        $tela = Livewire::test(EditDemand::class, ['record' => $this->demanda->id]);
+        $this->assertSame('segredo-xyz', $tela->get('data.field_data.parecer'));
+    }
 }

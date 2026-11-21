@@ -54,7 +54,7 @@ class EditDemand extends EditRecord
      */
     protected function mutateFormDataBeforeFill(array $data): array
     {
-        foreach (DemandResource::fieldDataForFill($this->getRecord()) as $key => $value) {
+        foreach (DemandResource::fieldDataForFill($this->getRecord(), auth()->user()) as $key => $value) {
             $data['field_data'][$key] = $value;
         }
 
