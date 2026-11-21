@@ -29,6 +29,7 @@ class DemandFieldValue extends Model
 
     public function customField(): BelongsTo
     {
-        return $this->belongsTo(CustomField::class);
+        // Campo excluído continua dono do valor: o histórico da demanda não se perde
+        return $this->belongsTo(CustomField::class)->withTrashed();
     }
 }

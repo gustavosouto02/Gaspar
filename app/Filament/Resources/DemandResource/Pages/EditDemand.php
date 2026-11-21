@@ -234,12 +234,8 @@ class EditDemand extends EditRecord
             );
         }
 
-        // Remove valores de campos que não existem mais no processo
-        // (a lista completa preserva os valores de campos bloqueados)
-        $validFieldIds = $fields->pluck('id')->all();
-        DemandFieldValue::where('demand_id', $demandId)
-            ->whereNotIn('custom_field_id', $validFieldIds)
-            ->delete();
+        // Valores de campos que saíram do processo (desvinculados ou excluídos) são
+        // mantidos: a demanda guarda o que foi preenchido na época.
     }
 
     /**

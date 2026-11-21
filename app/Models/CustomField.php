@@ -31,6 +31,17 @@ class CustomField extends Model
         'created_by',
     ];
 
+    protected static function booted(): void
+    {
+        // Exclusão definitiva apagaria os valores gravados (cascade); campo com
+        // valores só pode ser excluído "de mentira" (soft delete)
+        static::forceDeleting(function (CustomField $field) {
+            if ($field->hasStoredValues()) {
+                throw new \RuntimeException('Campo com valores gravados não pode ser excluído definitivamente.');
+            }
+        });
+    }
+
     /**
      * Gerar UUID7 para a chave primária
      */

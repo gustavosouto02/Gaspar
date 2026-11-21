@@ -254,6 +254,7 @@ class DemandResource extends Resource
                         $get('entity_id'),
                         $record?->process_status_id ?? $get('process_status_id'),
                         auth()->user(),
+                        $record,
                     ))
                     ->columns(2)
                     ->visible(fn (Get $get) => filled($get('entity_id')))
@@ -310,7 +311,7 @@ class DemandResource extends Resource
      * Quando situação e usuário são informados, aplica a matriz de permissões
      * de campos (obrigatório/opcional/somente leitura/oculto).
      */
-    public static function buildDynamicFieldSchema(?string $entityId, ?string $processStatusId = null, ?User $user = null): array
+    public static function buildDynamicFieldSchema(?string $entityId, ?string $processStatusId = null, ?User $user = null, ?Demand $record = null): array
     {
         if (! $entityId) {
             return [];
@@ -322,8 +323,9 @@ class DemandResource extends Resource
         }
 
         $fields = $entity->fields()->get();
+        $historyFields = static::historyFieldsSchema($record, $fields->pluck('id')->all());
 
-        if ($fields->isEmpty()) {
+        if ($fields->isEmpty() && empty($historyFields)) {
             return [
                 Forms\Components\Placeholder::make('no_fields')
                     ->label('')
@@ -363,7 +365,39 @@ class DemandResource extends Resource
             $schema[] = $component;
         }
 
-        return $schema;
+        return array_merge($schema, $historyFields);
+    }
+
+    /**
+     * Campos que a demanda preencheu mas que não fazem mais parte do processo
+     * (desvinculados ou excluídos). Aparecem só para leitura, com o valor da época.
+     *
+     * @param  array<string>  $currentFieldIds
+     * @return array<int, Forms\Components\Component>
+     */
+    private static function historyFieldsSchema(?Demand $record, array $currentFieldIds): array
+    {
+        if (! $record) {
+            return [];
+        }
+
+        $factory = app(CustomFieldComponentFactory::class);
+
+        $components = $record->fieldValues()
+            ->whereNotIn('custom_field_id', $currentFieldIds)
+            ->with('customField')
+            ->get()
+            ->filter(fn ($fv) => $fv->customField && filled($fv->value))
+            ->map(fn ($fv) => $factory->make($fv->customField, "field_data.{$fv->customField->key}")
+                ->label($fv->customField->name.' (fora do formulário atual)')
+                ->default(null)
+                ->disabled()
+                ->dehydrated(false)
+                ->required(false))
+            ->values()
+            ->all();
+
+        return $components;
     }
 
     public static function table(Table $table): Table
