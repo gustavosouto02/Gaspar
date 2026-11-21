@@ -82,6 +82,8 @@ enum RuleOperatorEnum: string
                 self::IS_TRUE, self::IS_FALSE,
                 ...$common,
             ],
+            // Vínculo com cadastro não é suportado em regras de transição
+            FieldTypeEnum::COMBO => [],
         };
     }
 

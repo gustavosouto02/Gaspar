@@ -21,6 +21,9 @@ class AppServiceProvider extends ServiceProvider
                 'cache.default'  => 'file',
             ]);
         }
+
+        // Uma instância por requisição: guarda em memória o campo-rótulo de cada cadastro
+        $this->app->scoped(\App\Services\LookupResolver::class);
     }
 
     /**

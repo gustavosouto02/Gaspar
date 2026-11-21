@@ -137,13 +137,16 @@ class CustomRecordResource extends Resource
                 );
 
                 foreach ($visibleFields->take(4) as $field) {
+                    $isLookup = $field->field_type === \App\Enums\FieldTypeEnum::COMBO;
+
+                    // O valor de um vínculo é um UUID: buscar/ordenar por ele não faz sentido
                     $column = Tables\Columns\TextColumn::make("data_json.{$field->key}")
                         ->label($field->name)
-                        ->searchable()
-                        ->sortable();
+                        ->searchable(! $isLookup)
+                        ->sortable(! $isLookup);
 
-                    if ($field->field_type === \App\Enums\FieldTypeEnum::CURRENCY) {
-                        $column->formatStateUsing(fn ($state) => \App\Support\MoneyInput::display($state));
+                    if ($isLookup || $field->field_type === \App\Enums\FieldTypeEnum::CURRENCY) {
+                        $column->formatStateUsing(fn ($state) => app(\App\Services\CustomFieldValueFormatter::class)->format($field, $state));
                     }
 
                     $columns[] = $column;

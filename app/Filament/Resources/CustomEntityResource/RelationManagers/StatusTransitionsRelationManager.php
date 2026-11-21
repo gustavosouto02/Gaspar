@@ -220,7 +220,7 @@ class StatusTransitionsRelationManager extends RelationManager
      */
     private function conditionSchema($entity): array
     {
-        $fieldOptions = fn () => $entity->fields()->pluck('custom_fields.name', 'custom_fields.id')->toArray();
+        $fieldOptions = fn () => $entity->fields()->where('custom_fields.field_type', '!=', FieldTypeEnum::COMBO->value)->pluck('custom_fields.name', 'custom_fields.id')->toArray();
 
         $fieldType = function (Get $get): ?FieldTypeEnum {
             $fieldId = $get('field_id');
