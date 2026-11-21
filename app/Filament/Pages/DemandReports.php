@@ -8,6 +8,7 @@ use App\Enums\ProcessStatusColorEnum;
 use App\Filament\Resources\DemandResource;
 use App\Models\CustomEntity;
 use App\Models\CustomField;
+use App\Models\DemandFieldValue;
 use App\Models\Demand;
 use App\Models\SavedReport;
 use App\Services\CustomFieldValueFormatter;
@@ -140,6 +141,17 @@ class DemandReports extends Page implements HasForms, HasTable
                 $q->where('custom_entities.id', $entityId);
             })->get();
 
+            // Campos que demandas deste processo preencheram, mas que saíram do
+            // formulário (desvinculados ou excluídos): ficam como colunas do histórico,
+            // mas só quando algum valor foi de fato preenchido
+            $historyFieldIds = DemandFieldValue::whereHas('demand', fn ($q) => $q->where('entity_id', $entityId))
+                ->whereNotIn('custom_field_id', $customFields->pluck('id'))
+                ->whereNotNull('value')->where('value', '!=', '')
+                ->distinct()
+                ->pluck('custom_field_id');
+            $historyFields = CustomField::withTrashed()->whereIn('id', $historyFieldIds)->get();
+            $customFields = $customFields->concat($historyFields);
+
             $entity = CustomEntity::with('macroprocess')->find($entityId);
             $moneyVisibility = app(MoneyFieldVisibility::class);
 
@@ -150,7 +162,7 @@ class DemandReports extends Page implements HasForms, HasTable
                 }
 
                 $columns[] = Tables\Columns\TextColumn::make('field_'.$field->id)
-                    ->label($field->name)
+                    ->label($field->name.($historyFieldIds->contains($field->id) ? ' (fora do formulário atual)' : ''))
                     ->getStateUsing(function (Demand $record) use ($field) {
                         $fv = $record->fieldValues->firstWhere('custom_field_id', $field->id);
                         return app(CustomFieldValueFormatter::class)->format($field, $fv?->value);

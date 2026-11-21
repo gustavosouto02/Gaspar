@@ -11,12 +11,15 @@ use App\Filament\Resources\DemandResource\Pages;
 use App\Models\ActivityLog;
 use App\Models\CustomEntity;
 use App\Models\Demand;
+use App\Models\DemandFieldValue;
 use App\Models\ProcessStatus;
 use App\Models\Project;
 use App\Models\Supplier;
 use App\Models\User;
 use App\Services\CustomFieldComponentFactory;
+use App\Services\CustomFieldValueFormatter;
 use App\Services\FieldPermissionResolver;
+use App\Services\MoneyFieldVisibility;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -254,6 +257,7 @@ class DemandResource extends Resource
                         $get('entity_id'),
                         $record?->process_status_id ?? $get('process_status_id'),
                         auth()->user(),
+                        $record,
                     ))
                     ->columns(2)
                     ->visible(fn (Get $get) => filled($get('entity_id')))
@@ -310,7 +314,7 @@ class DemandResource extends Resource
      * Quando situação e usuário são informados, aplica a matriz de permissões
      * de campos (obrigatório/opcional/somente leitura/oculto).
      */
-    public static function buildDynamicFieldSchema(?string $entityId, ?string $processStatusId = null, ?User $user = null): array
+    public static function buildDynamicFieldSchema(?string $entityId, ?string $processStatusId = null, ?User $user = null, ?Demand $record = null): array
     {
         if (! $entityId) {
             return [];
@@ -322,8 +326,10 @@ class DemandResource extends Resource
         }
 
         $fields = $entity->fields()->get();
+        $statusRecord = $processStatusId ? ProcessStatus::find($processStatusId) : null;
+        $historyFields = static::historyFieldsSchema($record, $entity, $fields, $statusRecord, $user);
 
-        if ($fields->isEmpty()) {
+        if ($fields->isEmpty() && empty($historyFields)) {
             return [
                 Forms\Components\Placeholder::make('no_fields')
                     ->label('')
@@ -333,7 +339,6 @@ class DemandResource extends Resource
         }
 
         $permissions = null;
-        $statusRecord = $processStatusId ? ProcessStatus::find($processStatusId) : null;
 
         if ($statusRecord && $user) {
             $permissions = app(FieldPermissionResolver::class)->resolve($entity, $statusRecord, $user);
@@ -363,7 +368,94 @@ class DemandResource extends Resource
             $schema[] = $component;
         }
 
-        return $schema;
+        return array_merge($schema, $historyFields);
+    }
+
+    /**
+     * Campos que a demanda preencheu mas que não fazem mais parte do processo
+     * (desvinculados ou excluídos). Aparecem só como texto, com o valor da época:
+     * sem estado em field_data (a chave do campo não é única) e sem validação.
+     *
+     * @param  Collection<int, \App\Models\CustomField>  $currentFields
+     * @return array<int, Forms\Components\Component>
+     */
+    private static function historyFieldsSchema(?Demand $record, CustomEntity $entity, \Illuminate\Support\Collection $currentFields, ?ProcessStatus $status, ?User $user): array
+    {
+        $formatter = app(CustomFieldValueFormatter::class);
+
+        return static::visibleHistoryValues($record, $entity, $currentFields, $status, $user)
+            ->map(fn (DemandFieldValue $fv) => Forms\Components\Placeholder::make("history_{$fv->custom_field_id}")
+                ->label($fv->customField->name.' (fora do formulário atual)')
+                ->content($formatter->format($fv->customField, $fv->value)))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Valores de campos fora do processo que o usuário pode ver. Segue a mesma
+     * regra do PDF e do relatório: descarta os ocultos pela matriz de permissões
+     * e os de moeda que o usuário não pode ver.
+     *
+     * @param  Collection<int, \App\Models\CustomField>  $currentFields
+     * @return \Illuminate\Support\Collection<int, DemandFieldValue>
+     */
+    public static function visibleHistoryValues(?Demand $record, CustomEntity $entity, \Illuminate\Support\Collection $currentFields, ?ProcessStatus $status, ?User $user): \Illuminate\Support\Collection
+    {
+        if (! $record) {
+            return collect();
+        }
+
+        $values = $record->fieldValues()
+            ->whereNotIn('custom_field_id', $currentFields->pluck('id')->all())
+            ->with('customField')
+            ->get()
+            ->filter(fn (DemandFieldValue $fv) => $fv->customField && filled($fv->value));
+
+        if ($values->isEmpty()) {
+            return $values;
+        }
+
+        $permissions = $status && $user
+            ? app(FieldPermissionResolver::class)->resolveFor($entity, $status, $user, $values->pluck('customField')->unique('id'))
+            : [];
+        $money = app(MoneyFieldVisibility::class);
+
+        return $values->reject(fn (DemandFieldValue $fv) => ($permissions[$fv->custom_field_id] ?? null) === FieldPermissionEnum::HIDDEN
+            || $money->isHiddenFor($user, $fv->customField, $entity));
+    }
+
+    /**
+     * Valores gravados para preencher field_data ao abrir a demanda. Só entram
+     * campos atuais do processo e nunca os ocultos para o usuário na situação
+     * atual (o estado do Livewire vai inteiro para o navegador).
+     *
+     * @return array<string, mixed> mapa key => valor
+     */
+    public static function fieldDataForFill(Demand $demand, ?User $user = null): array
+    {
+        $entity = $demand->entity;
+        if (! $entity) {
+            return [];
+        }
+
+        $fields = $entity->fields()->get();
+
+        $status = $demand->processStatus;
+        $hidden = $status && $user
+            ? array_keys(array_filter(
+                app(FieldPermissionResolver::class)->resolveFor($entity, $status, $user, $fields),
+                fn (FieldPermissionEnum $permission) => $permission === FieldPermissionEnum::HIDDEN
+            ))
+            : [];
+
+        $keys = $fields->reject(fn ($field) => in_array($field->id, $hidden, true))->pluck('key', 'id');
+
+        $data = [];
+        foreach ($demand->fieldValues()->whereIn('custom_field_id', $keys->keys())->get() as $fv) {
+            $data[$keys[$fv->custom_field_id]] = $fv->value;
+        }
+
+        return $data;
     }
 
     public static function table(Table $table): Table

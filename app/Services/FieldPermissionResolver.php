@@ -9,6 +9,7 @@ use App\Models\FieldPermission;
 use App\Models\ProcessMember;
 use App\Models\ProcessStatus;
 use App\Models\User;
+use Illuminate\Support\Collection;
 
 /**
  * Resolve a permissão efetiva de cada campo do processo para uma situação
@@ -23,8 +24,18 @@ class FieldPermissionResolver
      */
     public function resolve(CustomEntity $entity, ProcessStatus $status, User $user): array
     {
-        $fields = $entity->fields()->get();
+        return $this->resolveFor($entity, $status, $user, $entity->fields()->get());
+    }
 
+    /**
+     * Mesma regra de resolve(), para um conjunto de campos informado (ex.: os
+     * que a demanda preencheu e que já saíram do processo).
+     *
+     * @param  Collection<int, \App\Models\CustomField>  $fields
+     * @return array<string, FieldPermissionEnum> mapa custom_field_id => permissão efetiva
+     */
+    public function resolveFor(CustomEntity $entity, ProcessStatus $status, User $user, Collection $fields): array
+    {
         $roleIds = ProcessMember::where('entity_id', $entity->id)
             ->where('user_id', $user->id)
             ->pluck('process_role_id')
