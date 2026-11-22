@@ -15,7 +15,7 @@ Legenda: ✅ feito · 🔄 em andamento (PR aberto) · ⬜ a fazer
 | R0 — `CustomFieldComponentFactory` | Filipi (feito por Gustavo) | ✅ | Mergeado na `develop` (PR #46), sem mudança de comportamento; a obrigatoriedade e a permissão ficam nos chamadores. Filipi já pode partir da `develop` para o T4. |
 | T1 — Gestor obrigatório | Gustavo | ✅ | Mergeado na `develop` (PRs #44 e #48). Falta homologação. |
 | T2 — Visibilidade de valores | Gustavo | ✅ | Mergeado na `develop` (PR #45). Inclui o padrão de moeda `1.000,00`. Correção de escopo (só consultas e relatórios, formulário livre) mergeada na `develop` (PR #47). Falta homologação e validar com o PO a visibilidade nas telas de visualização. |
-| T3 — Cadeia de Valor | Gustavo | ⬜ | |
+| T3 — Cadeia de Valor | Gustavo | 🔄 | Branch `feat/cadeia-valor`. Desenho com os 4 grupos do enum do sistema (a imagem do PO é só exemplo), no fim do Painel de Controle. Sem migration de dados. |
 | T4 — Campo Vínculo | Filipi (feito por Gustavo) | ✅ | Mergeado na `develop` (PRs #49 e #50). O tipo se chama `FieldTypeEnum::COMBO` ("Combo"). Tipo e origem travam quando o campo já tem valores. Valores de campos desvinculados ou excluídos ficam preservados e aparecem somente leitura na demanda, no relatório e no PDF. Falta homologação. |
 | T5 — Relatório de Cadastros | Gustavo | ✅ | Mergeado na `develop` (PRs #51 e #52). Atende os cadastros criados pelo admin e os 5 base, com filtro por campo e CSV. Falta homologação, em especial os filtros no MySQL (a suíte roda em SQLite). Consultas salvas ficaram de fora. |
 | T6 — Versionamento de processos | Filipi | ⬜ | Depende do T1 mergeado (clona `manager_id`). |

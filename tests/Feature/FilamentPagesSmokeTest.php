@@ -21,6 +21,7 @@ use App\Filament\Widgets\DemandStatsWidget;
 use App\Filament\Widgets\GeneralStatsOverview;
 use App\Filament\Widgets\MyDemandsWidget;
 use App\Filament\Widgets\MySubDemandsWidget;
+use App\Filament\Widgets\ValueChainWidget;
 use App\Models\Client;
 use App\Models\CustomEntity;
 use App\Models\Demand;
@@ -383,6 +384,7 @@ class FilamentPagesSmokeTest extends TestCase
                 GeneralStatsOverview::class,
                 DemandByProcessChart::class,
                 DemandSLAChart::class,
+                ValueChainWidget::class,
             ],
             array_values($component->instance()->getVisibleWidgets())
         );

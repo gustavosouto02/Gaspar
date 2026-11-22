@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\UserRoleEnum;
+use App\Enums\ValueChainFunctionEnum;
 use App\Filament\Resources\Concerns\CustomFieldsRelationManager;
 use App\Filament\Resources\Concerns\HasManagerField;
 use App\Filament\Resources\Concerns\HasRecordTypeLabel;
@@ -103,13 +104,8 @@ class MacroprocessResource extends Resource
                 Select::make('value_chain_function')
                     ->label('Função na Cadeia de Valor')
                     ->required()
-                    ->options([
-                        'Suportar Processos' => 'Suportar Processos',
-                        'Definir Diretrizes e Estratégia' => 'Definir Diretrizes e Estratégia',
-                        'Entregar Produtos e Serviços' => 'Entregar Produtos e Serviços',
-                        'Manter Relacionamentos' => 'Manter Relacionamentos',
-                    ])
-                    ->in(fn (Select $component): array => array_keys($component->getOptions())),
+                    ->options(ValueChainFunctionEnum::options())
+                    ->in(array_keys(ValueChainFunctionEnum::options())),
 
                 static::managerSelect(),
 
