@@ -18,7 +18,7 @@ Legenda: ✅ feito · 🔄 em andamento (PR aberto) · ⬜ a fazer
 | T3 — Cadeia de Valor | Gustavo | ✅ | Mergeado na `develop` (PR #53). Desenho com os 4 grupos do enum do sistema (a imagem do PO é só exemplo), no fim do Painel de Controle. Sem migration de dados. Falta homologação. |
 | T4 — Campo Vínculo | Filipi (feito por Gustavo) | ✅ | Mergeado na `develop` (PRs #49 e #50). O tipo se chama `FieldTypeEnum::COMBO` ("Combo"). Tipo e origem travam quando o campo já tem valores. Valores de campos desvinculados ou excluídos ficam preservados e aparecem somente leitura na demanda, no relatório e no PDF. Falta homologação. |
 | T5 — Relatório de Cadastros | Gustavo | ✅ | Mergeado na `develop` (PRs #51 e #52). Atende os cadastros criados pelo admin e os 5 base, com filtro por campo e CSV. Falta homologação, em especial os filtros no MySQL (a suíte roda em SQLite). Consultas salvas ficaram de fora. |
-| T6 — Versionamento de processos | Filipi | ⬜ | Depende do T1 mergeado (clona `manager_id`). |
+| T6 — Versionamento de processos | Filipi | 🔄 | Branch `feat/versionamento-processos`. Cada versão é um processo clonado; ação "Editar estrutura" cria a nova versão quando a vigente já tem demandas. Falta homologação em MySQL. |
 
 **Ajustes de regra confirmados pelo PO em 17/11/2026** (já refletidos nas seções abaixo):
 - O gestor de Macroprocesso e de Processo precisa ter o perfil `GESTOR` no sistema.
@@ -308,7 +308,25 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 
 ---
 
-### T6 — Versionamento de processos (Filipi, ~3 dias)
+### T6 — Versionamento de processos (Filipi, ~3 dias) 🔄
+
+> **Status:** em andamento na branch `feat/versionamento-processos` (PR ainda não aberto).
+> **Decisões do PO/produto (substituem o texto abaixo onde divergirem):**
+> - **Gatilho = ação "Editar estrutura"** (admin), com confirmação. Se a versão vigente tem demandas (qualquer estado), as abas de estrutura (campos, situações, transições, papéis) e a tela de Permissões de Campos ficam somente leitura, com o aviso "Esta versão já tem demandas. Use 'Editar estrutura' para criar uma nova versão." A ação clona a vigente em v(n+1), marca a anterior `is_current = false` e leva para a edição da nova. Sem demandas, a estrutura é editada direto, sem versão (a ação nem aparece).
+> - **Metadados** (nome, gestor, macroprocesso, finalidade, descrição, SLA, ativo) **não geram versão** e seguem editáveis na vigente, ao contrário do que o plano dizia sobre SLA e gestor serem versionados; o clone copia os valores do momento.
+> - **Versão antiga** (`is_current = false`) é totalmente somente leitura (a edição redireciona para a visualização) e não recebe novas demandas; as existentes seguem tramitando nela.
+> - **Trava de exclusão:** `DeleteAction`/`DeleteBulkAction` (lista e edição) e o próprio Model (`deleting`, lança `ProcessDeletionBlockedException`) bloqueiam enquanto houver demanda não encerrada (encerradas = `CLOSED`, `CANCELED`, `EVALUATED`; `DRAFT` conta como pendente). Em lote, uma versão bloqueada cancela a ação inteira. A trava dos itens internos é coberta pela estrutura travada.
+> - **Versão** é preenchida pelo sistema ("v1", "v2"), nunca editável nem preenchível em massa. O clone tem `code` próprio (índice único); a interface mostra o código da raiz + versão (`display_code`, ex.: `PRC-2026-0007 · v2`), e `full_display_name` ganha "(v2)" quando `version > 1`.
+> - **Versões inativas:** a lista de Processos mostra só vigentes e tem o link "Versões inativas" (`/versoes-inativas`, somente leitura); view/edit têm o link com as versões antigas do mesmo processo (`?processo=<id da raiz>`); o view do Macroprocesso lista só as vigentes e uma seção "Versões antigas de processos".
+> - **Migration** `2026_11_21_100000`: `root_entity_id`, `version`, `is_current`, `previous_version_id`, com backfill (todo processo atual vira v1 vigente, inclusive os excluídos logicamente).
+> - Select de nova demanda (e subdemanda): só processo ativo e vigente, validado também no servidor; `?entity_id=` de versão antiga é ignorado. Filtros (relatório, widgets) listam todas as versões, com "v1 (anterior)" / "v2 (vigente)" quando há mais de uma.
+>
+> **Pendências / decisões em aberto:**
+> - Homologar em MySQL (a suíte roda em SQLite): migration com backfill e a criação do clone (índice único de `code`).
+> - Apagar a versão vigente devolve a vigência para a anterior (decisão nossa, para o processo não ficar sem versão vigente); validar com o PO.
+> - O Macroprocesso e o select do Vínculo com processo (`LookupResolver`, fonte `process`) ainda listam todas as versões na busca; só o view do Macroprocesso foi ajustado.
+> - `Project.entity_id` existe, mas o `ProjectResource` não tem select de processo, então nada mudou lá.
+> - O link "Versões inativas" nas telas de view/edit só aparece quando o processo já tem versão antiga.
 
 **Abordagem escolhida: clonar o processo.** Cada versão é um `CustomEntity` próprio. Como todo o fluxo já é amarrado por `entity_id`, as demandas em andamento seguem na versão antiga **sem alterar** `Demand`, `DemandTransitionService`, `StatusTransition` nem `FieldPermissionResolver`. A alternativa (snapshot em JSON com `process_version_id` na demanda) exigiria reescrever mais de 10 consultas em `Demand.php` e os serviços, e foi descartada.
 
