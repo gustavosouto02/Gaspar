@@ -18,6 +18,23 @@ enum ValueChainFunctionEnum: string
         return $this->value;
     }
 
+    /** Classe da área do bloco no desenho do painel (grid-area). */
+    public function area(): string
+    {
+        return match ($this) {
+            self::DEFINIR_DIRETRIZES => 'vc-area-diretrizes',
+            self::ENTREGAR => 'vc-area-entregar',
+            self::RELACIONAMENTO => 'vc-area-relacionamento',
+            self::SUPORTAR => 'vc-area-suportar',
+        };
+    }
+
+    /** Se os macroprocessos do bloco ficam empilhados (coluna) em vez de lado a lado. */
+    public function isStacked(): bool
+    {
+        return $this === self::DEFINIR_DIRETRIZES;
+    }
+
     public static function options(): array
     {
         $options = [];

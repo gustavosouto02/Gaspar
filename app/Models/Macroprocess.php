@@ -48,19 +48,33 @@ class Macroprocess extends Model
         return $this->hasMany(CustomEntity::class, 'macroprocess_id');
     }
 
-    public function getFullDisplayNameAttribute(): string
+    /** Nome sem o prefixo "SIGLA - " (e, se pedido, sem a palavra "Macroprocesso" inicial). */
+    private function cleanName(bool $stripWord = true): string
     {
         $cleanName = trim((string) $this->name);
 
         if ($this->acronym) {
-            $prefixPattern = '/^' . preg_quote(trim($this->acronym), '/') . '\s*-\s*/iu';
+            $prefixPattern = '/^'.preg_quote(trim($this->acronym), '/').'\s*-\s*/iu';
             $cleanName = (string) preg_replace($prefixPattern, '', $cleanName);
         }
 
-        $cleanName = (string) preg_replace('/^macroprocesso\s+/iu', '', $cleanName);
+        return $stripWord ? (string) preg_replace('/^macroprocesso\s+/iu', '', $cleanName) : $cleanName;
+    }
+
+    public function getFullDisplayNameAttribute(): string
+    {
+        $cleanName = $this->cleanName();
 
         return $this->acronym
             ? "{$this->acronym} - Macroprocesso {$cleanName}"
             : "Macroprocesso {$cleanName}";
+    }
+
+    /** "SIGLA - Nome", sem repetir a sigla quando o nome já começa com ela. */
+    public function getShortDisplayNameAttribute(): string
+    {
+        $cleanName = $this->cleanName(false);
+
+        return $this->acronym ? "{$this->acronym} - {$cleanName}" : $cleanName;
     }
 }

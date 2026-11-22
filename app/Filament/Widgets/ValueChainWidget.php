@@ -18,7 +18,7 @@ class ValueChainWidget extends Widget
 
     /**
      * Macroprocessos ativos agrupados pela função na cadeia de valor.
-     * A chave `null` reúne os sem classificação ou com valor fora do enum.
+     * A chave `'unclassified'` reúne os sem classificação ou com valor fora do enum.
      *
      * @return array<string, Collection<int, array{id: string, label: string, url: string}>>
      */
@@ -44,25 +44,10 @@ class ValueChainWidget extends Widget
         return array_map(
             fn (Collection $items) => $items->map(fn (Macroprocess $m) => [
                 'id' => $m->id,
-                'label' => $this->label($m),
+                'label' => $m->short_display_name,
                 'url' => MacroprocessResource::getUrl('view', ['record' => $m]),
             ])->values(),
             $groups,
         );
-    }
-
-    /** "SIGLA - Nome", sem repetir a sigla quando o nome já começa com ela. */
-    private function label(Macroprocess $macro): string
-    {
-        $name = trim((string) $macro->name);
-
-        if (! $macro->acronym) {
-            return $name;
-        }
-
-        $acronym = trim($macro->acronym);
-        $name = (string) preg_replace('/^'.preg_quote($acronym, '/').'\s*-\s*/iu', '', $name);
-
-        return "{$acronym} - {$name}";
     }
 }

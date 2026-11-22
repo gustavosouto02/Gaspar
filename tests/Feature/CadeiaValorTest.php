@@ -89,4 +89,37 @@ class CadeiaValorTest extends TestCase
                 return array_keys($field->getOptions()) === array_column(ValueChainFunctionEnum::cases(), 'value');
             });
     }
+
+    public function test_formulario_rejeita_funcao_fora_do_enum(): void
+    {
+        Livewire::test(CreateMacroprocess::class)
+            ->fillForm(['name' => 'Teste', 'acronym' => 'TST', 'value_chain_function' => 'Finalístico'])
+            ->call('create')
+            ->assertHasFormErrors(['value_chain_function' => 'in']);
+    }
+
+    public function test_rotulo_do_chip_nao_repete_a_sigla(): void
+    {
+        $this->macro('GESTRA - Gestão da Estratégia', 'GESTRA', ValueChainFunctionEnum::DEFINIR_DIRETRIZES->value);
+        $this->macro('Macroprocesso de Compras', 'COMP', ValueChainFunctionEnum::SUPORTAR->value);
+
+        $groups = Livewire::test(ValueChainWidget::class)->instance()->getGroups();
+
+        $this->assertSame(['GESTRA - Gestão da Estratégia'], $groups[ValueChainFunctionEnum::DEFINIR_DIRETRIZES->value]->pluck('label')->all());
+        $this->assertSame(['COMP - Macroprocesso de Compras'], $groups[ValueChainFunctionEnum::SUPORTAR->value]->pluck('label')->all());
+    }
+
+    public function test_todo_valor_do_enum_tem_bloco_no_desenho(): void
+    {
+        foreach (ValueChainFunctionEnum::cases() as $case) {
+            $this->assertNotSame('', $case->area());
+            $this->macro('Macro '.$case->name, strtoupper(substr($case->name, 0, 3)), $case->value);
+        }
+
+        $html = Livewire::test(ValueChainWidget::class)->html();
+
+        foreach (ValueChainFunctionEnum::cases() as $case) {
+            $this->assertStringContainsString($case->area(), $html);
+        }
+    }
 }

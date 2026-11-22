@@ -33,7 +33,7 @@ Legenda: ✅ feito · 🔄 em andamento (PR aberto) · ⬜ a fazer
 |---|---|---|
 | T1 | Gestor obrigatório | **Todo** Macroprocesso e Processo tem exatamente um Gestor (obrigatório no formulário, na criação e na edição); **o Cadastro tem zero, um ou mais Gestores** (opcional). Todos escolhidos entre usuários ativos com perfil `GESTOR`. O usuário Gestor passa a ter a relação inversa com tudo que gerencia. |
 | T2 | Visibilidade de valores | Regra do PO: *"Permitir a visualização de campos de Valores em consultas e relatórios apenas para Gestor e Administrador"*. Em **consultas e relatórios** (relatório de demandas, PDF, busca e listagens dos cadastros), campos de valor (`CURRENCY`) só aparecem para `ADMIN` e para o Gestor **do dono do campo**: o Processo (também o gestor do Macroprocesso ao qual ele pertence) ou o Cadastro (qualquer um dos seus gestores). **Formulários e telas de edição/visualização não são restritos**: quem pode preencher a demanda ou o registro vê e edita o valor. |
-| T3 | Cadeia de Valor | Visualização no Painel de Controle no desenho da cadeia de valor de Porter (apoio em faixas, primárias em colunas, seta de Margens), com os macroprocessos dentro de cada bloco e link para cada um. A "função na cadeia de valor" do Macroprocesso passa a seguir esses blocos. |
+| T3 | Cadeia de Valor | Visualização no Painel de Controle da cadeia de valor, com os macroprocessos agrupados pelos 4 grupos do enum do sistema (a imagem do PO é só exemplo) e link para cada um. |
 | T4 | Campo Vínculo | Novo **tipo de campo** "Vínculo com cadastro". O campo é criado uma vez, aponta para uma origem (ex.: cadastro "Equipamentos") e pode ser anexado a processos (formulário da demanda) e a cadastros. Seleção única. |
 | T5 | Relatório de Cadastros | Escolhe-se o cadastro e filtram-se registros pelos campos dele (ex.: só impressoras; só uma cidade). Exporta CSV. |
 | T6 | Versionamento de processos | Tudo que é definido no processo é versionado: campos, situações, transições e regras, permissões de campo, membros, SLA e gestor. Demanda criada numa versão só tramita nela. Não se cria demanda em versão antiga. Uma versão só pode ser **apagada** quando todas as demandas que dependem dela estiverem encerradas. |
@@ -43,7 +43,7 @@ Legenda: ✅ feito · 🔄 em andamento (PR aberto) · ⬜ a fazer
 ## 2. Estado atual do código (o que já existe e vamos reaproveitar)
 
 - **Painel:** `Dashboard` padrão do Filament; widgets em `app/Filament/Widgets/` são descobertos automaticamente (`AdminPanelProvider`).
-- **Macroprocesso** (`app/Models/Macroprocess.php`): já tem `value_chain_function` (string). O formulário oferece 5 opções que **não** correspondem à imagem da cadeia de valor; o seeder (`AquiProcessSeeder`) e os testes usam `'Apoio'` e `'Finalístico'`, que nem estão nas opções do formulário.
+- **Macroprocesso** (`app/Models/Macroprocess.php`): já tem `value_chain_function` (string). O formulário oferece 4 opções (agora no `ValueChainFunctionEnum`); valores antigos como `'Apoio'` e `'Finalístico'` não estão nas opções e caem em "Não classificado" no painel.
 - **Processo** (`CustomEntity`): tem `purpose` (Apoio/Finalístico/Gerencial), `sla_hours`, relações com campos (pivô `custom_entity_custom_field`), situações (`entity_process_status`), transições (`status_transitions`), regras (`transition_rules`), permissões (`field_permissions`) e membros (`process_members`). **Tudo é amarrado por `entity_id`.** Um hook `booted()` anexa as situações de sistema automaticamente ao criar um processo.
 - **Cadastros:** 5 cadastros base (`CustomRecordType` com `is_system = true`: Usuários, Clientes, Projetos, Fornecedores, Macroprocessos) usam `custom_data` JSON nas próprias tabelas. Cadastros criados pelo admin usam `custom_records.data_json`.
 - **Campos dinâmicos:** o `match` que monta o componente Filament por `FieldTypeEnum` está **copiado em 3 lugares**: `DemandResource::buildDynamicFieldSchema`, `CustomRecordResource::form` e `HasCustomFields::buildCustomFieldComponents`.
@@ -71,7 +71,7 @@ Motivo da divisão: T1 → T2 → T5 formam uma cadeia de dependência (gestor �
 |---|---|---|
 | **Seg** | Merge do PR #39. **T1** completo (migrations, formulários, relações, seeder, testes). PR de T1 aberto no fim do dia. | **R0** (manhã): extrai `CustomFieldComponentFactory` sem mudar comportamento, PR pequeno para merge rápido. **T4** começa (tarde): `LOOKUP` no enum e UI de origem em `CustomFieldResource`. |
 | **Ter** | **T2** Visibilidade de valores (depende de T1 mergeado). | **T4** continua: componente do select, `CustomFieldValueFormatter`, integração em relatório/PDF/infolist. |
-| **Qua** | **T3** Cadeia de Valor: enum, migration de conversão, widget. | **T4** fecha (manhã, testes e PR). **T6** começa (tarde): migration e `ProcessVersioningService`. |
+| **Qua** | **T3** Cadeia de Valor: enum, widget. | **T4** fecha (manhã, testes e PR). **T6** começa (tarde): migration e `ProcessVersioningService`. |
 | **Qui** | **T5** Relatório de Cadastros (dia 1 de 1,5). | **T6**: ação "Nova versão", filtro de seleção em nova demanda, rótulos de versão. |
 | **Sex** | **T5** fecha; buffer, correções de review, homologação. | **T6**: trava de exclusão, testes de regressão do fluxo de demanda, homologação. |
 
@@ -208,22 +208,22 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 
 ### T3 — Cadeia de Valor no Painel (Gustavo, ~1 dia)
 
-**Blocos** (conforme a imagem do PO)
-- **Atividades de apoio** (faixas horizontais empilhadas): Infra-estrutura · Gestão de Recursos Humanos · Desenvolvimento Tecnológico · Aquisição/Compras.
-- **Atividades primárias** (colunas lado a lado): Logística de Entrada · Operações · Logística de Saída · Marketing e Vendas · Serviços.
-- **Margens**: seta à direita, só elemento visual (nenhum macroprocesso é associado).
+> **Decisão (PO):** a imagem da cadeia era só exemplo; o desenho usa o enum do sistema. Os 4 grupos já gravados em `macroprocesses.value_chain_function` viram os blocos, então **não há migration de dados**.
+
+**Blocos** (ordem do enum, `ValueChainFunctionEnum`)
+- Definir Diretrizes e Estratégia (coluna à esquerda) · Entregar Produtos e Serviços · Manter Relacionamentos · Suportar Processos (empilhados à direita).
+- Faixa "Parceiros & Fornecedores" à esquerda e seta "Sociedade / Resultados" à direita: só elementos visuais, sem macroprocesso associado.
 
 **Banco e enum**
-- Criar `App\Enums\ValueChainFunctionEnum` com os 9 blocos, `label()` e `group()` (apoio/primária).
-- `MacroprocessResource`: o `Select value_chain_function` passa a usar o enum.
-- **Migration de dados:** os valores antigos (`Suportar Processos`, `Definir Diretrizes e Estratégia`, `Entregar Produtos e Serviços`, `Manter Relacionamentos`, `Apoio`, `Finalístico`) não têm equivalente direto nos novos blocos. **Não adivinhar**: zerar para `null`; o widget mostra esses macroprocessos num bloco "Não classificado", e o admin reclassifica.
-- Ajustar `AquiProcessSeeder` (contratação de serviços → `Aquisição/Compras`) e os testes que usam `'Apoio'`/`'Finalístico'`.
+- `App\Enums\ValueChainFunctionEnum` com 4 casos, `label()`, `options()`, `area()` e `isStacked()`.
+- `MacroprocessResource`: o `Select value_chain_function` usa o enum.
+- Valores fora do enum (`null`, `Finalístico`, `Apoio` antigo) aparecem num bloco "Não classificado" abaixo do desenho, e o admin reclassifica.
 
 **Widget**
-- `app/Filament/Widgets/ValueChainWidget.php` + view em `resources/views/filament/widgets/value-chain.blade.php`, desenhado em HTML/CSS (faixas, colunas, seta), com cada macroprocesso ativo dentro do seu bloco, linkando para `MacroprocessResource::getUrl('view', …)`.
-- Tema escuro/claro e telas pequenas: usar tokens de cor do Filament e `grid` que quebre linha no mobile.
+- `ValueChainWidget` + `resources/views/filament/widgets/value-chain.blade.php`, no fim do Painel de Controle (abaixo dos gráficos), em HTML/CSS. Cada macroprocesso ativo é um chip em forma de seta ("SIGLA - Nome") que abre `MacroprocessResource::getUrl('view', …)`.
+- Tokens de cor do Filament, tema claro/escuro, blocos empilhados em telas pequenas, foco de teclado visível nos chips.
 
-**Aceite:** o Painel mostra o desenho; macroprocesso aparece no bloco certo e abre sua tela; sem classificação aparece em "Não classificado"; o formulário só aceita os 9 blocos.
+**Aceite:** o Painel mostra o desenho; macroprocesso aparece no bloco certo e abre sua tela; sem classificação aparece em "Não classificado"; o formulário só aceita os 4 grupos.
 
 ---
 
@@ -354,7 +354,7 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 1. **T1 — escopo do gestor do cadastro:** o gestor de um cadastro vale para todos os registros desse cadastro? (Assumido: sim.): SIM. **Complemento (17/11):** o cadastro pode ter **um ou mais** gestores; Macroprocesso e Processo têm um só, obrigatório. Todos precisam ter o perfil `GESTOR`. **Ajuste (20/11):** o gestor do Cadastro passa a ser opcional.
 2. **T2 — gestor de macroprocesso:** ele também enxerga os valores dos processos do seu macroprocesso? (Assumido: não; só o gestor do próprio processo.) : SIM
 3. **T3 — rótulos:** os 9 nomes de faixas/colunas da imagem são definitivos ou só exemplo? (Define o enum.) : Só exemplo, vamos utilizar o enum do sistema pra montar a imagem
-4. **T3 — dados antigos:** confirmar que zerar `value_chain_function` dos macroprocessos existentes e reclassificar manualmente é aceitável. : SIM
+4. **T3 — dados antigos:** confirmar que zerar `value_chain_function` dos macroprocessos existentes e reclassificar manualmente é aceitável. : SIM. **Não foi preciso zerar:** os valores gravados já são os do enum.
 5. **T6 — edição estrutural:** enquanto uma versão tiver demandas pendentes, a estrutura dela fica travada para edição (obriga criar nova versão) ou só a exclusão é travada? (Assumido: só a exclusão nesta entrega.) : Só a exclusão
 
 ---
