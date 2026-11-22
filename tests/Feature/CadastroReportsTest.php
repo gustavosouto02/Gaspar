@@ -249,6 +249,17 @@ class CadastroReportsTest extends TestCase
             ->assertCanNotSeeTableRecords([$entrega]);
     }
 
+    public function test_filtro_de_gestor_lista_so_quem_gerencia_algum_macroprocesso(): void
+    {
+        $this->macro('Compras', 'Suportar Processos', $this->gestor);
+        $this->macro('Entrega', 'Entregar Produtos e Serviços');
+
+        $opcoes = CadastroReportSource::for($this->tipoBase(Macroprocess::class))->fixedOptions('manager_id');
+
+        // O admin e o executor existem como usuários, mas não gerenciam nada
+        $this->assertSame([$this->gestor->id => $this->gestor->name], $opcoes);
+    }
+
     public function test_opcoes_da_funcao_na_cadeia_vem_do_que_esta_gravado(): void
     {
         $this->macro('Compras', 'Suportar Processos');

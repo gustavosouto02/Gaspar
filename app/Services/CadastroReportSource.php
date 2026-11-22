@@ -10,7 +10,6 @@ use App\Models\CustomField;
 use App\Models\CustomRecord;
 use App\Models\CustomRecordType;
 use App\Models\Macroprocess;
-use App\Models\ProcessRole;
 use App\Models\Project;
 use App\Models\Supplier;
 use App\Models\User;
@@ -119,7 +118,6 @@ class CadastroReportSource
                 'code' => $text('Número'), 'name' => $text('Nome'), 'email' => $text('E-mail'),
                 'phone' => $text('Telefone'),
                 'user_role' => ['label' => 'Perfil', 'kind' => 'options', 'options' => fn () => UserRoleEnum::options()],
-                'process_role_id' => $relation('Papel nos processos', 'processRole', 'process_role_id', ProcessRole::class),
                 'is_active' => $bool('Ativo'),
             ],
             Macroprocess::class => [
@@ -156,20 +154,24 @@ class CadastroReportSource
      */
     public function fixedOptions(string $key): array
     {
-        return $this->optionsCache[$key] ??= $this->loadFixedOptions($this->fixedColumns()[$key]);
+        return $this->optionsCache[$key] ??= $this->loadFixedOptions($key, $this->fixedColumns()[$key]);
     }
 
     /**
      * @param  array<string, mixed>  $column
      * @return array<string, string>
      */
-    private function loadFixedOptions(array $column): array
+    private function loadFixedOptions(string $key, array $column): array
     {
         if ($column['kind'] === 'options') {
             return ($column['options'])();
         }
 
-        return ($column['model'])::query()->orderBy('name')->pluck('name', 'id')->all();
+        // Só quem aparece neste cadastro: no Macroprocesso, "Gestor" lista quem gerencia algum
+        // macroprocesso, e não todos os usuários
+        $usedIds = $this->query()->whereNotNull($key)->distinct()->pluck($key);
+
+        return ($column['model'])::query()->whereKey($usedIds)->orderBy('name')->pluck('name', 'id')->all();
     }
 
     /**
