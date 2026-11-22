@@ -48,6 +48,18 @@ class Macroprocess extends Model
         return $this->hasMany(CustomEntity::class, 'macroprocess_id');
     }
 
+    /** Processos em sua versão vigente */
+    public function currentProcesses()
+    {
+        return $this->processes()->current();
+    }
+
+    /** Versões antigas dos processos deste macroprocesso */
+    public function inactiveProcessVersions()
+    {
+        return $this->processes()->inactiveVersions();
+    }
+
     /** Nome sem o prefixo "SIGLA - " (e, se pedido, sem a palavra "Macroprocesso" inicial). */
     private function cleanName(bool $stripWord = true): string
     {
