@@ -2,16 +2,18 @@
 
 namespace App\Filament\Resources\CustomEntityResource\RelationManagers;
 
-use Filament\Forms;
+use App\Enums\UserRoleEnum;
+use App\Filament\Resources\Concerns\LocksProcessStructure;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Database\Eloquent\Model;
 
 class FieldsRelationManager extends RelationManager
 {
+    use LocksProcessStructure;
+
     protected static string $relationship = 'fields';
 
     protected static ?string $title = 'Campos Customizados';
@@ -20,10 +22,10 @@ class FieldsRelationManager extends RelationManager
 
     protected static ?string $pluralModelLabel = 'Campos';
 
-    public static function canViewForRecord(\Illuminate\Database\Eloquent\Model $ownerRecord, string $pageClass): bool
+    public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool
     {
         // Na tela de visualização o Filament exibe a aba somente leitura (sem vincular/desvincular)
-        return auth()->user()?->user_role === \App\Enums\UserRoleEnum::ADMIN;
+        return auth()->user()?->user_role === UserRoleEnum::ADMIN;
     }
 
     public function form(Form $form): Form
@@ -34,6 +36,7 @@ class FieldsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->description(fn () => $this->structureLockedNotice())
             ->recordTitleAttribute('name')
             ->columns([
                 Tables\Columns\TextColumn::make('code')

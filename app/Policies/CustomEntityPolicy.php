@@ -2,9 +2,9 @@
 
 namespace App\Policies;
 
+use App\Enums\UserRoleEnum;
 use App\Models\CustomEntity;
 use App\Models\User;
-use App\Enums\UserRoleEnum;
 
 class CustomEntityPolicy
 {
@@ -34,10 +34,11 @@ class CustomEntityPolicy
 
     /**
      * Determina se o usuário pode atualizar uma entidade.
+     * Versão antiga (não vigente) é somente leitura.
      */
     public function update(User $user, CustomEntity $customEntity): bool
     {
-        return $user->user_role === UserRoleEnum::ADMIN;
+        return $user->user_role === UserRoleEnum::ADMIN && $customEntity->is_current;
     }
 
     /**

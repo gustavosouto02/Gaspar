@@ -2,15 +2,18 @@
 
 namespace App\Filament\Resources\CustomEntityResource\RelationManagers;
 
+use App\Enums\ProcessStatusColorEnum;
+use App\Filament\Resources\Concerns\LocksProcessStructure;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
-use App\Enums\ProcessStatusColorEnum;
 
 class MembersRelationManager extends RelationManager
 {
+    use LocksProcessStructure;
+
     protected static string $relationship = 'members';
 
     protected static ?string $title = 'Papéis no Processo';
@@ -45,6 +48,7 @@ class MembersRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->description(fn () => $this->structureLockedNotice())
             ->recordTitleAttribute('user.name')
             ->columns([
                 Tables\Columns\TextColumn::make('user.code')

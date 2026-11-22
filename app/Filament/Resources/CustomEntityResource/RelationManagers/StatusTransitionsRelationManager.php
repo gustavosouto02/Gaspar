@@ -5,6 +5,7 @@ namespace App\Filament\Resources\CustomEntityResource\RelationManagers;
 use App\Enums\DemandButtonEnum;
 use App\Enums\FieldTypeEnum;
 use App\Enums\RuleOperatorEnum;
+use App\Filament\Resources\Concerns\LocksProcessStructure;
 use App\Models\CustomField;
 use App\Models\ProcessMember;
 use App\Models\ProcessRole;
@@ -20,6 +21,8 @@ use Filament\Tables\Table;
 
 class StatusTransitionsRelationManager extends RelationManager
 {
+    use LocksProcessStructure;
+
     protected static string $relationship = 'statusTransitions';
 
     protected static ?string $title = 'Fluxo do Processo';
@@ -50,7 +53,7 @@ class StatusTransitionsRelationManager extends RelationManager
         // A Condicional (gateway), Cancelada e Avaliada nunca são situações de origem
         $fromStatusOptions = $entity->processStatuses()->withoutSpecialSystemStatuses()->pluck('name', 'process_statuses.id')->toArray();
         // Cancelada e Avaliada não são opções de destino manual de transição no fluxo do processo
-        $toStatusOptions   = $entity->processStatuses()->withoutUnmanualTransitions()->pluck('name', 'process_statuses.id')->toArray();
+        $toStatusOptions = $entity->processStatuses()->withoutUnmanualTransitions()->pluck('name', 'process_statuses.id')->toArray();
         $roleOptions = [
             '__requester__' => 'Demandante (Quem abriu a demanda)',
             '__assignee__' => 'Responsável (Executor atual)',
@@ -378,6 +381,7 @@ class StatusTransitionsRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->description(fn () => $this->structureLockedNotice())
             ->recordTitleAttribute('label')
             ->modifyQueryUsing(fn ($query) => $query->with(['fromStatus', 'toStatus', 'defaultToStatus', 'rules.toStatus']))
             ->columns([
@@ -485,7 +489,7 @@ class StatusTransitionsRelationManager extends RelationManager
                     ->after(fn (StatusTransition $record) => $this->cleanupDecisionTable($record)),
                 Tables\Actions\DeleteAction::make(),
             ])
-            ->reorderable('display_order')
+            ->reorderable('display_order', fn (): bool => ! $this->isReadOnly())
             ->bulkActions([]);
     }
 
