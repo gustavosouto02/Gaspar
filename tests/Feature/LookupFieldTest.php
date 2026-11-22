@@ -120,6 +120,8 @@ class LookupFieldTest extends TestCase
         $this->assertSame("{$registro->code} - Impressora HP", $formatter->format($campo, $registro->id));
 
         $registro->delete();
+        // O rótulo fica em memória durante a requisição; "removido" só vale numa requisição nova
+        app()->forgetScopedInstances();
 
         $this->assertSame('(removido)', $formatter->format($campo, $registro->id));
         $this->assertSame('—', $formatter->format($campo, null));

@@ -30,6 +30,12 @@ use Illuminate\Support\Collection;
  */
 class CadastroReportSource
 {
+    /** @var array<string, array<string, mixed>>|null */
+    private ?array $columnsCache = null;
+
+    /** @var array<string, array<string, string>> */
+    private array $optionsCache = [];
+
     private function __construct(public readonly CustomRecordType $type) {}
 
     public static function for(CustomRecordType $type): self
@@ -69,6 +75,17 @@ class CadastroReportSource
      * @return array<class-string, array<string, array<string, mixed>>>
      */
     private static function definitions(): array
+    {
+        // Montado uma vez: o relatório consulta isso por célula
+        static $definitions = null;
+
+        return $definitions ??= self::buildDefinitions();
+    }
+
+    /**
+     * @return array<class-string, array<string, array<string, mixed>>>
+     */
+    private static function buildDefinitions(): array
     {
         $text = fn (string $label) => ['label' => $label, 'kind' => 'text'];
         $date = fn (string $label) => ['label' => $label, 'kind' => 'date'];
@@ -123,15 +140,13 @@ class CadastroReportSource
      */
     public function fixedColumns(): array
     {
-        if (! $this->isSystem()) {
-            return [
+        return $this->columnsCache ??= $this->isSystem()
+            ? (self::definitions()[$this->type->model_class] ?? [])
+            : [
                 'code' => ['label' => 'Número', 'kind' => 'text'],
                 'created_by' => ['label' => 'Criado por', 'kind' => 'relation', 'relation' => 'creator', 'fk' => 'created_by', 'model' => User::class],
                 'created_at' => ['label' => 'Criado em', 'kind' => 'date'],
             ];
-        }
-
-        return self::definitions()[$this->type->model_class] ?? [];
     }
 
     /**
@@ -141,8 +156,15 @@ class CadastroReportSource
      */
     public function fixedOptions(string $key): array
     {
-        $column = $this->fixedColumns()[$key];
+        return $this->optionsCache[$key] ??= $this->loadFixedOptions($this->fixedColumns()[$key]);
+    }
 
+    /**
+     * @param  array<string, mixed>  $column
+     * @return array<string, string>
+     */
+    private function loadFixedOptions(array $column): array
+    {
         if ($column['kind'] === 'options') {
             return ($column['options'])();
         }
@@ -175,7 +197,11 @@ class CadastroReportSource
     public function applyFixedFilter(Builder $query, string $key, array $data): Builder
     {
         return match ($this->fixedColumns()[$key]['kind']) {
-            'text' => $query->when(filled($data['value'] ?? null), fn ($q) => $q->where($key, 'like', '%'.$data['value'].'%')),
+            // `%` e `_` digitados são literais (ESCAPE '!'), não curingas
+            'text' => $query->when(filled($data['value'] ?? null), fn ($q) => $q->whereRaw(
+                $q->getQuery()->getGrammar()->wrap($q->qualifyColumn($key))." LIKE ? ESCAPE '!'",
+                [$this->likeTerm($data['value'])],
+            )),
             'options', 'relation' => $query->when(! empty($data['values'] ?? null), fn ($q) => $q->whereIn($key, $data['values'])),
             'date' => $query
                 ->when(filled($data['from'] ?? null), fn ($q) => $q->whereDate($key, '>=', $data['from']))
@@ -186,11 +212,14 @@ class CadastroReportSource
 
     public function query(): Builder
     {
-        if ($this->isSystem()) {
-            return ($this->type->model_class)::query();
-        }
+        $query = $this->isSystem()
+            ? ($this->type->model_class)::query()
+            : CustomRecord::query()->where('custom_record_type_id', $this->type->id);
 
-        return CustomRecord::query()->where('custom_record_type_id', $this->type->id);
+        // Evita uma consulta por linha para o nome exibido das colunas de relação
+        $relations = collect($this->fixedColumns())->where('kind', 'relation')->pluck('relation')->values()->all();
+
+        return $query->with($relations);
     }
 
     /**
@@ -218,9 +247,13 @@ class CadastroReportSource
         $path = $this->jsonColumn().'->'.$field->key;
 
         return match ($field->field_type) {
+            // No MySQL o JSON é comparado em utf8mb4_bin (diferencia caixa), então LOWER nos dois lados
             FieldTypeEnum::TEXT, FieldTypeEnum::TEXTAREA, FieldTypeEnum::EMAIL => $query->when(
                 filled($data['value'] ?? null),
-                fn ($q) => $q->where($path, 'like', '%'.$data['value'].'%'),
+                fn ($q) => $q->whereNotNull($path)->whereRaw(
+                    'LOWER('.$q->getQuery()->getGrammar()->wrap($path).") LIKE ? ESCAPE '!'",
+                    [$this->likeTerm($data['value'], lower: true)],
+                ),
             ),
             FieldTypeEnum::SELECT, FieldTypeEnum::RADIO, FieldTypeEnum::COMBO => $query->when(
                 filled($data['value'] ?? null),
@@ -232,7 +265,9 @@ class CadastroReportSource
                     ? $q->where($path, true)
                     : $q->where(fn ($w) => $w->where($path, false)->orWhereNull($path)),
             ),
+            // whereNotNull: no MySQL um JSON null viraria o texto 'null' e entraria no período
             FieldTypeEnum::DATE => $query
+                ->when(filled($data['from'] ?? null) || filled($data['until'] ?? null), fn ($q) => $q->whereNotNull($path))
                 ->when(filled($data['from'] ?? null), fn ($q) => $q->where($path, '>=', $data['from']))
                 ->when(filled($data['until'] ?? null), fn ($q) => $q->where($path, '<=', $data['until'])),
             FieldTypeEnum::NUMBER, FieldTypeEnum::CURRENCY => $this->applyNumberRange($query, $path, $data),
@@ -249,8 +284,20 @@ class CadastroReportSource
     {
         $expression = 'CAST('.$query->getQuery()->getGrammar()->wrap($path).' AS DECIMAL(20,4))';
 
+        // whereNotNull: o CAST de um JSON null daria 0 no MySQL e entraria na faixa
         return $query
+            ->when(is_numeric($data['min'] ?? null) || is_numeric($data['max'] ?? null), fn ($q) => $q->whereNotNull($path))
             ->when(is_numeric($data['min'] ?? null), fn ($q) => $q->whereRaw("{$expression} >= ?", [$data['min']]))
             ->when(is_numeric($data['max'] ?? null), fn ($q) => $q->whereRaw("{$expression} <= ?", [$data['max']]));
+    }
+
+    /**
+     * Termo de LIKE "contém" com `!` como escape: `%`, `_` e `!` digitados valem como texto.
+     */
+    private function likeTerm(string $value, bool $lower = false): string
+    {
+        $value = $lower ? mb_strtolower($value) : $value;
+
+        return '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], $value).'%';
     }
 }

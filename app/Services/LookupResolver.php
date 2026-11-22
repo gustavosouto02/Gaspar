@@ -34,6 +34,9 @@ class LookupResolver
     /** @var array<string, string|null> chave do campo-rótulo por cadastro */
     private array $labelKeys = [];
 
+    /** @var array<string, string|null> rótulo já resolvido por origem + id (null = removido) */
+    private array $labels = [];
+
     /**
      * @return array<string, string>
      */
@@ -102,6 +105,12 @@ class LookupResolver
             return null;
         }
 
+        // Uma célula por registro repete o mesmo vínculo: guarda o rótulo (inclusive "removido")
+        $cacheKey = ($config['source'] ?? '').'|'.($config['record_type_id'] ?? '').'|'.$id;
+        if (array_key_exists($cacheKey, $this->labels)) {
+            return $this->labels[$cacheKey];
+        }
+
         $query = $this->query($config, forLabel: true);
         if (! $query) {
             return null;
@@ -109,7 +118,7 @@ class LookupResolver
 
         $model = $query->whereKey($id)->first();
 
-        return $model ? $this->modelLabel($config['source'], $model) : null;
+        return $this->labels[$cacheKey] = $model ? $this->modelLabel($config['source'], $model) : null;
     }
 
     private function query(array $config, bool $forLabel = false): ?Builder

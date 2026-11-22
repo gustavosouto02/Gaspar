@@ -74,17 +74,27 @@ class CadastroReports extends Page implements HasForms, HasTable
         ]);
     }
 
+    /** Fonte já resolvida na requisição, junto do type_id a que corresponde (trocar o cadastro invalida). */
+    private ?CadastroReportSource $sourceMemo = null;
+
+    private ?string $sourceMemoTypeId = null;
+
     private function source(): ?CadastroReportSource
     {
         if (! $this->type_id) {
             return null;
         }
 
-        $type = CustomRecordType::with('fields')->find($this->type_id);
+        if ($this->sourceMemoTypeId !== $this->type_id) {
+            $type = CustomRecordType::with('fields')->find($this->type_id);
 
-        return $type && CadastroReportSource::availableTypes()->contains('id', $type->id)
-            ? CadastroReportSource::for($type)
-            : null;
+            $this->sourceMemo = $type && CadastroReportSource::availableTypes()->contains('id', $type->id)
+                ? CadastroReportSource::for($type)
+                : null;
+            $this->sourceMemoTypeId = $this->type_id;
+        }
+
+        return $this->sourceMemo;
     }
 
     /**
@@ -253,9 +263,15 @@ class CadastroReports extends Page implements HasForms, HasTable
             ->query(fn ($query, array $data) => $source->applyFieldFilter($query, $field, $data));
     }
 
+    /**
+     * O arquivo inteiro é montado em memória e vai em base64 pelo Livewire (mesmo
+     * padrão do DemandReports): exportações muito grandes podem estourar memória/payload.
+     */
     private function exportCsv($livewire)
     {
         $source = $this->source();
+        abort_unless($source, 404);
+
         $fields = $this->visibleFields($source);
         $formatter = app(CustomFieldValueFormatter::class);
 
@@ -263,10 +279,11 @@ class CadastroReports extends Page implements HasForms, HasTable
         // UTF-8 BOM para o Excel abrir corretamente
         fwrite($csv, chr(0xEF).chr(0xBB).chr(0xBF));
 
-        fputcsv($csv, array_merge(
+        // Escape vazio (RFC 4180): com `\` como escape, um `\"` no valor quebraria a coluna
+        fputcsv($csv, array_map(fn ($v) => $this->csvSafe((string) $v), array_merge(
             array_map(fn ($c) => $c['label'], array_values($source->fixedColumns())),
             $fields->map(fn (CustomField $f) => $f->name)->all(),
-        ), ';');
+        )), ';', '"', '');
 
         $livewire->getFilteredSortedTableQuery()->each(function (Model $record) use ($csv, $source, $fields, $formatter) {
             $row = [];
@@ -276,7 +293,7 @@ class CadastroReports extends Page implements HasForms, HasTable
             foreach ($fields as $field) {
                 $row[] = $formatter->format($field, $source->rawValue($record, $field));
             }
-            fputcsv($csv, array_map(fn ($v) => $this->csvSafe((string) $v), $row), ';');
+            fputcsv($csv, array_map(fn ($v) => $this->csvSafe((string) $v), $row), ';', '"', '');
         });
 
         rewind($csv);
