@@ -239,7 +239,7 @@ class DemandReports extends Page implements HasForms, HasTable
             ->filters([
                 Tables\Filters\SelectFilter::make('entity_id')
                     ->label('Processo')
-                    ->options(fn () => CustomEntity::with('macroprocess')->get()->pluck('full_display_name', 'id'))
+                    ->options(fn () => CustomEntity::versionedFilterOptions())
                     ->searchable()
                     ->placeholder('Todos'),
 

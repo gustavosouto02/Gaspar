@@ -157,7 +157,7 @@ class MacroprocessResource extends Resource
 
                 Infolists\Components\Section::make('Processos agrupados neste macroprocesso:')
                     ->schema([
-                        Infolists\Components\RepeatableEntry::make('processes')
+                        Infolists\Components\RepeatableEntry::make('currentProcesses')
                             ->label('')
                             ->schema([
                                 Infolists\Components\TextEntry::make('name')
@@ -169,6 +169,24 @@ class MacroprocessResource extends Resource
                             ->grid(1)
                             ->columnSpanFull(),
                     ]),
+
+                // Versões antigas de processos (somente leitura): só aparece quando há alguma
+                Infolists\Components\Section::make('Versões antigas de processos')
+                    ->schema([
+                        Infolists\Components\RepeatableEntry::make('inactiveProcessVersions')
+                            ->label('')
+                            ->schema([
+                                Infolists\Components\TextEntry::make('name')
+                                    ->label('')
+                                    ->formatStateUsing(fn ($record) => $record->full_display_name)
+                                    ->url(fn ($record) => auth()->user()?->user_role === UserRoleEnum::ADMIN ? CustomEntityResource::getUrl('view', ['record' => $record]) : null)
+                                    ->color('gray'),
+                            ])
+                            ->grid(1)
+                            ->columnSpanFull(),
+                    ])
+                    ->collapsed()
+                    ->visible(fn ($record) => $record?->inactiveProcessVersions()->exists()),
             ]);
     }
 

@@ -59,7 +59,7 @@ class DemandStatsWidget extends BaseWidget
         })->count();
 
         // Processos que sou membro
-        $processosMembro = \App\Models\CustomEntity::whereHas('members', function ($q) use ($userId) {
+        $processosMembro = \App\Models\CustomEntity::current()->whereHas('members', function ($q) use ($userId) {
             $q->where('user_id', $userId);
         })->count();
 

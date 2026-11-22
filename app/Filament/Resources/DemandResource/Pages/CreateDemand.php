@@ -12,6 +12,7 @@ use App\Services\FieldPermissionResolver;
 use Filament\Actions\Action;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class CreateDemand extends CreateRecord
 {
@@ -77,6 +78,14 @@ class CreateDemand extends CreateRecord
     {
         $this->fieldData = $data['field_data'] ?? [];
         unset($data['field_data']);
+
+        // Garantia no servidor (vale também para subdemandas): nova demanda só nasce
+        // na versão vigente do processo, mesmo que o payload traga outro entity_id
+        if (! empty($data['entity_id']) && ! CustomEntity::current()->whereKey($data['entity_id'])->exists()) {
+            throw ValidationException::withMessages([
+                'data.entity_id' => 'Este processo não está na versão vigente. Selecione a versão vigente do processo.',
+            ]);
+        }
 
         // O select de situação é disabled; garante o preenchimento com a situação
         // "Nova" mesmo quando o processo veio pré-selecionado via URL (o default
