@@ -17,7 +17,7 @@ Legenda: ✅ feito · 🔄 em andamento (PR aberto) · ⬜ a fazer
 | T2 — Visibilidade de valores | Gustavo | ✅ | Mergeado na `develop` (PR #45). Inclui o padrão de moeda `1.000,00`. Correção de escopo (só consultas e relatórios, formulário livre) mergeada na `develop` (PR #47). Falta homologação e validar com o PO a visibilidade nas telas de visualização. |
 | T3 — Cadeia de Valor | Gustavo | ⬜ | |
 | T4 — Campo Vínculo | Filipi (feito por Gustavo) | ✅ | Mergeado na `develop` (PRs #49 e #50). O tipo se chama `FieldTypeEnum::COMBO` ("Combo"). Tipo e origem travam quando o campo já tem valores. Valores de campos desvinculados ou excluídos ficam preservados e aparecem somente leitura na demanda, no relatório e no PDF. Falta homologação. |
-| T5 — Relatório de Cadastros | Gustavo | ⬜ | Depende de T2 e do formatter do T4 (`CustomFieldValueFormatter`, já na `develop`). |
+| T5 — Relatório de Cadastros | Gustavo | ✅ | Mergeado na `develop` (PRs #51 e #52). Atende os cadastros criados pelo admin e os 5 base, com filtro por campo e CSV. Falta homologação, em especial os filtros no MySQL (a suíte roda em SQLite). Consultas salvas ficaram de fora. |
 | T6 — Versionamento de processos | Filipi | ⬜ | Depende do T1 mergeado (clona `manager_id`). |
 
 **Ajustes de regra confirmados pelo PO em 17/11/2026** (já refletidos nas seções abaixo):
@@ -266,7 +266,26 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 
 ---
 
-### T5 — Relatório de Cadastros (Gustavo, ~1,5 dia, depende de T2 e do formatter de T4)
+### T5 — Relatório de Cadastros (Gustavo, ~1,5 dia, depende de T2 e do formatter de T4) ✅
+
+> **Status:** mergeado na `develop` (PR #51, a página; PR #52, ajustes pedidos depois). Pendente: homologação.
+> **Mudanças em relação ao plano original:**
+> - **Todos os cadastros no mesmo PR**, e não só os dinâmicos: os 5 cadastros base (Clientes, Projetos, Fornecedores, Usuários e Macroprocessos) entram pela mesma página, por meio de `app/Services/CadastroReportSource.php`, que esconde a diferença entre `custom_records.data_json` e `custom_data`.
+> - **Colunas fixas dos cadastros base com filtro** (ex.: Função na Cadeia de Valor e Gestor do Macroprocesso; Cliente e datas do Projeto; Perfil do Usuário), além dos campos extras. Campo novo vinculado a um cadastro já vira coluna e filtro, sem mexer no código.
+> - Filtros por tipo de campo: texto contém (sem diferenciar maiúsculas; `%`, `_` e `!` valem como texto), seleção/rádio/Combo igual, checkbox sim/não, data por período, número/moeda por faixa (com `CAST`, porque o valor pode estar gravado como texto).
+> - Opções dos filtros de relação só trazem o que aparece no cadastro (o "Gestor" do Macroprocesso lista quem gerencia algum macroprocesso). "Papel nos processos" do Usuário ficou de fora por pedido.
+> - Fora do relatório de Projeto: orçamento, gasto e nota do patrocinador (valores que não passam pela regra do T2).
+> - Campo de moeda segue o T2: coluna, filtro e CSV só para admin e gestor do cadastro. O CSV neutraliza texto iniciado em `=`, `+`, `-` ou `@`.
+> - O review do PR #51 achou três problemas que só aparecem no MySQL (texto diferenciando maiúsculas, JSON `null` entrando nos filtros de data e faixa, N+1 na exportação); foram corrigidos antes do merge.
+> - Testes: `CadastroReportsTest` (30 testes). Suíte da `develop` após os merges: 331 testes.
+> **Pendências / decisões em aberto:**
+> - Homologação no MySQL: texto em minúsculas, filtros de data e faixa com registro vazio, checkbox e o `CAST`.
+> - **Consultas salvas** do relatório de cadastros: exigem `report_type` e `record_type_id` em `saved_reports` e ajuste em "Minhas Consultas".
+> - Campo desvinculado ou excluído não vira coluna de histórico (o relatório de demandas faz isso).
+> - O filtro de texto não ignora acento (`LOWER()` só trata maiúsculas, como no `LookupResolver`).
+> - Exportação grande: o arquivo inteiro vai em base64 na resposta do Livewire (mesmo padrão do `DemandReports`); cada Combo com id distinto ainda faz 1 query na primeira vez.
+> - Validar com o PO se o relatório deve incluir os campos de valor do Projeto (orçamento e gasto), só para admin e gestor.
+
 
 - Nova página `app/Filament/Pages/CadastroReports.php`, grupo "Relatórios", seguindo o padrão do `DemandReports` (botão "Consultar", CSV).
 - Passos: escolher o cadastro (`CustomRecordType`) → o formulário gera um filtro por campo (texto contém, select igual, data por período, número por faixa) → tabela com os campos do tipo → exportar CSV.
