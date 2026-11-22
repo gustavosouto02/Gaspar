@@ -258,7 +258,7 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
         $macro = Macroprocess::create([
             'name' => 'Macroprocesso Teste Enum',
             'acronym' => 'MTE',
-            'value_chain_function' => 'Finalístico',
+            'value_chain_function' => 'Suportar Processos',
             'description' => 'Descrição',
             'is_active' => true,
             'created_by' => $this->admin->id,

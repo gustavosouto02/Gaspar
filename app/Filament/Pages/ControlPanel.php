@@ -6,6 +6,7 @@ use App\Filament\Widgets\DemandByProcessChart;
 use App\Filament\Widgets\DemandSLAChart;
 use App\Filament\Widgets\DemandStatsWidget;
 use App\Filament\Widgets\GeneralStatsOverview;
+use App\Filament\Widgets\ValueChainWidget;
 use Filament\Pages\Dashboard as BaseDashboard;
 
 class ControlPanel extends BaseDashboard
@@ -29,6 +30,7 @@ class ControlPanel extends BaseDashboard
             GeneralStatsOverview::class,
             DemandByProcessChart::class,
             DemandSLAChart::class,
+            ValueChainWidget::class,
         ];
     }
 }
