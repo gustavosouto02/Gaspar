@@ -24,6 +24,8 @@ class ViewCustomEntity extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            $this->publishVersionAction(),
+            $this->goToDraftAction(),
             $this->editStructureAction(),
             $this->inactiveVersionsAction(),
             Actions\EditAction::make(),

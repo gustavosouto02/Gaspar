@@ -47,7 +47,7 @@ class CustomEntityResource extends Resource
     {
         return $form
             // Versão antiga: nem os metadados são editáveis (só leitura)
-            ->disabled(fn (?CustomEntity $record) => $record !== null && ! $record->is_current)
+            ->disabled(fn (?CustomEntity $record) => $record !== null && ! $record->is_current && ! $record->is_draft)
             ->schema([
                 Forms\Components\Placeholder::make('id_placeholder')
                     ->label('Número')
@@ -123,6 +123,9 @@ class CustomEntityResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome do Processo')
                     ->formatStateUsing(fn (CustomEntity $record) => $record->full_display_name)
+                    ->badge(fn (CustomEntity $record) => $record->is_draft)
+                    ->color(fn (CustomEntity $record) => $record->is_draft ? 'warning' : null)
+                    ->description(fn (CustomEntity $record) => $record->is_draft ? 'Rascunho: ainda não publicada' : null)
                     ->searchable()
                     ->sortable(),
 

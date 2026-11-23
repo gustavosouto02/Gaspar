@@ -34,11 +34,11 @@ class CustomEntityPolicy
 
     /**
      * Determina se o usuário pode atualizar uma entidade.
-     * Versão antiga (não vigente) é somente leitura.
+     * Versão antiga (já publicada e substituída) é somente leitura; rascunho é editável.
      */
     public function update(User $user, CustomEntity $customEntity): bool
     {
-        return $user->user_role === UserRoleEnum::ADMIN && $customEntity->is_current;
+        return $user->user_role === UserRoleEnum::ADMIN && ($customEntity->is_current || $customEntity->is_draft);
     }
 
     /**

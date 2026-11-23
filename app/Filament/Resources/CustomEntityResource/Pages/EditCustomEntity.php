@@ -27,7 +27,7 @@ class EditCustomEntity extends EditRecord
     {
         $entity = CustomEntity::find($record);
 
-        if ($entity && ! $entity->is_current) {
+        if ($entity && ! $entity->is_current && ! $entity->is_draft) {
             Notification::make()
                 ->title(ProcessVersioningService::INACTIVE_VERSION_MESSAGE)
                 ->warning()
@@ -51,6 +51,8 @@ class EditCustomEntity extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
+            $this->publishVersionAction(),
+            $this->goToDraftAction(),
             $this->editStructureAction(),
             $this->inactiveVersionsAction(),
 

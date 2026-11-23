@@ -75,6 +75,12 @@ class VersionamentoProcessosTest extends TestCase
 
     private StatusTransition $transicaoCondicional;
 
+    /** Cria o rascunho da próxima versão e já o publica (a v2 vira a vigente) */
+    private function publishedVersion(CustomEntity $source): CustomEntity
+    {
+        return $this->service->publishVersion($this->service->createNewVersion($source));
+    }
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -212,7 +218,7 @@ class VersionamentoProcessosTest extends TestCase
     {
         $this->actingAs($this->admin);
 
-        $v2 = $this->service->createNewVersion($this->v1);
+        $v2 = $this->publishedVersion($this->v1);
 
         $this->assertNotSame($this->v1->id, $v2->id);
         $this->assertSame(2, $v2->version);
@@ -241,7 +247,7 @@ class VersionamentoProcessosTest extends TestCase
 
     public function test_nova_versao_copia_campos_situacoes_transicoes_regras_permissoes_e_membros(): void
     {
-        $v2 = $this->service->createNewVersion($this->v1);
+        $v2 = $this->publishedVersion($this->v1);
 
         // Campos, na mesma ordem
         $this->assertSame(
@@ -311,16 +317,16 @@ class VersionamentoProcessosTest extends TestCase
 
     public function test_nova_versao_so_a_partir_da_vigente_e_incrementa_a_versao(): void
     {
-        $v2 = $this->service->createNewVersion($this->v1);
+        $v2 = $this->publishedVersion($this->v1);
 
         try {
-            $this->service->createNewVersion($this->v1->fresh());
+            $this->publishedVersion($this->v1->fresh());
             $this->fail('Era esperada exceção ao versionar uma versão antiga');
         } catch (ProcessVersioningException $e) {
             $this->assertStringContainsString('versão vigente', $e->getMessage());
         }
 
-        $v3 = $this->service->createNewVersion($v2);
+        $v3 = $this->publishedVersion($v2);
 
         $this->assertSame(3, $v3->version);
         $this->assertSame($this->v1->id, $v3->root_entity_id);
@@ -336,7 +342,7 @@ class VersionamentoProcessosTest extends TestCase
     public function test_demanda_antiga_continua_tramitando_na_v1_depois_da_v2(): void
     {
         $demanda = $this->demanda($this->v1);
-        $this->service->createNewVersion($this->v1);
+        $this->publishedVersion($this->v1);
 
         $executor = User::factory()->create(['user_role' => UserRoleEnum::EXECUTOR]);
         $demanda->update(['requested_by' => $executor->id]);
@@ -367,7 +373,7 @@ class VersionamentoProcessosTest extends TestCase
         $this->assertTrue($this->service->isStructureLocked($this->v1));
         $this->assertSame(ProcessVersioningService::LOCKED_STRUCTURE_MESSAGE, $this->service->lockedMessage($this->v1));
 
-        $v2 = $this->service->createNewVersion($this->v1);
+        $v2 = $this->publishedVersion($this->v1);
         $this->assertFalse($this->service->isStructureLocked($v2), 'A v2 nasce sem demandas, estrutura liberada');
         $this->assertTrue($this->service->isStructureLocked($this->v1->fresh()), 'A v1 antiga fica travada');
     }
@@ -412,7 +418,7 @@ class VersionamentoProcessosTest extends TestCase
     public function test_relation_managers_da_versao_antiga_ficam_somente_leitura(): void
     {
         $this->actingAs($this->admin);
-        $v2 = $this->service->createNewVersion($this->v1);
+        $v2 = $this->publishedVersion($this->v1);
         $page = EditCustomEntity::class;
 
         // v1 antiga (sem demandas, mas não vigente): travada
@@ -479,11 +485,17 @@ class VersionamentoProcessosTest extends TestCase
 
         $v2 = CustomEntity::where('root_entity_id', $this->v1->id)->where('version', 2)->first();
         $this->assertNotNull($v2);
-        $this->assertTrue($v2->is_current);
-        $this->assertFalse($this->v1->fresh()->is_current);
+        $this->assertTrue($v2->is_draft, 'A nova versão nasce como rascunho');
+        $this->assertFalse($v2->is_current);
+        $this->assertTrue($this->v1->fresh()->is_current, 'A vigente segue valendo até publicar');
         $component->assertRedirect(CustomEntityResource::getUrl('edit', ['record' => $v2]));
 
-        // Na v2 (sem demandas) a ação some: estrutura já liberada
+        // Com rascunho aberto, a v1 oferece ir até ele em vez de criar outro
+        Livewire::test(EditCustomEntity::class, ['record' => $this->v1->id])
+            ->assertActionHidden('edit_structure')
+            ->assertActionVisible('go_to_draft');
+
+        // No rascunho (sem demandas) a ação some: estrutura já liberada
         Livewire::test(EditCustomEntity::class, ['record' => $v2->id])
             ->assertActionHidden('edit_structure');
     }
@@ -548,7 +560,7 @@ class VersionamentoProcessosTest extends TestCase
     public function test_versao_antiga_e_somente_leitura(): void
     {
         $this->actingAs($this->admin);
-        $this->service->createNewVersion($this->v1);
+        $this->publishedVersion($this->v1);
         $antiga = $this->v1->fresh();
 
         $this->assertFalse((new CustomEntityPolicy)->update($this->admin, $antiga));
@@ -573,7 +585,7 @@ class VersionamentoProcessosTest extends TestCase
     public function test_select_de_nova_demanda_lista_so_a_versao_vigente_com_a_versao_no_rotulo(): void
     {
         $this->actingAs($this->admin);
-        $v2 = $this->service->createNewVersion($this->v1);
+        $v2 = $this->publishedVersion($this->v1);
 
         $component = Livewire::test(CreateDemand::class);
         $select = $component->instance()->form->getFlatFields()['entity_id'];
@@ -591,7 +603,7 @@ class VersionamentoProcessosTest extends TestCase
     public function test_nao_cria_demanda_em_versao_antiga(): void
     {
         $this->actingAs($this->admin);
-        $v2 = $this->service->createNewVersion($this->v1);
+        $v2 = $this->publishedVersion($this->v1);
         $client = Client::create(['name' => 'Cliente Versão', 'is_active' => true]);
 
         $dados = fn (string $entityId) => [
@@ -630,7 +642,7 @@ class VersionamentoProcessosTest extends TestCase
     public function test_query_entity_id_de_versao_antiga_e_ignorada(): void
     {
         $this->actingAs($this->admin);
-        $v2 = $this->service->createNewVersion($this->v1);
+        $v2 = $this->publishedVersion($this->v1);
 
         Livewire::withQueryParams(['entity_id' => $this->v1->id])
             ->test(CreateDemand::class)
@@ -649,7 +661,7 @@ class VersionamentoProcessosTest extends TestCase
         $this->assertSame('Processo Único', CustomEntity::versionedFilterOptions()[$unico->id]);
         $this->assertSame('VER - Processo Versionado', CustomEntity::versionedFilterOptions()[$this->v1->id]);
 
-        $v2 = $this->service->createNewVersion($this->v1);
+        $v2 = $this->publishedVersion($this->v1);
         $opcoes = CustomEntity::versionedFilterOptions();
 
         $this->assertSame('VER - Processo Versionado v1 (anterior)', $opcoes[$this->v1->id]);
@@ -747,7 +759,7 @@ class VersionamentoProcessosTest extends TestCase
     public function test_apagar_a_versao_vigente_devolve_a_vigencia_para_a_anterior(): void
     {
         $this->demanda($this->v1, DemandStatusEnum::CLOSED);
-        $v2 = $this->service->createNewVersion($this->v1);
+        $v2 = $this->publishedVersion($this->v1);
         $this->assertFalse($this->v1->fresh()->is_current);
 
         $v2->delete();
@@ -757,8 +769,8 @@ class VersionamentoProcessosTest extends TestCase
 
     public function test_apagar_v2_e_depois_v3_deixa_a_v1_vigente(): void
     {
-        $v2 = $this->service->createNewVersion($this->v1);
-        $v3 = $this->service->createNewVersion($v2);
+        $v2 = $this->publishedVersion($this->v1);
+        $v3 = $this->publishedVersion($v2);
 
         $v2->fresh()->delete();
         $this->assertTrue($v3->fresh()->is_current, 'Apagar uma versão antiga não muda a vigente');
@@ -771,9 +783,9 @@ class VersionamentoProcessosTest extends TestCase
 
     public function test_apagar_a_vigente_promove_a_maior_versao_restante(): void
     {
-        $v2 = $this->service->createNewVersion($this->v1);
-        $v3 = $this->service->createNewVersion($v2);
-        $v4 = $this->service->createNewVersion($v3);
+        $v2 = $this->publishedVersion($this->v1);
+        $v3 = $this->publishedVersion($v2);
+        $v4 = $this->publishedVersion($v3);
 
         // v3 sai do caminho; ao apagar a v4, a maior restante (v2) volta, não a v1
         $v3->fresh()->delete();
@@ -785,7 +797,7 @@ class VersionamentoProcessosTest extends TestCase
 
     public function test_apagar_versao_nao_gera_duas_vigentes_quando_outra_ja_e_vigente(): void
     {
-        $v2 = $this->service->createNewVersion($this->v1);
+        $v2 = $this->publishedVersion($this->v1);
 
         // Simula a corrida com "Editar estrutura": a v1 já voltou a ser vigente no banco
         // enquanto a instância da v2 ainda acredita que é a vigente
@@ -807,8 +819,8 @@ class VersionamentoProcessosTest extends TestCase
 
     public function test_proximo_numero_de_versao_considera_as_excluidas(): void
     {
-        $v2 = $this->service->createNewVersion($this->v1);
-        $v3 = $this->service->createNewVersion($v2);
+        $v2 = $this->publishedVersion($this->v1);
+        $v3 = $this->publishedVersion($v2);
         $this->assertSame(4, $this->service->nextVersionNumber($v3->fresh()));
 
         // v3 excluída, v2 volta a vigente: a próxima é v4 (não v3), como o serviço grava
@@ -817,7 +829,7 @@ class VersionamentoProcessosTest extends TestCase
         $this->assertTrue($v2->is_current);
         $this->assertSame(4, $this->service->nextVersionNumber($v2));
 
-        $v4 = $this->service->createNewVersion($v2);
+        $v4 = $this->publishedVersion($v2);
         $this->assertSame(4, $v4->version);
     }
 
@@ -825,14 +837,14 @@ class VersionamentoProcessosTest extends TestCase
     {
         $this->actingAs($this->admin);
         $this->demanda($this->v1, DemandStatusEnum::CLOSED);
-        $v2 = $this->service->createNewVersion($this->v1);
+        $v2 = $this->publishedVersion($this->v1);
         $this->demanda($v2, DemandStatusEnum::CLOSED);
-        $v3 = $this->service->createNewVersion($v2);
+        $v3 = $this->publishedVersion($v2);
         $v3->delete();
 
         Livewire::test(EditCustomEntity::class, ['record' => $v2->id])
             ->mountAction('edit_structure')
-            ->assertSee('Será criada a versão v4');
+            ->assertSee('Será criado um rascunho da versão v4');
     }
 
     // ------------------------------------------------------------------
@@ -842,7 +854,7 @@ class VersionamentoProcessosTest extends TestCase
     public function test_listagem_de_processos_mostra_so_vigentes_e_leva_as_versoes_inativas(): void
     {
         $this->actingAs($this->admin);
-        $v2 = $this->service->createNewVersion($this->v1);
+        $v2 = $this->publishedVersion($this->v1);
         $outro = CustomEntity::factory()->create();
 
         Livewire::test(ListCustomEntities::class)
@@ -863,10 +875,10 @@ class VersionamentoProcessosTest extends TestCase
     public function test_versoes_inativas_de_um_processo_filtram_pela_raiz(): void
     {
         $this->actingAs($this->admin);
-        $v2 = $this->service->createNewVersion($this->v1);
+        $v2 = $this->publishedVersion($this->v1);
 
         $outroProcesso = CustomEntity::factory()->create();
-        $outroV2 = $this->service->createNewVersion($outroProcesso);
+        $outroV2 = $this->publishedVersion($outroProcesso);
 
         Livewire::withQueryParams(['processo' => $this->v1->id])
             ->test(ListInactiveCustomEntityVersions::class)
@@ -894,7 +906,7 @@ class VersionamentoProcessosTest extends TestCase
             ->assertSee('Processos agrupados neste macroprocesso:')
             ->assertDontSee('Versões antigas de processos');
 
-        $v2 = $this->service->createNewVersion($this->v1);
+        $v2 = $this->publishedVersion($this->v1);
 
         $this->assertSame([$v2->id], $this->macro->currentProcesses()->pluck('id')->all());
         $this->assertSame([$this->v1->id], $this->macro->inactiveProcessVersions()->pluck('id')->all());
@@ -913,7 +925,7 @@ class VersionamentoProcessosTest extends TestCase
     public function test_busca_pelo_numero_exibido_encontra_a_versao_vigente(): void
     {
         $this->actingAs($this->admin);
-        $v2 = $this->service->createNewVersion($this->v1);
+        $v2 = $this->publishedVersion($this->v1);
         $outro = CustomEntity::factory()->create();
 
         // O código interno do clone não aparece na tela; busca pelo código da raiz...
@@ -966,7 +978,7 @@ class VersionamentoProcessosTest extends TestCase
     public function test_tela_do_usuario_lista_so_processos_vigentes_que_ele_gerencia(): void
     {
         $this->actingAs($this->admin);
-        $v2 = $this->service->createNewVersion($this->v1);
+        $v2 = $this->publishedVersion($this->v1);
 
         $this->assertCount(2, $this->gestor->managedProcesses()->get(), 'O clone copia o gestor');
 
@@ -984,12 +996,136 @@ class VersionamentoProcessosTest extends TestCase
     public function test_tela_do_papel_lista_cada_processo_uma_vez_pela_versao_vigente(): void
     {
         $this->actingAs($this->admin);
-        $v2 = $this->service->createNewVersion($this->v1);
+        $v2 = $this->publishedVersion($this->v1);
 
         // v1 e v2 têm o mesmo membro com o papel; só a vigente aparece, com link para ela
         Livewire::test(ViewProcessRole::class, ['record' => $this->papel->id])
             ->assertSuccessful()
             ->assertSeeHtml(CustomEntityResource::getUrl('edit', ['record' => $v2]))
             ->assertDontSeeHtml(CustomEntityResource::getUrl('edit', ['record' => $this->v1]));
+    }
+
+    public function test_nova_versao_nasce_como_rascunho_e_a_vigente_continua_valendo(): void
+    {
+        $this->actingAs($this->admin);
+
+        $draft = $this->service->createNewVersion($this->v1);
+
+        $this->assertTrue($draft->is_draft);
+        $this->assertFalse($draft->is_current);
+        $this->assertSame(2, $draft->version);
+        $this->assertTrue($this->v1->fresh()->is_current, 'A vigente segue valendo até a publicação');
+        $this->assertSame([$this->v1->id], CustomEntity::where('root_entity_id', $this->v1->id)->current()->pluck('id')->all());
+        $this->assertSame(0, CustomEntity::where('root_entity_id', $this->v1->id)->inactiveVersions()->count(), 'Rascunho não é versão antiga');
+        $this->assertFalse($this->service->isStructureLocked($draft), 'Rascunho é editável');
+        $this->assertNull($this->service->lockedMessage($draft));
+        $this->assertTrue($this->admin->can('update', $draft));
+    }
+
+    public function test_so_pode_existir_um_rascunho_por_processo(): void
+    {
+        $this->actingAs($this->admin);
+
+        $this->service->createNewVersion($this->v1);
+
+        try {
+            $this->service->createNewVersion($this->v1->fresh());
+            $this->fail('Era esperada exceção com um rascunho já aberto');
+        } catch (ProcessVersioningException $e) {
+            $this->assertSame(ProcessVersioningService::DRAFT_EXISTS_MESSAGE, $e->getMessage());
+        }
+    }
+
+    public function test_gestor_do_rascunho_nao_se_propaga_para_a_versao_antiga(): void
+    {
+        $this->actingAs($this->admin);
+        $outro = User::factory()->create(['user_role' => UserRoleEnum::GESTOR, 'is_active' => true]);
+
+        $draft = $this->service->createNewVersion($this->v1);
+        $this->assertSame($this->gestor->id, $draft->manager_id, 'O rascunho herda o gestor');
+
+        $draft->update(['manager_id' => $outro->id]);
+        $this->service->publishVersion($draft);
+
+        $this->assertSame($this->gestor->id, $this->v1->fresh()->manager_id, 'A versão antiga fica intacta');
+        $this->assertSame($outro->id, $draft->fresh()->manager_id);
+    }
+
+    public function test_publicar_troca_a_vigente_e_mantem_as_demandas_na_versao_antiga(): void
+    {
+        $this->actingAs($this->admin);
+
+        $draft = $this->service->createNewVersion($this->v1);
+        $published = $this->service->publishVersion($draft);
+
+        $this->assertTrue($published->is_current);
+        $this->assertFalse($published->is_draft);
+        $this->assertFalse($this->v1->fresh()->is_current);
+        $this->assertFalse($this->v1->fresh()->is_draft);
+        $this->assertTrue($this->v1->fresh()->is_active, 'A antiga permanece ativa (demandas em aberto seguem nela)');
+        $this->assertSame([$published->id], CustomEntity::where('root_entity_id', $this->v1->id)->current()->pluck('id')->all());
+        $this->assertSame([$this->v1->id], CustomEntity::where('root_entity_id', $this->v1->id)->inactiveVersions()->pluck('id')->all());
+        $this->assertTrue($this->service->isStructureLocked($this->v1->fresh()));
+    }
+
+    public function test_publicar_so_funciona_em_rascunho(): void
+    {
+        $this->actingAs($this->admin);
+
+        $this->expectException(ProcessVersioningException::class);
+        $this->expectExceptionMessage(ProcessVersioningService::NOT_A_DRAFT_MESSAGE);
+
+        $this->service->publishVersion($this->v1);
+    }
+
+    public function test_excluir_o_rascunho_nao_altera_a_vigente_nem_promove_nada(): void
+    {
+        $this->actingAs($this->admin);
+
+        $draft = $this->service->createNewVersion($this->v1);
+        $draft->delete();
+
+        $this->assertTrue($this->v1->fresh()->is_current);
+        $this->assertSame(0, CustomEntity::where('root_entity_id', $this->v1->id)->drafts()->count());
+        $this->assertNotNull($this->service->createNewVersion($this->v1->fresh()), 'Pode criar outro rascunho depois de descartar');
+    }
+
+    public function test_excluir_a_vigente_nao_promove_o_rascunho(): void
+    {
+        $this->actingAs($this->admin);
+
+        $draft = $this->service->createNewVersion($this->v1);
+        $this->v1->delete();
+
+        $this->assertFalse($draft->fresh()->is_current, 'Só o "Publicar" torna o rascunho vigente');
+    }
+
+    public function test_rascunho_nao_aparece_para_abrir_demanda_nem_nos_filtros(): void
+    {
+        $this->actingAs($this->admin);
+
+        $draft = $this->service->createNewVersion($this->v1);
+
+        $this->assertFalse(CustomEntity::current()->whereKey($draft->id)->exists());
+        $this->assertArrayNotHasKey($draft->id, CustomEntity::versionedFilterOptions());
+    }
+
+    public function test_botao_publicar_aparece_so_no_rascunho_e_publica(): void
+    {
+        $this->actingAs($this->admin);
+
+        $draft = $this->service->createNewVersion($this->v1);
+
+        Livewire::test(EditCustomEntity::class, ['record' => $this->v1->id])
+            ->assertActionHidden('publish_version')
+            ->assertActionVisible('go_to_draft');
+
+        Livewire::test(EditCustomEntity::class, ['record' => $draft->id])
+            ->assertActionVisible('publish_version')
+            ->callAction('publish_version')
+            ->assertHasNoActionErrors();
+
+        $this->assertTrue($draft->fresh()->is_current);
+        $this->assertFalse($this->v1->fresh()->is_current);
     }
 }

@@ -52,13 +52,16 @@ class CustomEntity extends Model
             $rootId = $entity->root_entity_id ?: $entity->id;
 
             DB::transaction(function () use ($rootId) {
+                // Rascunho nunca é promovido por exclusão: só o "Publicar" o torna vigente
                 $versions = static::query()->where('root_entity_id', $rootId)->lockForUpdate()->get();
 
                 if ($versions->isEmpty() || $versions->contains('is_current', true)) {
                     return;
                 }
 
-                $versions->sortByDesc('version')->first()->forceFill(['is_current' => true])->saveQuietly();
+                $candidate = $versions->where('is_draft', false)->sortByDesc('version')->first();
+
+                $candidate?->forceFill(['is_current' => true])->saveQuietly();
             });
         });
 
@@ -80,6 +83,7 @@ class CustomEntity extends Model
     protected $attributes = [
         'version' => 1,
         'is_current' => true,
+        'is_draft' => false,
     ];
 
     protected $fillable = [
@@ -148,7 +152,8 @@ class CustomEntity extends Model
      */
     public static function versionedFilterOptions(): array
     {
-        $entities = static::with('macroprocess')->get();
+        // Rascunho ainda não tem demandas: fica fora dos filtros
+        $entities = static::with('macroprocess')->where('is_draft', false)->get();
         $versionsPerRoot = $entities->countBy(fn (CustomEntity $e) => $e->root_entity_id ?? $e->id);
 
         return $entities
@@ -171,10 +176,25 @@ class CustomEntity extends Model
         return $query->where($query->qualifyColumn('is_current'), true);
     }
 
-    /** Apenas as versões antigas (não vigentes) */
+    /** Apenas as versões antigas (não vigentes e que já foram publicadas) */
     public function scopeInactiveVersions(Builder $query): Builder
     {
-        return $query->where($query->qualifyColumn('is_current'), false);
+        return $query->where($query->qualifyColumn('is_current'), false)
+            ->where($query->qualifyColumn('is_draft'), false);
+    }
+
+    /** Apenas os rascunhos (versões em elaboração) */
+    public function scopeDrafts(Builder $query): Builder
+    {
+        return $query->where($query->qualifyColumn('is_draft'), true);
+    }
+
+    /** Versão vigente ou rascunho: o que aparece na lista principal de processos */
+    public function scopeCurrentOrDraft(Builder $query): Builder
+    {
+        return $query->where(fn (Builder $q) => $q
+            ->where($q->qualifyColumn('is_current'), true)
+            ->orWhere($q->qualifyColumn('is_draft'), true));
     }
 
     /** Versão 1 do processo (a raiz do histórico de versões) */
@@ -211,6 +231,7 @@ class CustomEntity extends Model
         return [
             'is_active' => 'boolean',
             'is_current' => 'boolean',
+            'is_draft' => 'boolean',
             'version' => 'integer',
         ];
     }

@@ -12,12 +12,12 @@ class ListCustomEntities extends ListRecords
     protected static string $resource = CustomEntityResource::class;
 
     /**
-     * A listagem mostra só as versões vigentes; as antigas ficam em "Versões inativas"
+     * A listagem mostra as versões vigentes e os rascunhos; as antigas ficam em "Versões inativas"
      */
     protected function getTableQuery(): ?Builder
     {
         return parent::getTableQuery()
-            ->current()
+            ->currentOrDraft()
             ->with(['rootEntity', 'macroprocess', 'manager', 'creator']);
     }
 

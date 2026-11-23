@@ -25,6 +25,10 @@ class ProcessVersioningService
 
     public const DELETION_BLOCKED_MESSAGE = 'Não é possível excluir: esta versão do processo ainda tem demandas não encerradas (rascunhos contam como pendentes).';
 
+    public const DRAFT_EXISTS_MESSAGE = 'Este processo já tem uma versão em rascunho. Publique ou exclua o rascunho antes de criar outra.';
+
+    public const NOT_A_DRAFT_MESSAGE = 'Só é possível publicar uma versão em rascunho.';
+
     /** Situações em que a demanda é considerada encerrada para a trava de exclusão */
     private const CLOSED_STATUSES = [
         DemandStatusEnum::CLOSED,
@@ -33,10 +37,11 @@ class ProcessVersioningService
     ];
 
     /**
-     * Clona a versão vigente em v(n+1), que passa a ser a vigente. A de origem
-     * vira versão antiga (continua ativa, e suas demandas seguem tramitando nela).
+     * Clona a versão vigente em v(n+1) como RASCUNHO. A vigente continua valendo e
+     * recebendo demandas; a troca só acontece em publishVersion(). O rascunho herda
+     * os metadados (inclusive o gestor) e pode ser alterado à vontade antes de publicar.
      *
-     * @throws ProcessVersioningException quando a origem não é a versão vigente
+     * @throws ProcessVersioningException quando a origem não é a vigente ou já há rascunho
      */
     public function createNewVersion(CustomEntity $source): CustomEntity
     {
@@ -49,6 +54,10 @@ class ProcessVersioningService
             }
 
             $rootId = $source->root_entity_id ?: $source->id;
+
+            if ($this->draftFor($rootId)) {
+                throw new ProcessVersioningException(self::DRAFT_EXISTS_MESSAGE);
+            }
 
             // O código interno (índice único) é gerado normalmente; a interface exibe o da raiz
             $new = new CustomEntity($source->only([
@@ -64,7 +73,8 @@ class ProcessVersioningService
             $new->forceFill([
                 'root_entity_id' => $rootId,
                 'version' => $this->nextVersionNumber($source),
-                'is_current' => true,
+                'is_current' => false,
+                'is_draft' => true,
                 'previous_version_id' => $source->id,
             ]);
             $new->save();
@@ -74,10 +84,47 @@ class ProcessVersioningService
 
             $this->copyStructure($source, $new);
 
-            $source->forceFill(['is_current' => false])->save();
-
             return $new->refresh();
         });
+    }
+
+    /**
+     * Publica o rascunho: ele vira a versão vigente e a anterior passa a ser antiga
+     * (intacta, só deixa de receber novas demandas; as em aberto seguem nela).
+     *
+     * @throws ProcessVersioningException quando a versão não é um rascunho
+     */
+    public function publishVersion(CustomEntity $draft): CustomEntity
+    {
+        return DB::transaction(function () use ($draft) {
+            $draft = CustomEntity::query()->lockForUpdate()->findOrFail($draft->getKey());
+
+            if (! $draft->is_draft) {
+                throw new ProcessVersioningException(self::NOT_A_DRAFT_MESSAGE);
+            }
+
+            $rootId = $draft->root_entity_id ?: $draft->id;
+
+            // Trava todas as versões da raiz: duas publicações simultâneas não deixam duas vigentes
+            CustomEntity::query()->where('root_entity_id', $rootId)->lockForUpdate()->get();
+
+            CustomEntity::query()
+                ->where('root_entity_id', $rootId)
+                ->where('is_current', true)
+                ->where('id', '!=', $draft->id)
+                ->get()
+                ->each(fn (CustomEntity $old) => $old->forceFill(['is_current' => false])->saveQuietly());
+
+            $draft->forceFill(['is_draft' => false, 'is_current' => true])->saveQuietly();
+
+            return $draft->refresh();
+        });
+    }
+
+    /** Rascunho em aberto do processo (pela raiz), se houver */
+    public function draftFor(string $rootId): ?CustomEntity
+    {
+        return CustomEntity::query()->where('root_entity_id', $rootId)->where('is_draft', true)->first();
     }
 
     /**
@@ -105,16 +152,22 @@ class ProcessVersioningService
             ->exists();
     }
 
+    /** Versão antiga: já publicada e substituída (rascunho não conta) */
+    public function isInactiveVersion(CustomEntity $entity): bool
+    {
+        return ! $entity->is_current && ! $entity->is_draft;
+    }
+
     /** A estrutura (campos, situações, transições, papéis, permissões) está travada? */
     public function isStructureLocked(CustomEntity $entity): bool
     {
-        return ! $entity->is_current || $this->hasDemands($entity);
+        return $this->isInactiveVersion($entity) || $this->hasDemands($entity);
     }
 
     /** Aviso exibido nas telas de estrutura travada */
     public function lockedMessage(CustomEntity $entity): ?string
     {
-        if (! $entity->is_current) {
+        if ($this->isInactiveVersion($entity)) {
             return self::INACTIVE_VERSION_MESSAGE;
         }
 
