@@ -339,4 +339,53 @@ class ProcessKanbanTest extends TestCase
         $this->assertSame(DemandStatusEnum::COMPLETED, $concluida->fresh()->status);
         $this->assertSame(DemandStatusEnum::EVALUATED, $avaliada->fresh()->status);
     }
+
+    public function test_cards_seguem_o_prazo_crescente_com_sem_prazo_por_ultimo_e_criacao_recente_no_desempate(): void
+    {
+        $prazo = now()->addDays(3)->startOfSecond();
+        $semPrazo = $this->demanda($this->aprovando, ['sla_due_at' => null, 'created_at' => now()->subDays(1)]);
+        $tardio = $this->demanda($this->aprovando, ['sla_due_at' => now()->addDays(9), 'created_at' => now()->subDays(1)]);
+        $empateAntiga = $this->demanda($this->aprovando, ['sla_due_at' => $prazo, 'created_at' => now()->subDays(5)]);
+        $empateNova = $this->demanda($this->aprovando, ['sla_due_at' => $prazo, 'created_at' => now()->subDays(2)]);
+        $vencida = $this->demanda($this->aprovando, ['sla_due_at' => now()->subDays(4), 'created_at' => now()->subDays(8)]);
+
+        $coluna = app(ProcessKanbanBoard::class)->columns($this->processo)->firstWhere('name', 'Aprovando');
+
+        $this->assertSame(
+            [$vencida->id, $empateNova->id, $empateAntiga->id, $tardio->id, $semPrazo->id],
+            $coluna['records']->pluck('id')->all(),
+        );
+    }
+
+    public function test_fora_do_fluxo_inclui_demanda_em_situacao_que_nao_pertence_a_versao(): void
+    {
+        $alheia = ProcessStatus::factory()->create(['name' => 'Situacao de outra versao']);
+        $demanda = $this->demanda($alheia, ['title' => 'Em situacao alheia']);
+        $this->demanda($this->aprovando);
+
+        $colunas = app(ProcessKanbanBoard::class)->columns($this->processo)->keyBy('name');
+
+        $this->assertNotContains('Situacao de outra versao', $colunas->keys()->all());
+        $this->assertSame(1, $colunas['Fora do fluxo']['total']);
+        $this->assertSame([$demanda->id], $colunas['Fora do fluxo']['records']->pluck('id')->all());
+        $this->assertSame(1, $colunas['Aprovando']['total']);
+    }
+
+    public function test_transicoes_de_qualquer_situacao_nao_alteram_a_ordem_das_colunas(): void
+    {
+        $antes = app(ProcessKanbanBoard::class)->orderedStatuses($this->processo)->pluck('name')->all();
+
+        // De qualquer situação para Aprovando e para Em análise: não definem posição no fluxo
+        foreach ([[$this->aprovando, 'Reabrir'], [$this->analise, 'Voltar']] as $i => [$destino, $rotulo]) {
+            StatusTransition::create([
+                'entity_id' => $this->processo->id, 'from_status_id' => null, 'to_status_id' => $destino->id,
+                'label' => $rotulo, 'allowed_role_ids' => [], 'display_order' => 10 + $i,
+            ]);
+        }
+
+        $depois = app(ProcessKanbanBoard::class)->orderedStatuses($this->processo)->pluck('name')->all();
+
+        $this->assertSame(['Nova', 'Em análise', 'Aprovando', 'Encerrada'], array_slice($depois, 0, 4));
+        $this->assertSame($antes, $depois);
+    }
 }
