@@ -284,7 +284,8 @@ class VersionamentoProcessosTest extends TestCase
         $regras = TransitionRule::where('status_transition_id', $copiaCondicional->id)->get();
         $this->assertCount(1, $regras);
         $this->assertSame($this->emAprovacao->id, $regras->first()->to_status_id);
-        $this->assertSame(
+        // assertEquals: o MySQL reordena as chaves do JSON, então a ordem não pode ser exigida
+        $this->assertEquals(
             [['field_id' => $this->campoA->id, 'operator' => 'gt', 'value' => '1000']],
             $regras->first()->conditions
         );
