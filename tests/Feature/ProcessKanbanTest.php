@@ -21,6 +21,7 @@ use App\Services\ProcessVersioningService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Livewire\Features\SupportLockedProperties\CannotUpdateLockedPropertyException;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -210,5 +211,65 @@ class ProcessKanbanTest extends TestCase
         $demanda->autoAssign();
 
         $this->assertSame(DemandStatusEnum::COMPLETED, $demanda->fresh()->status);
+    }
+
+    public function test_encerrada_com_prazo_passado_nao_recebe_a_classe_de_atraso(): void
+    {
+        $this->actingAs($this->admin);
+        $closed = ProcessStatus::findBySystemKey('closed');
+        $this->demanda($closed, [
+            'status' => DemandStatusEnum::CLOSED, 'completed_at' => now()->subDay(), 'sla_due_at' => now()->subDays(5),
+        ]);
+
+        Livewire::test(ProcessDemandsKanban::class, ['entityId' => $this->processo->id])
+            ->assertDontSee('text-danger-600', false);
+
+        // Em andamento com o prazo vencido continua marcada como atrasada
+        $this->demanda($this->aprovando, ['sla_due_at' => now()->subDays(2)]);
+
+        Livewire::test(ProcessDemandsKanban::class, ['entityId' => $this->processo->id])
+            ->assertSee('text-danger-600', false);
+    }
+
+    public function test_card_do_widget_do_painel_continua_marcando_atraso_em_situacao_final(): void
+    {
+        $demanda = $this->demanda(ProcessStatus::findBySystemKey('closed'), [
+            'status' => DemandStatusEnum::CLOSED, 'sla_due_at' => now()->subDays(5),
+        ]);
+        $card = fn (bool $widget) => $this->blade(
+            '<x-demand-kanban-card :demand="$demanda" href="#" :finished-can-be-overdue="$widget" />',
+            ['demanda' => $demanda, 'widget' => $widget],
+        );
+
+        $card(true)->assertSee('text-danger-600', false);
+        $card(false)->assertDontSee('text-danger-600', false);
+    }
+
+    public function test_coluna_encerrada_ordena_pela_conclusao_mais_recente(): void
+    {
+        $closed = ProcessStatus::findBySystemKey('closed');
+        $extra = ['status' => DemandStatusEnum::CLOSED];
+        // O prazo seguiria a ordem inversa: prova que as finais ignoram o SLA
+        $antiga = $this->demanda($closed, $extra + ['completed_at' => now()->subDays(10), 'sla_due_at' => now()->subDays(20)]);
+        $recente = $this->demanda($closed, $extra + ['completed_at' => now()->subDay(), 'sla_due_at' => now()->addDays(30)]);
+        $semData = $this->demanda($closed, $extra + ['completed_at' => null, 'sla_due_at' => now()->subDays(30)]);
+        $meio = $this->demanda($closed, $extra + ['completed_at' => now()->subDays(5), 'sla_due_at' => null]);
+
+        $coluna = app(ProcessKanbanBoard::class)->columns($this->processo)->firstWhere('name', 'Encerrada');
+
+        $this->assertSame(
+            [$recente->id, $meio->id, $antiga->id, $semData->id],
+            $coluna['records']->pluck('id')->all(),
+        );
+    }
+
+    public function test_entity_id_do_componente_nao_pode_ser_alterado_pelo_cliente(): void
+    {
+        $this->actingAs($this->admin);
+
+        $this->expectException(CannotUpdateLockedPropertyException::class);
+
+        Livewire::test(ProcessDemandsKanban::class, ['entityId' => $this->processo->id])
+            ->set('entityId', CustomEntity::factory()->create()->id);
     }
 }

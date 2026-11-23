@@ -6,6 +6,7 @@ use App\Enums\UserRoleEnum;
 use App\Models\CustomEntity;
 use App\Services\ProcessKanbanBoard;
 use Illuminate\Contracts\View\View;
+use Livewire\Attributes\Locked;
 use Livewire\Component;
 
 /**
@@ -13,6 +14,7 @@ use Livewire\Component;
  */
 class ProcessDemandsKanban extends Component
 {
+    #[Locked]
     public string $entityId;
 
     public function mount(string $entityId): void

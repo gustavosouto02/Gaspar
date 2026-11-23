@@ -43,7 +43,11 @@ class ProcessKanbanBoard
             'name' => $status->name,
             'color' => ProcessStatusColorEnum::tryFrom((string) $status->color)?->filamentColor() ?? 'gray',
             'total' => (int) ($totals[$status->id] ?? 0),
-            'records' => $this->cards($entity, fn ($q) => $q->where('process_status_id', $status->id)),
+            'records' => $this->cards(
+                $entity,
+                fn ($q) => $q->where('process_status_id', $status->id),
+                $status->isClosed() || $status->isEvaluated() || $status->isCanceled(),
+            ),
             'status' => $status,
         ]);
 
@@ -167,17 +171,24 @@ class ProcessKanbanBoard
         return [...$reachable, ...$byOrder(array_diff(array_keys($nodes), array_keys($layer)))];
     }
 
-    /** Primeiros cards da coluna: prazo SLA mais próximo primeiro (sem prazo por último). */
-    private function cards(CustomEntity $entity, \Closure $scope): Collection
+    /**
+     * Primeiros cards da coluna. Situações em andamento: prazo SLA mais próximo
+     * primeiro (sem prazo por último). Situações finais: o prazo não importa mais,
+     * então vêm as concluídas mais recentemente primeiro (`completed_at`).
+     */
+    private function cards(CustomEntity $entity, \Closure $scope, bool $final = false): Collection
     {
-        return Demand::query()
+        $query = Demand::query()
             ->where('entity_id', $entity->id)
             ->where($scope)
-            ->with(['assignee:id,name', 'requester:id,name', 'parent:id,code,title'])
-            ->orderByRaw('sla_due_at is null')
-            ->orderBy('sla_due_at')
-            ->orderByDesc('created_at')
-            ->limit(self::CARDS_PER_COLUMN)
-            ->get();
+            ->with(['assignee:id,name', 'parent:id,code,title']);
+
+        if ($final) {
+            $query->orderByRaw('completed_at is null')->orderByDesc('completed_at');
+        } else {
+            $query->orderByRaw('sla_due_at is null')->orderBy('sla_due_at');
+        }
+
+        return $query->orderByDesc('created_at')->limit(self::CARDS_PER_COLUMN)->get();
     }
 }

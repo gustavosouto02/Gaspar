@@ -1,5 +1,4 @@
 @php
-    use App\Enums\DemandPriorityEnum;
     use App\Enums\DemandStatusEnum;
     use App\Filament\Resources\DemandResource;
 
@@ -23,71 +22,22 @@
 
             <div class="flex flex-col gap-2 overflow-y-auto" style="max-height: 32rem;">
                 @foreach ($column['records'] as $demand)
-                    @php
-                        $slaOverdue = $demand->sla_due_at?->isPast();
-                    @endphp
-
-                    <a href="{{ auth()->user()->can('update', $demand) ? DemandResource::getUrl('edit', ['record' => $demand]) : DemandResource::getUrl('view', ['record' => $demand]) }}"
-                       wire:key="kanban-card-{{ $demand->id }}"
-                       class="flex flex-col gap-2 rounded-lg bg-white p-3 shadow-sm ring-1 ring-gray-950/5 transition hover:ring-primary-500 dark:bg-gray-900 dark:ring-white/10 dark:hover:ring-primary-400">
-                        <div class="flex items-start justify-between gap-2">
-                            <span class="text-sm font-semibold text-gray-950 dark:text-white">
-                                {{ \Illuminate\Support\Str::limit($demand->title, 80) }}
-                            </span>
-
-                            @if ($demand->priority instanceof DemandPriorityEnum)
-                                <x-filament::badge size="sm" :color="$demand->priority->filamentColor()">
-                                    {{ $demand->priority->label() }}
-                                </x-filament::badge>
-                            @endif
-                        </div>
-
-                        @if ($demand->requested_by === auth()->id() && empty($demand->satisfaction_rating) && ($demand->status === DemandStatusEnum::CLOSED || $demand->processStatus?->isClosed()))
-                            <span class="flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
-                                <x-heroicon-m-star class="h-4 w-4 shrink-0 text-amber-500" />
-                                Aguardando sua avaliação
-                            </span>
-                        @endif
-
-                        <span class="text-xs text-gray-500 dark:text-gray-400">
-                            {{ $demand->code ?? '#' . strtoupper(substr($demand->id, 0, 8)) }} · {{ $demand->entity?->full_display_name ?? '—' }}
-                        </span>
-
-                        @if ($demand->parent_demand_id && $demand->parent)
-                            <span class="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300">
-                                <x-heroicon-o-arrow-turn-left-up class="h-4 w-4 shrink-0" />
-                                {{ \Illuminate\Support\Str::limit($demand->parent->title, 40) }}
-                            </span>
-                        @endif
-
-                        @if ($responsibles = $demand->current_responsibles)
-                            <span class="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-300">
-                                <x-heroicon-o-user class="h-4 w-4 shrink-0" />
-                                {{ \Illuminate\Support\Str::limit($responsibles, 40) }}
-                            </span>
-                        @endif
-
-                        <div class="flex items-center justify-between gap-2 text-xs">
-                            @if ($demand->sla_due_at)
-                                <span @class([
-                                    'flex items-center gap-1',
-                                    'font-semibold text-danger-600 dark:text-danger-400' => $slaOverdue,
-                                    'text-gray-600 dark:text-gray-300' => ! $slaOverdue,
-                                ])>
-                                    <x-dynamic-component
-                                        :component="$slaOverdue ? 'heroicon-o-exclamation-triangle' : 'heroicon-o-calendar'"
-                                        class="h-4 w-4 shrink-0" />
-                                    {{ $demand->sla_due_at->format('d/m/Y') }}
+                    <x-demand-kanban-card
+                        :demand="$demand"
+                        :href="auth()->user()->can('update', $demand) ? DemandResource::getUrl('edit', ['record' => $demand]) : DemandResource::getUrl('view', ['record' => $demand])"
+                        wire:key="kanban-card-{{ $demand->id }}"
+                        :entity-name="$demand->entity?->full_display_name ?? '—'"
+                        :responsibles="$demand->current_responsibles"
+                        :finished-can-be-overdue="true">
+                        <x-slot:notice>
+                            @if ($demand->requested_by === auth()->id() && empty($demand->satisfaction_rating) && ($demand->status === DemandStatusEnum::CLOSED || $demand->processStatus?->isClosed()))
+                                <span class="flex items-center gap-1 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                                    <x-heroicon-m-star class="h-4 w-4 shrink-0 text-amber-500" />
+                                    Aguardando sua avaliação
                                 </span>
-                            @else
-                                <span></span>
                             @endif
-
-                            <span class="text-gray-400 dark:text-gray-500">
-                                {{ $demand->updated_at?->diffForHumans() }}
-                            </span>
-                        </div>
-                    </a>
+                        </x-slot:notice>
+                    </x-demand-kanban-card>
                 @endforeach
             </div>
         </div>
