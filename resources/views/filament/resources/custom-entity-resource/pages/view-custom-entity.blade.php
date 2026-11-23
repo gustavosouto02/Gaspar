@@ -1,5 +1,5 @@
 {{-- Cópia de vendor/filament/filament/resources/views/resources/pages/view-record.blade.php (Filament v3.3.50).
-     Única alteração: título "Sistematização do processo:" acima dos relation managers.
+     Alterações: título "Sistematização do processo:" acima dos relation managers e seção "Quadro de demandas" (Livewire) ao final.
      Ao atualizar o Filament, comparar com o original. --}}
 <x-filament-panels::page
     @class([
@@ -51,4 +51,6 @@
             </x-filament-panels::resources.relation-managers>
         </div>
     @endif
+
+    @livewire(\App\Livewire\ProcessDemandsKanban::class, ['entityId' => $record->getKey()], key('process-demands-kanban-'.$record->getKey()))
 </x-filament-panels::page>

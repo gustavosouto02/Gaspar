@@ -6,6 +6,7 @@ use App\Enums\DemandPriorityEnum;
 use App\Enums\DemandStatusEnum;
 use App\Enums\ProcessStatusColorEnum;
 use App\Filament\Resources\DemandResource;
+use App\Livewire\Attributes\UrlArray;
 use App\Models\CustomEntity;
 use App\Models\CustomField;
 use App\Models\DemandFieldValue;
@@ -32,6 +33,10 @@ class DemandReports extends Page implements HasForms, HasTable
     #[Url]
     public $tableSearch = '';
 
+    /** Redeclarada só para ir na URL (padrão do ListRecords): permite abrir o relatório já filtrado. */
+    #[UrlArray]
+    public ?array $tableFilters = null;
+
     public ?array $data = [];
 
     #[Url]
@@ -39,13 +44,52 @@ class DemandReports extends Page implements HasForms, HasTable
 
     public function mount(): void
     {
-        if ($this->saved_report_id) {
+        // Os filtros da URL (ex.: link "+N" do quadro) prevalecem sobre a consulta salva
+        if ($this->saved_report_id && blank($this->tableFilters)) {
             $report = SavedReport::where('user_id', auth()->id())
                 ->find($this->saved_report_id);
             if ($report && is_array($report->filters_json)) {
                 $this->tableFilters = $report->filters_json;
             }
         }
+
+        $this->tableFilters = static::sanitizeTableFilters($this->tableFilters);
+    }
+
+    /**
+     * Mantém só os filtros conhecidos e no formato que o formulário espera: a URL é editável
+     * (`?tableFilters=abc` ou `[entity_id][value][]=x` derrubariam a página com 500).
+     *
+     * @return array<string, array<string, mixed>>|null
+     */
+    public static function sanitizeTableFilters(mixed $filters): ?array
+    {
+        if (! is_array($filters)) {
+            return null;
+        }
+
+        $isScalar = fn (mixed $value): bool => is_string($value) || is_int($value);
+        $isScalarList = fn (mixed $value): bool => is_array($value) && array_filter($value, fn ($v) => ! $isScalar($v)) === [];
+
+        $clean = [];
+        foreach ($filters as $name => $state) {
+            if (! is_array($state)) {
+                continue;
+            }
+
+            $valid = match ($name) {
+                'entity_id' => array_key_exists('value', $state) && ($state['value'] === null || $isScalar($state['value'])),
+                'process_status_id', 'status', 'priority', 'client_id', 'project_id', 'requested_by', 'assigned_to' => array_key_exists('values', $state) && $isScalarList($state['values']),
+                'periodo' => collect($state)->every(fn ($v, $k) => in_array($k, ['from', 'until'], true) && ($v === null || $isScalar($v))),
+                default => false,
+            };
+
+            if ($valid) {
+                $clean[$name] = $state;
+            }
+        }
+
+        return $clean === [] ? null : $clean;
     }
 
     protected static ?string $navigationIcon = 'heroicon-o-document-chart-bar';
