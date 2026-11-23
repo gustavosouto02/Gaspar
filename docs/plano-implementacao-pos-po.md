@@ -18,7 +18,7 @@ Legenda: ✅ feito · 🔄 em andamento (PR aberto) · ⬜ a fazer
 | T3 — Cadeia de Valor | Gustavo | ✅ | Mergeado na `develop` (PR #53). Desenho com os 4 grupos do enum do sistema (a imagem do PO é só exemplo), no fim do Painel de Controle. Sem migration de dados. Falta homologação. |
 | T4 — Campo Vínculo | Filipi (feito por Gustavo) | ✅ | Mergeado na `develop` (PRs #49 e #50). O tipo se chama `FieldTypeEnum::COMBO` ("Combo"). Tipo e origem travam quando o campo já tem valores. Valores de campos desvinculados ou excluídos ficam preservados e aparecem somente leitura na demanda, no relatório e no PDF. Falta homologação. |
 | T5 — Relatório de Cadastros | Gustavo | ✅ | Mergeado na `develop` (PRs #51 e #52). Atende os cadastros criados pelo admin e os 5 base, com filtro por campo e CSV. Falta homologação, em especial os filtros no MySQL (a suíte roda em SQLite). Consultas salvas ficaram de fora. |
-| T6 — Versionamento de processos | Filipi | 🔄 | Branch `feat/versionamento-processos`. Cada versão é um processo clonado; ação "Editar estrutura" cria a nova versão quando a vigente já tem demandas. Falta homologação em MySQL. |
+| T6 — Versionamento de processos | Filipi (feito por Gustavo) | ✅ | Mergeado na `develop` (PR #54). Cada versão é um processo clonado; ação "Editar estrutura" cria a nova versão quando a vigente já tem demandas. Nome, macroprocesso e gestor são por versão. Testado manualmente no navegador. Pendência: pergunta ao PO sobre membros fora da trava. |
 
 **Ajustes de regra confirmados pelo PO em 17/11/2026** (já refletidos nas seções abaixo):
 - O gestor de Macroprocesso e de Processo precisa ter o perfil `GESTOR` no sistema.
