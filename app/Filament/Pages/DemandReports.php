@@ -32,6 +32,10 @@ class DemandReports extends Page implements HasForms, HasTable
     #[Url]
     public $tableSearch = '';
 
+    /** Redeclarada só para ir na URL (padrão do ListRecords): permite abrir o relatório já filtrado. */
+    #[Url]
+    public ?array $tableFilters = null;
+
     public ?array $data = [];
 
     #[Url]

@@ -1,4 +1,5 @@
 @php
+    use App\Filament\Pages\DemandReports;
     use App\Filament\Resources\DemandResource;
 @endphp
 
@@ -37,12 +38,12 @@
                     </div>
 
                     @if ($column['total'] > $limit)
-                        <a href="{{ DemandResource::getUrl('index', ['tableFilters' => array_filter([
+                        <a href="{{ DemandReports::getUrl(['tableFilters' => array_filter([
                                 'entity_id' => ['value' => $entity->id],
-                                'process_status_id' => $column['status'] ? ['value' => $column['status']->id] : null,
+                                'process_status_id' => $column['status'] ? ['values' => [$column['status']->id]] : null,
                             ])]) }}"
                            class="text-center text-xs font-medium text-primary-600 hover:underline dark:text-primary-400">
-                            +{{ $column['total'] - $limit }} — ver na lista
+                            +{{ $column['total'] - $limit }} — {{ $column['status'] ? 'ver na lista' : 'ver todas do processo' }}
                         </a>
                     @endif
                 </div>

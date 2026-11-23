@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Enums\DemandButtonEnum;
 use App\Enums\DemandStatusEnum;
 use App\Enums\UserRoleEnum;
+use App\Filament\Pages\DemandReports;
 use App\Filament\Resources\CustomEntityResource;
 use App\Filament\Resources\DemandResource;
 use App\Livewire\ProcessDemandsKanban;
@@ -271,5 +272,52 @@ class ProcessKanbanTest extends TestCase
 
         Livewire::test(ProcessDemandsKanban::class, ['entityId' => $this->processo->id])
             ->set('entityId', CustomEntity::factory()->create()->id);
+    }
+
+    public function test_link_de_mais_cards_abre_o_relatorio_ja_filtrado_pelo_processo_e_pela_situacao(): void
+    {
+        $this->actingAs($this->admin);
+        Demand::factory()->count(ProcessKanbanBoard::CARDS_PER_COLUMN + 1)->create([
+            'entity_id' => $this->processo->id, 'process_status_id' => $this->aprovando->id,
+        ]);
+        $outraSituacao = $this->demanda($this->analise, ['title' => 'Demanda de outra situacao']);
+        $outroProcesso = Demand::factory()->create([
+            'entity_id' => CustomEntity::factory()->create()->id,
+            'process_status_id' => $this->aprovando->id,
+            'title' => 'Demanda de outro processo',
+        ]);
+
+        $url = DemandReports::getUrl(['tableFilters' => [
+            'entity_id' => ['value' => $this->processo->id],
+            'process_status_id' => ['values' => [$this->aprovando->id]],
+        ]]);
+
+        Livewire::test(ProcessDemandsKanban::class, ['entityId' => $this->processo->id])
+            ->assertSee('+1 — ver na lista')
+            ->assertSee(e($url), false);
+
+        $this->get($url)->assertOk()->assertSeeLivewire(DemandReports::class);
+
+        // O relatório aplica os filtros vindos da URL (falha sem o #[Url] em $tableFilters)
+        Livewire::withQueryParams(['tableFilters' => [
+            'entity_id' => ['value' => $this->processo->id],
+            'process_status_id' => ['values' => [$this->aprovando->id]],
+        ]])->test(DemandReports::class)
+            ->assertSet('tableFilters.entity_id.value', $this->processo->id)
+            ->assertCanNotSeeTableRecords(collect([$outraSituacao, $outroProcesso]));
+    }
+
+    public function test_coluna_fora_do_fluxo_linka_para_todas_as_demandas_do_processo(): void
+    {
+        $this->actingAs($this->admin);
+        Demand::factory()->count(ProcessKanbanBoard::CARDS_PER_COLUMN + 1)->create([
+            'entity_id' => $this->processo->id, 'process_status_id' => null,
+        ]);
+
+        $url = DemandReports::getUrl(['tableFilters' => ['entity_id' => ['value' => $this->processo->id]]]);
+
+        Livewire::test(ProcessDemandsKanban::class, ['entityId' => $this->processo->id])
+            ->assertSee('+1 — ver todas do processo')
+            ->assertSee(e($url), false);
     }
 }
