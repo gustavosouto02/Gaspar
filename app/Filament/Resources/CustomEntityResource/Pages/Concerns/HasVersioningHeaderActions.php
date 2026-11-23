@@ -32,7 +32,7 @@ trait HasVersioningHeaderActions
                 && app(ProcessVersioningService::class)->hasDemands($this->record))
             ->requiresConfirmation()
             ->modalHeading('Editar estrutura do processo')
-            ->modalDescription(fn () => 'Esta versão já tem demandas, por isso a estrutura (campos, situações, transições, permissões e papéis) não pode ser alterada. Será criada a versão v'.(($this->record->version ?? 1) + 1).', copiada desta. As demandas existentes continuam nesta versão, que passa a ser antiga; só a nova versão recebe novas demandas.')
+            ->modalDescription(fn () => 'Esta versão já tem demandas, por isso a estrutura (campos, situações, transições, permissões e papéis) não pode ser alterada. Será criada a versão v'.app(ProcessVersioningService::class)->nextVersionNumber($this->record).', copiada desta. As demandas existentes continuam nesta versão, que passa a ser antiga; só a nova versão recebe novas demandas.')
             ->modalSubmitActionLabel('Criar nova versão')
             ->action(function () {
                 try {

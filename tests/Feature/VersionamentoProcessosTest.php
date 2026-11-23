@@ -22,6 +22,8 @@ use App\Filament\Resources\CustomEntityResource\RelationManagers\ProcessStatuses
 use App\Filament\Resources\CustomEntityResource\RelationManagers\StatusTransitionsRelationManager;
 use App\Filament\Resources\DemandResource\Pages\CreateDemand;
 use App\Filament\Resources\MacroprocessResource\Pages\ViewMacroprocess;
+use App\Filament\Resources\ProcessRoleResource\Pages\ViewProcessRole;
+use App\Filament\Resources\UserResource\Pages\ViewUser;
 use App\Models\Client;
 use App\Models\CustomEntity;
 use App\Models\CustomField;
@@ -39,6 +41,7 @@ use App\Policies\CustomEntityPolicy;
 use App\Services\DemandTransitionService;
 use App\Services\ProcessVersioningService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 use Livewire\Livewire;
@@ -751,6 +754,86 @@ class VersionamentoProcessosTest extends TestCase
         $this->assertTrue($this->v1->fresh()->is_current);
     }
 
+    public function test_apagar_v2_e_depois_v3_deixa_a_v1_vigente(): void
+    {
+        $v2 = $this->service->createNewVersion($this->v1);
+        $v3 = $this->service->createNewVersion($v2);
+
+        $v2->fresh()->delete();
+        $this->assertTrue($v3->fresh()->is_current, 'Apagar uma versão antiga não muda a vigente');
+
+        $v3->fresh()->delete();
+
+        $this->assertTrue($this->v1->fresh()->is_current);
+        $this->assertSame(1, CustomEntity::where('root_entity_id', $this->v1->id)->current()->count());
+    }
+
+    public function test_apagar_a_vigente_promove_a_maior_versao_restante(): void
+    {
+        $v2 = $this->service->createNewVersion($this->v1);
+        $v3 = $this->service->createNewVersion($v2);
+        $v4 = $this->service->createNewVersion($v3);
+
+        // v3 sai do caminho; ao apagar a v4, a maior restante (v2) volta, não a v1
+        $v3->fresh()->delete();
+        $v4->fresh()->delete();
+
+        $this->assertTrue($v2->fresh()->is_current);
+        $this->assertFalse($this->v1->fresh()->is_current);
+    }
+
+    public function test_apagar_versao_nao_gera_duas_vigentes_quando_outra_ja_e_vigente(): void
+    {
+        $v2 = $this->service->createNewVersion($this->v1);
+
+        // Simula a corrida com "Editar estrutura": a v1 já voltou a ser vigente no banco
+        // enquanto a instância da v2 ainda acredita que é a vigente
+        CustomEntity::whereKey($this->v1->id)->update(['is_current' => true]);
+        $this->assertTrue($v2->is_current);
+
+        $v2->delete();
+
+        $this->assertSame(1, CustomEntity::where('root_entity_id', $this->v1->id)->current()->count());
+        $this->assertTrue($this->v1->fresh()->is_current);
+    }
+
+    public function test_apagar_a_unica_versao_nao_deixa_nada_vigente_nem_falha(): void
+    {
+        $this->v1->delete();
+
+        $this->assertSame(0, CustomEntity::where('root_entity_id', $this->v1->id)->current()->count());
+    }
+
+    public function test_proximo_numero_de_versao_considera_as_excluidas(): void
+    {
+        $v2 = $this->service->createNewVersion($this->v1);
+        $v3 = $this->service->createNewVersion($v2);
+        $this->assertSame(4, $this->service->nextVersionNumber($v3->fresh()));
+
+        // v3 excluída, v2 volta a vigente: a próxima é v4 (não v3), como o serviço grava
+        $v3->fresh()->delete();
+        $v2 = $v2->fresh();
+        $this->assertTrue($v2->is_current);
+        $this->assertSame(4, $this->service->nextVersionNumber($v2));
+
+        $v4 = $this->service->createNewVersion($v2);
+        $this->assertSame(4, $v4->version);
+    }
+
+    public function test_modal_de_editar_estrutura_mostra_o_numero_real_da_proxima_versao(): void
+    {
+        $this->actingAs($this->admin);
+        $this->demanda($this->v1, DemandStatusEnum::CLOSED);
+        $v2 = $this->service->createNewVersion($this->v1);
+        $this->demanda($v2, DemandStatusEnum::CLOSED);
+        $v3 = $this->service->createNewVersion($v2);
+        $v3->delete();
+
+        Livewire::test(EditCustomEntity::class, ['record' => $v2->id])
+            ->mountAction('edit_structure')
+            ->assertSee('Será criada a versão v4');
+    }
+
     // ------------------------------------------------------------------
     // Telas de versões inativas
     // ------------------------------------------------------------------
@@ -820,5 +903,92 @@ class VersionamentoProcessosTest extends TestCase
             ->assertSee('Versões antigas de processos')
             ->assertSee('VER - Processo Versionado (v2)')
             ->assertSee('VER - Processo Versionado');
+    }
+
+    // ------------------------------------------------------------------
+    // Revisão do PR: busca por número, consultas e listagens por versão
+    // ------------------------------------------------------------------
+
+    public function test_busca_pelo_numero_exibido_encontra_a_versao_vigente(): void
+    {
+        $this->actingAs($this->admin);
+        $v2 = $this->service->createNewVersion($this->v1);
+        $outro = CustomEntity::factory()->create();
+
+        // O código interno do clone não aparece na tela; busca pelo código da raiz...
+        $this->assertNotSame($this->v1->code, $v2->code);
+        Livewire::test(ListCustomEntities::class)
+            ->searchTable($this->v1->code)
+            ->assertCanSeeTableRecords([$v2])
+            ->assertCanNotSeeTableRecords([$outro]);
+
+        // ...e pelo número exatamente como é exibido
+        Livewire::test(ListCustomEntities::class)
+            ->searchTable($v2->display_code)
+            ->assertCanSeeTableRecords([$v2])
+            ->assertCanNotSeeTableRecords([$outro]);
+
+        // A ordenação pelo número não quebra
+        Livewire::test(ListCustomEntities::class)
+            ->sortTable('code')
+            ->assertCanSeeTableRecords([$v2, $outro]);
+    }
+
+    public function test_aba_campos_faz_consulta_constante_em_demandas(): void
+    {
+        $this->actingAs($this->admin);
+        $this->demanda($this->v1);
+        $contar = function (): int {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            Livewire::test(FieldsRelationManager::class, ['ownerRecord' => $this->v1->fresh(), 'pageClass' => EditCustomEntity::class])
+                ->assertSee(ProcessVersioningService::LOCKED_STRUCTURE_MESSAGE);
+            $total = collect(DB::getQueryLog())->filter(fn ($q) => str_contains($q['query'], 'from "demands"'))->count();
+            DB::disableQueryLog();
+
+            return $total;
+        };
+
+        $comPoucosCampos = $contar();
+
+        foreach (CustomField::factory()->count(13)->create() as $i => $campo) {
+            $this->v1->fields()->attach($campo->id, ['field_order' => 10 + $i]);
+        }
+        $this->assertSame(15, $this->v1->fields()->count());
+
+        $comMuitosCampos = $contar();
+
+        $this->assertSame($comPoucosCampos, $comMuitosCampos, 'Consultas em demands não podem crescer com as linhas');
+        $this->assertLessThanOrEqual(3, $comMuitosCampos);
+    }
+
+    public function test_tela_do_usuario_lista_so_processos_vigentes_que_ele_gerencia(): void
+    {
+        $this->actingAs($this->admin);
+        $v2 = $this->service->createNewVersion($this->v1);
+
+        $this->assertCount(2, $this->gestor->managedProcesses()->get(), 'O clone copia o gestor');
+
+        Livewire::test(ViewUser::class, ['record' => $this->gestor->id])
+            ->assertSuccessful()
+            ->assertSee('Processo Versionado')
+            ->assertDontSee('Processo Versionado, Processo Versionado');
+
+        // clearManagement segue sem filtro: limpa o gestor de todas as versões
+        $this->gestor->clearManagement();
+        $this->assertNull($this->v1->fresh()->manager_id);
+        $this->assertNull($v2->fresh()->manager_id);
+    }
+
+    public function test_tela_do_papel_lista_cada_processo_uma_vez_pela_versao_vigente(): void
+    {
+        $this->actingAs($this->admin);
+        $v2 = $this->service->createNewVersion($this->v1);
+
+        // v1 e v2 têm o mesmo membro com o papel; só a vigente aparece, com link para ela
+        Livewire::test(ViewProcessRole::class, ['record' => $this->papel->id])
+            ->assertSuccessful()
+            ->assertSeeHtml(CustomEntityResource::getUrl('edit', ['record' => $v2]))
+            ->assertDontSeeHtml(CustomEntityResource::getUrl('edit', ['record' => $this->v1]));
     }
 }

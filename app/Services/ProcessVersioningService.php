@@ -49,7 +49,6 @@ class ProcessVersioningService
             }
 
             $rootId = $source->root_entity_id ?: $source->id;
-            $nextVersion = (int) CustomEntity::withTrashed()->where('root_entity_id', $rootId)->max('version') + 1;
 
             // O código interno (índice único) é gerado normalmente; a interface exibe o da raiz
             $new = new CustomEntity($source->only([
@@ -64,7 +63,7 @@ class ProcessVersioningService
             $new->created_by = auth()->id() ?? $source->created_by;
             $new->forceFill([
                 'root_entity_id' => $rootId,
-                'version' => max($nextVersion, 2),
+                'version' => $this->nextVersionNumber($source),
                 'is_current' => true,
                 'previous_version_id' => $source->id,
             ]);
@@ -79,6 +78,17 @@ class ProcessVersioningService
 
             return $new->refresh();
         });
+    }
+
+    /**
+     * Número da próxima versão do processo: maior versão já criada (inclusive as
+     * excluídas) + 1. É o número que createNewVersion() vai gravar.
+     */
+    public function nextVersionNumber(CustomEntity $entity): int
+    {
+        $rootId = $entity->root_entity_id ?: $entity->id;
+
+        return max((int) CustomEntity::withTrashed()->where('root_entity_id', $rootId)->max('version') + 1, 2);
     }
 
     /** Há demandas (em qualquer estado) nesta versão? */

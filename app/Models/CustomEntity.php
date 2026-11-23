@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class CustomEntity extends Model
@@ -44,17 +45,21 @@ class CustomEntity extends Model
             }
         });
 
-        // Apagada a versão vigente, a anterior volta a ser a vigente (o processo
-        // nunca fica sem versão para receber demandas)
+        // Apagada a versão vigente, o processo não pode ficar sem versão para receber
+        // demandas: relê do banco (não confia no is_current em memória) e, se não restou
+        // nenhuma vigente, promove a versão não excluída de maior número da mesma raiz
         static::deleted(function (CustomEntity $entity) {
-            if (! $entity->is_current || ! $entity->previous_version_id) {
-                return;
-            }
+            $rootId = $entity->root_entity_id ?: $entity->id;
 
-            $previous = static::withoutGlobalScopes()->whereKey($entity->previous_version_id)->first();
-            if ($previous && ! $previous->trashed()) {
-                $previous->forceFill(['is_current' => true])->saveQuietly();
-            }
+            DB::transaction(function () use ($rootId) {
+                $versions = static::query()->where('root_entity_id', $rootId)->lockForUpdate()->get();
+
+                if ($versions->isEmpty() || $versions->contains('is_current', true)) {
+                    return;
+                }
+
+                $versions->sortByDesc('version')->first()->forceFill(['is_current' => true])->saveQuietly();
+            });
         });
 
         static::created(function (CustomEntity $entity) {

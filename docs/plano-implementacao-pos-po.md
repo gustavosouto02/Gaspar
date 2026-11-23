@@ -328,6 +328,7 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 > - O Macroprocesso e o select do Vínculo com processo (`LookupResolver`, fonte `process`) ainda listam todas as versões na busca; só o view do Macroprocesso foi ajustado.
 > - `Project.entity_id` existe, mas o `ProjectResource` não tem select de processo, então nada mudou lá.
 > - O link "Versões inativas" nas telas de view/edit só aparece quando o processo já tem versão antiga.
+> - **Pergunta ao PO (membros):** os membros (`MembersRelationManager`) ficam travados junto com a estrutura quando a versão tem demandas, então a equipe da versão com demandas fica congelada e não acompanha mudanças feitas depois. Os membros devem ficar fora da trava, editáveis na versão vigente e propagados às demais versões do mesmo processo (mesma raiz)? Hoje nada foi alterado: seguem travados com a estrutura.
 
 **Abordagem escolhida: clonar o processo.** Cada versão é um `CustomEntity` próprio. Como todo o fluxo já é amarrado por `entity_id`, as demandas em andamento seguem na versão antiga **sem alterar** `Demand`, `DemandTransitionService`, `StatusTransition` nem `FieldPermissionResolver`. A alternativa (snapshot em JSON com `process_version_id` na demanda) exigiria reescrever mais de 10 consultas em `Demand.php` e os serviços, e foi descartada.
 

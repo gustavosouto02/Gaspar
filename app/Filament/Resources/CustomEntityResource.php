@@ -15,8 +15,10 @@ use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 
 class CustomEntityResource extends Resource
 {
@@ -115,8 +117,8 @@ class CustomEntityResource extends Resource
                 Tables\Columns\TextColumn::make('code')
                     ->label('Número')
                     ->formatStateUsing(fn (CustomEntity $record) => $record->display_code)
-                    ->searchable()
-                    ->sortable(),
+                    ->searchable(query: fn (Builder $query, string $search): Builder => static::applyNumberSearch($query, $search))
+                    ->sortable(query: fn (Builder $query, string $direction): Builder => static::applyNumberSort($query, $direction)),
 
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome do Processo')
@@ -165,6 +167,37 @@ class CustomEntityResource extends Resource
                 ]),
             ])
             ->recordUrl(fn (CustomEntity $record): string => Pages\ViewCustomEntity::getUrl(['record' => $record]));
+    }
+
+    /**
+     * A coluna Número mostra o código da raiz + versão ("PRC-2026-0007 · v2"), mas o clone
+     * tem um código interno próprio. A busca casa o código do registro OU o da raiz; a
+     * busca do Filament separa o texto por espaços, então "v2" casa a versão e o "·" é neutro.
+     */
+    protected static function applyNumberSearch(Builder $query, string $search): Builder
+    {
+        if ($search === '·') {
+            return $query->whereRaw('1 = 1');
+        }
+
+        $query->where('code', 'like', "%{$search}%")
+            ->orWhereHas('rootEntity', fn (Builder $root) => $root->where('code', 'like', "%{$search}%"));
+
+        if (preg_match('/^v(\d+)$/i', $search, $matches)) {
+            $query->orWhere('version', (int) $matches[1]);
+        }
+
+        return $query;
+    }
+
+    /** Ordena pelo código da raiz (o que a coluna exibe) e, dentro do processo, pela versão */
+    protected static function applyNumberSort(Builder $query, string $direction): Builder
+    {
+        $rootCode = DB::table('custom_entities as root_entities')
+            ->select('root_entities.code')
+            ->whereColumn('root_entities.id', 'custom_entities.root_entity_id');
+
+        return $query->orderBy($rootCode, $direction)->orderBy('custom_entities.version', $direction);
     }
 
     /**
