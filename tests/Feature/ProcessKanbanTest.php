@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\DemandButtonEnum;
+use App\Enums\DemandStatusEnum;
 use App\Enums\UserRoleEnum;
 use App\Filament\Resources\CustomEntityResource;
 use App\Filament\Resources\DemandResource;
@@ -14,7 +15,9 @@ use App\Models\ProcessStatus;
 use App\Models\StatusTransition;
 use App\Models\TransitionRule;
 use App\Models\User;
+use App\Services\DemandTransitionService;
 use App\Services\ProcessKanbanBoard;
+use App\Services\ProcessVersioningService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -181,5 +184,31 @@ class ProcessKanbanTest extends TestCase
                 ->assertOk()
                 ->assertSeeLivewire(ProcessDemandsKanban::class);
         }
+    }
+
+    public function test_encerrar_pelo_fluxo_mantem_encerrada_e_nao_trava_a_exclusao_da_versao(): void
+    {
+        $demanda = $this->demanda($this->aprovando);
+        $transicao = StatusTransition::where('entity_id', $this->processo->id)
+            ->where('from_status_id', $this->aprovando->id)->firstOrFail();
+
+        app(DemandTransitionService::class)->execute($demanda, $transicao, $this->admin);
+
+        $demanda->refresh();
+        $this->assertTrue($demanda->processStatus->isClosed());
+        $this->assertSame(DemandStatusEnum::CLOSED, $demanda->status);
+        $this->assertNull($demanda->assigned_to);
+        $this->assertFalse(app(ProcessVersioningService::class)->hasPendingDemands($this->processo));
+    }
+
+    public function test_fim_de_fluxo_em_situacao_que_nao_encerra_continua_concluida(): void
+    {
+        // Em análise sem saídas: chegou ao fim do fluxo sem encerrar a demanda
+        StatusTransition::where('from_status_id', $this->analise->id)->delete();
+        $demanda = $this->demanda($this->analise);
+
+        $demanda->autoAssign();
+
+        $this->assertSame(DemandStatusEnum::COMPLETED, $demanda->fresh()->status);
     }
 }

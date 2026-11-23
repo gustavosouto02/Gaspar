@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -187,9 +188,9 @@ class Demand extends Model
      * Todos os usuários envolvidos no processo da demanda: demandante,
      * responsável atual e membros do processo (entidade), sem duplicatas.
      *
-     * @return \Illuminate\Support\Collection<int, User>
+     * @return Collection<int, User>
      */
-    public function processParticipants(): \Illuminate\Support\Collection
+    public function processParticipants(): Collection
     {
         $memberUsers = ProcessMember::where('entity_id', $this->entity_id)
             ->with('user')
@@ -236,7 +237,14 @@ class Demand extends Model
         // Se não houver próximas transições, a demanda chegou ao fim do fluxo
         if ($transitions->isEmpty()) {
             $updates['assigned_to'] = null;
-            if ($this->status !== DemandStatusEnum::COMPLETED) {
+            // Demanda já encerrada/cancelada/avaliada mantém o status: "Concluída"
+            // só vale para fim de fluxo numa situação que não encerra a demanda
+            $alreadyFinished = in_array($this->status, [
+                DemandStatusEnum::CLOSED,
+                DemandStatusEnum::CANCELED,
+                DemandStatusEnum::EVALUATED,
+            ], true);
+            if (! $alreadyFinished && $this->status !== DemandStatusEnum::COMPLETED) {
                 $updates['status'] = DemandStatusEnum::COMPLETED;
                 $updates['completed_at'] = now();
             }
