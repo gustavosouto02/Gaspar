@@ -5,7 +5,8 @@
     'entityName' => null,
     // Responsável(is) já formatado(s) (null = não mostra)
     'responsibles' => null,
-    // Widget do painel: prazo passado marca atraso mesmo em situação final (comportamento anterior à extração)
+    // Widget do painel: prazo passado marca atraso mesmo em situação final (inclusive Concluída, que ali
+    // aguarda avaliação); o quadro do processo mantém o padrão e não marca (comportamento anterior à extração)
     'finishedCanBeOverdue' => false,
 ])
 
@@ -13,8 +14,9 @@
     use App\Enums\DemandPriorityEnum;
     use App\Enums\DemandStatusEnum;
 
-    // Demanda encerrada, avaliada ou cancelada não está mais "atrasada": o prazo deixou de valer
+    // Demanda concluída, encerrada, avaliada ou cancelada não está mais "atrasada": o prazo deixou de valer
     $finished = in_array($demand->status, [
+        DemandStatusEnum::COMPLETED,
         DemandStatusEnum::CLOSED,
         DemandStatusEnum::EVALUATED,
         DemandStatusEnum::CANCELED,
@@ -23,8 +25,7 @@
 @endphp
 
 <a href="{{ $href }}"
-   {{ $attributes }}
-   class="flex flex-col gap-2 rounded-lg bg-white p-3 shadow-sm ring-1 ring-gray-950/5 transition hover:ring-primary-500 dark:bg-gray-900 dark:ring-white/10 dark:hover:ring-primary-400">
+   {{ $attributes->class(['flex flex-col gap-2 rounded-lg bg-white p-3 shadow-sm ring-1 ring-gray-950/5 transition hover:ring-primary-500 dark:bg-gray-900 dark:ring-white/10 dark:hover:ring-primary-400']) }}>
     <div class="flex items-start justify-between gap-2">
         <span class="text-sm font-semibold text-gray-950 dark:text-white">
             {{ \Illuminate\Support\Str::limit($demand->title, 80) }}

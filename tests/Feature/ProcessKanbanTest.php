@@ -246,6 +246,39 @@ class ProcessKanbanTest extends TestCase
         $card(false)->assertDontSee('text-danger-600', false);
     }
 
+    public function test_concluida_com_prazo_passado_nao_recebe_atraso_no_quadro_mas_continua_no_widget(): void
+    {
+        $demanda = $this->demanda($this->analise, [
+            'status' => DemandStatusEnum::COMPLETED, 'sla_due_at' => now()->subDays(5),
+        ]);
+        $card = fn (bool $widget) => $this->blade(
+            '<x-demand-kanban-card :demand="$demanda" href="#" :finished-can-be-overdue="$widget" />',
+            ['demanda' => $demanda, 'widget' => $widget],
+        );
+
+        $card(false)->assertDontSee('text-danger-600', false);
+        $card(true)->assertSee('text-danger-600', false);
+
+        $this->actingAs($this->admin);
+        Livewire::test(ProcessDemandsKanban::class, ['entityId' => $this->processo->id])
+            ->assertDontSee('text-danger-600', false);
+    }
+
+    public function test_card_mescla_a_classe_recebida_em_um_unico_atributo_class(): void
+    {
+        $demanda = $this->demanda($this->analise);
+
+        $html = (string) $this->blade(
+            '<x-demand-kanban-card :demand="$demanda" href="#" class="minha-classe" />',
+            ['demanda' => $demanda],
+        );
+
+        $this->assertSame(1, preg_match_all('/<a\s[^>]*>/', $html, $tags));
+        $this->assertSame(1, substr_count($tags[0][0], 'class='));
+        $this->assertStringContainsString('minha-classe', $tags[0][0]);
+        $this->assertStringContainsString('rounded-lg', $tags[0][0]);
+    }
+
     public function test_coluna_encerrada_ordena_pela_conclusao_mais_recente(): void
     {
         $closed = ProcessStatus::findBySystemKey('closed');
