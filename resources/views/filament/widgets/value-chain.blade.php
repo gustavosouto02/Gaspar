@@ -29,11 +29,12 @@
             .vc-items-row { flex-direction: row; flex-wrap: wrap; }
             .vc-items-row .vc-chip { flex: 1 1 10rem; }
             .vc-board { grid-template-columns: 2.5rem 1fr 6rem; }
-            .vc-out { display: block; position: relative; padding: 0; overflow: hidden; min-height: 22rem; container-type: size;
+            .vc-out { display: block; position: relative; padding: 0; overflow: hidden; min-height: 22rem;
                 clip-path: polygon(0 0, 55% 0, 100% 50%, 55% 100%, 0 100%, 45% 50%); }
             .vc-out span { position: absolute; left: 50%; white-space: nowrap; font-size: .7rem; font-weight: 700; letter-spacing: .12em; }
-            .vc-out-top { top: 25%; transform: translate(-50%, -50%) rotate(72deg); transform: translate(-50%, -50%) rotate(atan2(50cqh, 45cqw)); }
-            .vc-out-bottom { top: 75%; transform: translate(-50%, -50%) rotate(-72deg); transform: translate(-50%, -50%) rotate(calc(-1 * atan2(50cqh, 45cqw))); }
+            /* O ângulo (rotate) é calculado no Alpine a partir do tamanho real da seta: depende da altura, que varia. */
+            .vc-out-top { top: 25%; transform: translate(-50%, -50%) rotate(72deg); }
+            .vc-out-bottom { top: 75%; transform: translate(-50%, -50%) rotate(-72deg); }
         }
         .vc-side, .vc-out { background: rgb(var(--primary-600)); color: #fff; }
         .vc-block { background: rgb(var(--gray-50)); box-shadow: inset 0 0 0 1px rgba(var(--gray-950), .08); }
@@ -61,7 +62,9 @@
                 @endforeach
             </div>
 
-            <div class="vc-side vc-out" role="img" aria-label="Sociedade e Resultados"><span class="vc-out-top" aria-hidden="true">SOCIEDADE</span><span class="vc-out-bottom" aria-hidden="true">RESULTADOS</span></div>
+            <div class="vc-side vc-out" role="img" aria-label="Sociedade e Resultados"
+                 x-data="{ angle: 72, init() { const calc = () => { const w = this.$el.clientWidth, h = this.$el.clientHeight; if (w && h) this.angle = Math.atan2(h / 2, w * 0.45) * 180 / Math.PI; }; calc(); new ResizeObserver(calc).observe(this.$el); } }">
+                <span class="vc-out-top" aria-hidden="true" x-bind:style="`transform: translate(-50%, -50%) rotate(${angle}deg)`">SOCIEDADE</span><span class="vc-out-bottom" aria-hidden="true" x-bind:style="`transform: translate(-50%, -50%) rotate(${-angle}deg)`">RESULTADOS</span></div>
         </div>
 
         @if ($groups['unclassified']->isNotEmpty())
