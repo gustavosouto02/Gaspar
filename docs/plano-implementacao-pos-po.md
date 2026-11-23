@@ -357,6 +357,19 @@ T6 (Filipi)   independente, mas clona manager_id (precisa de T1 mergeado)
 
 ---
 
+### T7 — Quadro (Kanban) de demandas na página do processo (~1 dia) 🔄
+
+> **Decisões do PO:** seção própria **depois de "Sistematização do processo"** (não é aba); só **ADMIN** na 1ª entrega (a página de Processo já é só admin; ampliar depois); **somente leitura**, com clique no card abrindo a demanda; só a **Condicional** fica de fora das colunas (Encerrada, Avaliada e Cancelada entram).
+
+- **Colunas:** situações da versão na **ordem do fluxo** (camada = maior caminho a partir da situação inicial pelas transições; a Condicional vira desvio para os destinos das regras e do "senão"; loops de retorno e transições "de qualquer situação" não contam; inalcançáveis vão ao fim por `display_order`). Não usa `display_order` direto: no processo AQUI ele põe "Nova" em 6º. Coluna "Fora do fluxo" só aparece com demandas sem situação ou em situação fora da versão.
+- **Cards:** todas as demandas **da versão aberta** (`entity_id`), inclusive as das situações finais; até 25 por coluna (prazo SLA mais próximo primeiro, sem prazo por último), com o total real no contador e link "+N — ver na lista" (lista de demandas já filtrada por processo e situação).
+- **Código:** `App\Services\ProcessKanbanBoard` (colunas + ordenação pura `flowOrder`), componente `App\Livewire\ProcessDemandsKanban` incluído ao fim das views `view-custom-entity` e `edit-custom-entity`. Número de consultas constante (cards sem N+1: só responsável, demandante e demanda-mãe com eager loading).
+- **Testes:** `tests/Unit/ProcessFlowOrderTest.php` (fluxo linear, ramificação, maior caminho, loop, inalcançáveis) e `tests/Feature/ProcessKanbanTest.php` (ordem das colunas, agrupamento, limite, consultas constantes, link, acesso só admin, presença nas telas).
+- **Fora desta entrega (fase 2, com aval do PO):** abrir para gestor/membros; ação "Avançar" no card via `DemandTransitionService` (extraindo a lista de transições disponíveis de `HasDemandHeaderActions`); arrastar e soltar só como atalho para essa ação, nunca gravando `process_status_id` direto (a Condicional decide o destino e o serviço exige campos obrigatórios); aviso/link para demandas em versões anteriores do processo.
+- **Achado separado (bug):** ao encerrar pelo fluxo, `DemandTransitionService::execute()` grava `CLOSED` e `Demand::autoAssign()` troca para `COMPLETED` (Encerrada não tem saída), então `hasPendingDemands()` conta a demanda como pendente e a exclusão da versão fica travada até avaliarem. Corrigir em PR próprio.
+
+---
+
 ## 5. Fluxo de trabalho e convenções
 
 - **Branches** (a partir da `develop`, uma por task): `feat/gestor-obrigatorio`, `feat/visibilidade-valores`, `feat/cadeia-valor`, `refactor/custom-field-factory`, `feat/campo-vinculo`, `feat/relatorio-cadastros`, `feat/versionamento-processos`.

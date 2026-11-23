@@ -51,4 +51,6 @@
             </x-filament-panels::resources.relation-managers>
         </div>
     @endif
+
+    @livewire(\App\Livewire\ProcessDemandsKanban::class, ['entityId' => $record->getKey()], key('process-demands-kanban-'.$record->getKey()))
 </x-filament-panels::page>

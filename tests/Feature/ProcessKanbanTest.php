@@ -1,0 +1,185 @@
+<?php
+
+namespace Tests\Feature;
+
+use App\Enums\DemandButtonEnum;
+use App\Enums\UserRoleEnum;
+use App\Filament\Resources\CustomEntityResource;
+use App\Filament\Resources\DemandResource;
+use App\Livewire\ProcessDemandsKanban;
+use App\Models\CustomEntity;
+use App\Models\Demand;
+use App\Models\Macroprocess;
+use App\Models\ProcessStatus;
+use App\Models\StatusTransition;
+use App\Models\TransitionRule;
+use App\Models\User;
+use App\Services\ProcessKanbanBoard;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
+use Livewire\Livewire;
+use Tests\TestCase;
+
+class ProcessKanbanTest extends TestCase
+{
+    use RefreshDatabase;
+
+    private User $admin;
+
+    private CustomEntity $processo;
+
+    private ProcessStatus $aprovando;
+
+    private ProcessStatus $analise;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->admin = User::factory()->create(['user_role' => UserRoleEnum::ADMIN, 'is_active' => true]);
+        $gestor = User::factory()->create(['user_role' => UserRoleEnum::GESTOR, 'is_active' => true]);
+
+        $macro = Macroprocess::create([
+            'name' => 'Macro Kanban', 'acronym' => 'KAN', 'value_chain_function' => 'Suportar Processos',
+            'description' => 'Descrição', 'is_active' => true, 'created_by' => $this->admin->id, 'manager_id' => $gestor->id,
+        ]);
+
+        $this->processo = CustomEntity::create([
+            'name' => 'Processo Kanban', 'macroprocess_id' => $macro->id, 'purpose' => 'Apoio',
+            'description' => 'Descrição', 'is_active' => true, 'created_by' => $this->admin->id, 'manager_id' => $gestor->id,
+        ]);
+
+        // display_order "embaralhado" de propósito: o fluxo é que define a ordem das colunas
+        $this->aprovando = ProcessStatus::factory()->create(['name' => 'Aprovando']);
+        $this->analise = ProcessStatus::factory()->create(['name' => 'Em análise']);
+        $this->processo->processStatuses()->attach($this->aprovando->id, ['display_order' => 1]);
+        $this->processo->processStatuses()->attach($this->analise->id, ['display_order' => 2]);
+
+        $new = ProcessStatus::findBySystemKey('new');
+        $conditional = ProcessStatus::findBySystemKey('conditional');
+        $closed = ProcessStatus::findBySystemKey('closed');
+
+        // Nova -> (Condicional: regra -> Aprovando, senão Em análise); Em análise -> Aprovando -> Encerrada
+        $entrada = StatusTransition::create([
+            'entity_id' => $this->processo->id, 'from_status_id' => $new->id, 'to_status_id' => $conditional->id,
+            'default_to_status_id' => $this->analise->id, 'label' => DemandButtonEnum::ENVIAR->value,
+            'allowed_role_ids' => ['__requester__'], 'display_order' => 1,
+        ]);
+        TransitionRule::create([
+            'status_transition_id' => $entrada->id, 'rule_order' => 0,
+            'conditions' => [['field_id' => (string) Str::uuid(), 'operator' => 'gt', 'value' => '1']],
+            'to_status_id' => $this->aprovando->id,
+        ]);
+        foreach ([[$this->analise, $this->aprovando], [$this->aprovando, $closed]] as $i => [$de, $para]) {
+            StatusTransition::create([
+                'entity_id' => $this->processo->id, 'from_status_id' => $de->id, 'to_status_id' => $para->id,
+                'label' => DemandButtonEnum::ENVIAR->value, 'allowed_role_ids' => [], 'display_order' => $i + 2,
+            ]);
+        }
+    }
+
+    private function demanda(?ProcessStatus $status, array $extra = []): Demand
+    {
+        return Demand::factory()->create([
+            'entity_id' => $this->processo->id,
+            'process_status_id' => $status?->id,
+            'requested_by' => $this->admin->id,
+            'created_by' => $this->admin->id,
+        ] + $extra);
+    }
+
+    public function test_colunas_seguem_o_fluxo_sem_a_condicional_e_incluem_as_finais(): void
+    {
+        $nomes = app(ProcessKanbanBoard::class)->columns($this->processo)->pluck('name')->all();
+
+        $this->assertSame('Nova', $nomes[0]);
+        $this->assertSame(['Nova', 'Em análise', 'Aprovando', 'Encerrada'], array_slice($nomes, 0, 4));
+        $this->assertNotContains('Condicional', $nomes);
+        $this->assertContains('Avaliada', $nomes);
+        $this->assertContains('Cancelada', $nomes);
+        $this->assertNotContains('Fora do fluxo', $nomes, 'Sem demandas soltas, a coluna não aparece');
+    }
+
+    public function test_agrupa_demandas_por_situacao_e_isola_as_de_fora_do_fluxo(): void
+    {
+        $new = ProcessStatus::findBySystemKey('new');
+        $this->demanda($new);
+        $this->demanda($this->aprovando);
+        $this->demanda($this->aprovando);
+        $semSituacao = $this->demanda(null);
+        $outraVersao = CustomEntity::factory()->create();
+        Demand::factory()->create(['entity_id' => $outraVersao->id, 'process_status_id' => $this->aprovando->id]);
+
+        $colunas = app(ProcessKanbanBoard::class)->columns($this->processo)->keyBy('name');
+
+        $this->assertSame(1, $colunas['Nova']['total']);
+        $this->assertSame(2, $colunas['Aprovando']['total']);
+        $this->assertSame(0, $colunas['Em análise']['total']);
+        $this->assertSame(1, $colunas['Fora do fluxo']['total']);
+        $this->assertSame($semSituacao->id, $colunas['Fora do fluxo']['records']->first()->id);
+    }
+
+    public function test_limita_cards_por_coluna_mas_mantem_o_total(): void
+    {
+        Demand::factory()->count(ProcessKanbanBoard::CARDS_PER_COLUMN + 3)->create([
+            'entity_id' => $this->processo->id, 'process_status_id' => $this->aprovando->id,
+        ]);
+
+        $coluna = app(ProcessKanbanBoard::class)->columns($this->processo)->firstWhere('name', 'Aprovando');
+
+        $this->assertSame(ProcessKanbanBoard::CARDS_PER_COLUMN + 3, $coluna['total']);
+        $this->assertCount(ProcessKanbanBoard::CARDS_PER_COLUMN, $coluna['records']);
+    }
+
+    public function test_numero_de_consultas_nao_cresce_com_as_demandas(): void
+    {
+        $contar = function (): int {
+            DB::flushQueryLog();
+            DB::enableQueryLog();
+            app(ProcessKanbanBoard::class)->columns($this->processo);
+
+            return count(DB::getQueryLog());
+        };
+
+        $this->demanda($this->aprovando, ['assigned_to' => User::factory()->create()->id]);
+        $poucas = $contar();
+
+        foreach (range(1, 15) as $_) {
+            $this->demanda($this->aprovando, ['assigned_to' => User::factory()->create()->id]);
+        }
+
+        $this->assertSame($poucas, $contar());
+    }
+
+    public function test_secao_mostra_cards_com_link_para_a_demanda(): void
+    {
+        $this->actingAs($this->admin);
+        $demanda = $this->demanda($this->aprovando, ['title' => 'Comprar notebooks']);
+
+        Livewire::test(ProcessDemandsKanban::class, ['entityId' => $this->processo->id])
+            ->assertSee('Quadro de demandas')
+            ->assertSee('Aprovando')
+            ->assertSee('Comprar notebooks')
+            ->assertSee(DemandResource::getUrl('view', ['record' => $demanda]), false)
+            ->assertDontSee('Condicional');
+    }
+
+    public function test_apenas_admin_acessa_a_secao(): void
+    {
+        $this->actingAs(User::factory()->create(['user_role' => UserRoleEnum::GESTOR, 'is_active' => true]));
+
+        Livewire::test(ProcessDemandsKanban::class, ['entityId' => $this->processo->id])->assertForbidden();
+    }
+
+    public function test_secao_aparece_na_visualizacao_e_na_edicao_do_processo(): void
+    {
+        $this->actingAs($this->admin);
+
+        foreach (['view', 'edit'] as $pagina) {
+            $this->get(CustomEntityResource::getUrl($pagina, ['record' => $this->processo]))
+                ->assertOk()
+                ->assertSeeLivewire(ProcessDemandsKanban::class);
+        }
+    }
+}
