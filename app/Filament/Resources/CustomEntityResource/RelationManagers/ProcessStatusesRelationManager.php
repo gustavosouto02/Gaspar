@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\CustomEntityResource\RelationManagers;
 
 use App\Enums\ProcessStatusColorEnum;
+use App\Filament\Resources\Concerns\LocksProcessStructure;
 use App\Models\ProcessStatus;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -12,6 +13,8 @@ use Filament\Tables\Table;
 
 class ProcessStatusesRelationManager extends RelationManager
 {
+    use LocksProcessStructure;
+
     protected static string $relationship = 'processStatuses';
 
     protected static ?string $inverseRelationship = 'entities';
@@ -38,6 +41,7 @@ class ProcessStatusesRelationManager extends RelationManager
     public function table(Table $table): Table
     {
         return $table
+            ->description(fn () => $this->structureLockedNotice())
             ->recordTitleAttribute('name')
             ->columns([
                 Tables\Columns\TextColumn::make('code')
@@ -66,7 +70,7 @@ class ProcessStatusesRelationManager extends RelationManager
                     ->falseColor('gray'),
             ])
             ->defaultSort('entity_process_status.display_order')
-            ->reorderable('display_order')
+            ->reorderable('display_order', fn (): bool => ! $this->isReadOnly())
             ->checkIfRecordIsSelectableUsing(fn ($record) => ! $record->is_system)
             ->headerActions([
                 Tables\Actions\AttachAction::make()

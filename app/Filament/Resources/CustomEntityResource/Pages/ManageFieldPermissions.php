@@ -7,6 +7,7 @@ use App\Enums\UserRoleEnum;
 use App\Filament\Resources\CustomEntityResource;
 use App\Models\FieldPermission;
 use App\Models\ProcessRole;
+use App\Services\ProcessVersioningService;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Concerns\InteractsWithRecord;
 use Filament\Resources\Pages\Page;
@@ -53,7 +54,20 @@ class ManageFieldPermissions extends Page
 
     public function getHeading(): string
     {
-        return "Permissões de Campos — {$this->record->name}";
+        $version = ($this->record->version ?? 1) > 1 ? " ({$this->record->version_label})" : '';
+
+        return "Permissões de Campos — {$this->record->name}{$version}";
+    }
+
+    /** Versão com demandas (ou antiga): a grade é somente leitura */
+    public function getIsLockedProperty(): bool
+    {
+        return app(ProcessVersioningService::class)->isStructureLocked($this->record);
+    }
+
+    public function getLockedMessageProperty(): ?string
+    {
+        return app(ProcessVersioningService::class)->lockedMessage($this->record);
     }
 
     /**
@@ -117,14 +131,25 @@ class ManageFieldPermissions extends Page
      */
     public function save(): void
     {
+        // Garantia no servidor: com a estrutura travada nada é gravado
+        if ($this->isLocked) {
+            Notification::make()
+                ->title('Permissões travadas')
+                ->body($this->lockedMessage)
+                ->danger()
+                ->send();
+
+            return;
+        }
+
         DB::transaction(function () {
             foreach ($this->matrix as $fieldId => $byStatus) {
                 foreach ($byStatus as $statusId => $permission) {
                     $keys = [
-                        'entity_id'         => $this->record->id,
-                        'custom_field_id'   => $fieldId,
+                        'entity_id' => $this->record->id,
+                        'custom_field_id' => $fieldId,
                         'process_status_id' => $statusId,
-                        'process_role_id'   => $this->roleId,
+                        'process_role_id' => $this->roleId,
                     ];
 
                     FieldPermission::updateOrCreate(

@@ -94,7 +94,8 @@ class ProcessRoleResource extends Resource
                         \Filament\Infolists\Components\TextEntry::make('members')
                             ->label('')
                             ->formatStateUsing(function ($record) {
-                                $entities = $record->members->map(fn($m) => $m->entity)->filter()->unique('id');
+                                // O clone copia os membros: lista só a versão vigente de cada processo
+                                $entities = $record->members->map(fn($m) => $m->entity)->filter(fn ($e) => $e?->is_current)->unique('id');
                                 if ($entities->isEmpty()) return 'Nenhum processo utiliza este papel.';
                                 return $entities->map(fn($e) => "<a href='" . \App\Filament\Resources\CustomEntityResource::getUrl('edit', ['record' => $e]) . "' class='text-primary-600 underline'>{$e->full_display_name}</a>")->implode('<br>');
                             })

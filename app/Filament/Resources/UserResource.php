@@ -96,7 +96,7 @@ class UserResource extends Resource
 
                 Placeholder::make('managed_processes_placeholder')
                     ->label('Processos que gerencia')
-                    ->content(fn (?User $record) => static::managedNames($record?->managedProcesses()->orderBy('name')->pluck('name')))
+                    ->content(fn (?User $record) => static::managedNames($record?->managedProcesses()->current()->orderBy('name')->pluck('name')))
                     ->visible(fn ($livewire, ?User $record) => static::showsManagedItems($livewire, $record)),
 
                 ...array_filter([User::buildCustomFieldComponents()]),

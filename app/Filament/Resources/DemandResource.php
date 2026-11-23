@@ -75,8 +75,26 @@ class DemandResource extends Resource
 
                                         Forms\Components\Select::make('entity_id')
                                             ->label('Processo:')
-                                            ->default(request()->query('entity_id'))
-                                            ->options(fn () => CustomEntity::with('macroprocess')->where('is_active', true)->get()->pluck('full_display_name', 'id'))
+                                            // ?entity_id= de versão que não é a vigente é ignorado
+                                            ->default(fn () => static::currentEntityIdFromQuery())
+                                            // Nova demanda só nasce em processo ativo e na versão vigente;
+                                            // ao editar, a versão da própria demanda continua na lista
+                                            ->options(fn (?Demand $record) => CustomEntity::with('macroprocess')
+                                                ->where(function ($query) use ($record) {
+                                                    $query->where(fn ($q) => $q->where('is_active', true)->current());
+                                                    if ($record?->entity_id) {
+                                                        $query->orWhere('id', $record->entity_id);
+                                                    }
+                                                })
+                                                ->get()
+                                                ->pluck('full_display_name', 'id'))
+                                            ->rules([
+                                                fn (string $operation) => function (string $attribute, $value, \Closure $fail) use ($operation) {
+                                                    if ($operation === 'create' && filled($value) && ! CustomEntity::current()->whereKey($value)->exists()) {
+                                                        $fail('Este processo não está na versão vigente. Selecione a versão vigente do processo.');
+                                                    }
+                                                },
+                                            ])
                                             ->searchable()
                                             ->required()
                                             ->disabled(fn (string $operation) => $operation === 'edit')
@@ -99,7 +117,7 @@ class DemandResource extends Resource
                                             ->label('Situação:')
                                             // Processo pré-selecionado por ?entity_id= não dispara o afterStateUpdated
                                             // do select de processo: a situação inicial vem por default
-                                            ->default(fn () => ($entityId = request()->query('entity_id'))
+                                            ->default(fn () => ($entityId = static::currentEntityIdFromQuery())
                                                 ? CustomEntity::find($entityId)?->initialProcessStatus()?->id
                                                 : null)
                                             ->options(function (Get $get) {
@@ -306,6 +324,19 @@ class DemandResource extends Resource
                 Forms\Components\Hidden::make('parent_demand_id')
                     ->default(request()->query('parent_demand_id')),
             ]);
+    }
+
+    /**
+     * Processo pré-selecionado por ?entity_id=, só quando for a versão vigente
+     * (nova demanda nunca nasce em versão antiga)
+     */
+    public static function currentEntityIdFromQuery(): ?string
+    {
+        $entityId = request()->query('entity_id');
+
+        return filled($entityId) && CustomEntity::current()->whereKey($entityId)->exists()
+            ? (string) $entityId
+            : null;
     }
 
     /**
@@ -523,7 +554,7 @@ class DemandResource extends Resource
             ->filters([
                 Tables\Filters\SelectFilter::make('entity_id')
                     ->label('Processo')
-                    ->options(fn () => CustomEntity::with('macroprocess')->get()->pluck('full_display_name', 'id'))
+                    ->options(fn () => CustomEntity::versionedFilterOptions())
                     ->searchable(),
 
                 Tables\Filters\SelectFilter::make('process_status_id')

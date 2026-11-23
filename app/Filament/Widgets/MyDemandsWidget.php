@@ -141,7 +141,7 @@ class MyDemandsWidget extends BaseWidget
             ->filters([
                 Tables\Filters\SelectFilter::make('entity_id')
                     ->label('Processo')
-                    ->options(fn () => \App\Models\CustomEntity::with('macroprocess')->get()->pluck('full_display_name', 'id')),
+                    ->options(fn () => \App\Models\CustomEntity::versionedFilterOptions()),
 
                 Tables\Filters\SelectFilter::make('priority')
                     ->label('Prioridade')

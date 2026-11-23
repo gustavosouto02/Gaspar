@@ -9,6 +9,12 @@
     @endphp
 
     <div class="space-y-6">
+        @if ($this->isLocked)
+            <div class="rounded-lg border border-warning-300 bg-warning-50 px-4 py-3 text-sm text-warning-800 dark:border-warning-600 dark:bg-warning-950 dark:text-warning-200">
+                {{ $this->lockedMessage }}
+            </div>
+        @endif
+
         <div class="max-w-md">
             <label for="role-selector" class="fi-fo-field-wrp-label inline-flex items-center gap-x-3 text-sm font-medium">
                 Papel
@@ -58,6 +64,7 @@
                                     <td class="px-2 py-2">
                                         <select
                                             wire:model.live="matrix.{{ $field->id }}.{{ $status->id }}"
+                                            @disabled($this->isLocked)
                                             class="block w-full rounded-lg border text-sm border-gray-300 dark:bg-gray-900 dark:border-gray-700 dark:text-white"
                                             style="{{ $cellStyles[$current] ?? '' }}"
                                         >
@@ -73,11 +80,13 @@
                 </table>
             </div>
 
-            <div>
-                <x-filament::button wire:click="save" icon="heroicon-o-check">
-                    Salvar Permissões
-                </x-filament::button>
-            </div>
+            @unless ($this->isLocked)
+                <div>
+                    <x-filament::button wire:click="save" icon="heroicon-o-check">
+                        Salvar Permissões
+                    </x-filament::button>
+                </div>
+            @endunless
         @endif
     </div>
 </x-filament-panels::page>

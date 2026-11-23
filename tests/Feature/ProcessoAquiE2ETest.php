@@ -265,8 +265,16 @@ class ProcessoAquiE2ETest extends TestCase
             ->assertTableActionHidden('attach')
             ->assertTableActionHidden('detach', $this->processo->fields->first());
 
+        // O processo da seed já tem demandas: a estrutura fica travada (versionamento),
+        // inclusive na edição. Sem demandas, vincular campo continua liberado.
         \Livewire\Livewire::test($manager, [
             'ownerRecord' => $this->processo,
+            'pageClass' => \App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity::class,
+        ])
+            ->assertTableActionHidden('attach');
+
+        \Livewire\Livewire::test($manager, [
+            'ownerRecord' => \App\Models\CustomEntity::factory()->create(),
             'pageClass' => \App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity::class,
         ])
             ->assertTableActionVisible('attach');
