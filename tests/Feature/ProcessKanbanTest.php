@@ -320,4 +320,23 @@ class ProcessKanbanTest extends TestCase
             ->assertSee('+1 — ver todas do processo')
             ->assertSee(e($url), false);
     }
+
+    public function test_migration_corrige_encerradas_gravadas_como_concluidas_e_e_idempotente(): void
+    {
+        $closed = ProcessStatus::findBySystemKey('closed');
+        $legada = $this->demanda($closed, ['status' => DemandStatusEnum::COMPLETED]);
+        $jaEncerrada = $this->demanda($closed, ['status' => DemandStatusEnum::CLOSED]);
+        // Concluída de verdade (fim de fluxo numa situação que não encerra) não é tocada
+        $concluida = $this->demanda($this->analise, ['status' => DemandStatusEnum::COMPLETED]);
+        $avaliada = $this->demanda($closed, ['status' => DemandStatusEnum::EVALUATED]);
+
+        $migration = require database_path('migrations/2026_11_23_100000_fix_closed_demands_status_completed.php');
+        $migration->up();
+        $migration->up();
+
+        $this->assertSame(DemandStatusEnum::CLOSED, $legada->fresh()->status);
+        $this->assertSame(DemandStatusEnum::CLOSED, $jaEncerrada->fresh()->status);
+        $this->assertSame(DemandStatusEnum::COMPLETED, $concluida->fresh()->status);
+        $this->assertSame(DemandStatusEnum::EVALUATED, $avaliada->fresh()->status);
+    }
 }
