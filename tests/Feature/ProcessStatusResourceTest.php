@@ -63,7 +63,7 @@ class ProcessStatusResourceTest extends TestCase
         ]);
     }
 
-    public function test_situacao_pode_ser_criada_sem_descricao(): void
+    public function test_situacao_nao_pode_ser_criada_sem_descricao(): void
     {
         $this->actingAs($this->admin);
 
@@ -74,13 +74,10 @@ class ProcessStatusResourceTest extends TestCase
                 'description' => null,
             ])
             ->call('create')
-            ->assertHasNoFormErrors();
+            ->assertHasFormErrors(['description' => 'required'])
+            ->assertSee('O campo descrição é obrigatório.');
 
-        $this->assertDatabaseHas('process_statuses', [
-            'name' => 'Aguardando Fornecedor',
-            'color' => 'yellow',
-            'description' => null,
-        ]);
+        $this->assertDatabaseMissing('process_statuses', ['name' => 'Aguardando Fornecedor']);
     }
 
     public function test_descricao_da_situacao_pode_ser_editada(): void
