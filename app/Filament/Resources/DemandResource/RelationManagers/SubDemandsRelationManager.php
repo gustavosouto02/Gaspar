@@ -100,8 +100,9 @@ class SubDemandsRelationManager extends RelationManager
 
                 Tables\Columns\TextColumn::make('sla_due_at')
                     ->label('Prazo')
+                    ->getStateUsing(fn (Demand $record) => $record->deadline)
                     ->dateTime('d/m/Y')
-                    ->color(fn (Demand $record) => $record->sla_due_at?->isPast() ? 'danger' : null)
+                    ->color(fn (Demand $record) => $record->deadline?->isPast() ? 'danger' : null)
                     ->placeholder('—'),
 
                 Tables\Columns\TextColumn::make('created_at')

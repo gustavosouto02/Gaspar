@@ -9,14 +9,14 @@ use App\Filament\Resources\DemandResource\Pages\Concerns\AdvancesSubmittedDemand
 use App\Filament\Resources\DemandResource\Pages\Concerns\HasDemandHeaderActions;
 use App\Filament\Resources\DemandResource\Widgets\DemandEvaluationWidget;
 use App\Models\CustomEntity;
+use App\Models\Demand;
 use App\Models\DemandComment;
 use App\Models\DemandFieldValue;
-use App\Notifications\DemandActivityNotification;
 use App\Services\FieldPermissionResolver;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
-use Illuminate\Support\Facades\Log;
+use Livewire\Attributes\Locked;
 
 class EditDemand extends EditRecord
 {
@@ -67,6 +67,8 @@ class EditDemand extends EditRecord
 
     private ?string $newTreatment = null;
 
+    // Só o servidor liga (em submitDraft): o navegador não pode forjar o envio chamando save()
+    #[Locked]
     public bool $isSubmittingDraft = false;
 
     /**
@@ -91,16 +93,19 @@ class EditDemand extends EditRecord
         $this->newTreatment = $data['new_treatment'] ?? null;
         unset($data['new_treatment']);
 
+        // Campos ocultos/desabilitados podem vir adulterados no payload: a autoria não muda na
+        // edição, e o rascunho só sai de rascunho/de "Nova" pelo envio
+        unset($data['created_by']);
+
+        if ($this->record->status === DemandStatusEnum::DRAFT) {
+            unset($data['status'], $data['process_status_id'], $data['requested_by']);
+        }
+
         if ($this->isSubmittingDraft) {
             $data['status'] = DemandStatusEnum::ACTIVE->value;
 
-            $entityId = $data['entity_id'] ?? $this->record->entity_id;
-            if (! empty($entityId) && empty($this->record->sla_due_at)) {
-                $entity = CustomEntity::find($entityId);
-                if ($entity && $entity->sla_hours) {
-                    $data['sla_due_at'] = now()->addHours($entity->sla_hours);
-                }
-            }
+            // O SLA conta a partir do envio, mesmo que o rascunho tenha um prazo antigo gravado
+            $data['sla_due_at'] = Demand::slaDeadlineFor($this->record->entity_id);
         }
 
         return $data;
@@ -134,18 +139,12 @@ class EditDemand extends EditRecord
                 return;
             }
 
-            try {
-                // Quando a situação avança, o próprio serviço de transição avisa o responsável
-                if (! $advanced && $record->assignee && $record->assignee->id !== auth()->id()) {
-                    $record->assignee->notify(new DemandActivityNotification($record, 'Uma nova demanda foi enviada e atribuída a você.'));
-                }
-
-                if ($record->requester) {
-                    $record->requester->notify(new DemandActivityNotification($record, 'Sua demanda foi enviada para atendimento com sucesso.'));
-                }
-            } catch (\Throwable $e) {
-                Log::warning("Falha ao enviar notificação de envio de demanda: {$e->getMessage()}");
-            }
+            $this->notifySubmission(
+                $record,
+                $advanced,
+                'Uma nova demanda foi enviada e atribuída a você.',
+                'Sua demanda foi enviada para atendimento com sucesso.',
+            );
         }
 
         // Se a pesquisa de satisfação foi respondida e a demanda está encerrada, avalia automaticamente
@@ -166,8 +165,21 @@ class EditDemand extends EditRecord
         }
     }
 
+    /** Envio recusado: fica só o aviso de erro, sem o "Salvo" padrão */
+    protected function getSavedNotification(): ?Notification
+    {
+        return $this->submissionFailed ? null : parent::getSavedNotification();
+    }
+
     public function submitDraft(): void
     {
+        // Método público do Livewire: pode ser chamado direto, sem o botão
+        abort_unless(
+            $this->record->status === DemandStatusEnum::DRAFT && $this->record->canBeSubmittedBy(auth()->user()),
+            403,
+            'Apenas quem salvou o rascunho pode enviá-lo.',
+        );
+
         $this->isSubmittingDraft = true;
 
         // A propriedade sobrevive entre requisições: sem desligar, um envio recusado pela
@@ -188,8 +200,8 @@ class EditDemand extends EditRecord
             withTransitions: ! ($isDraft && $this->record->processStatus?->isNew())
         );
 
-        // Se for um rascunho, adiciona o botão principal "Enviar para atendimento"
-        if ($isDraft) {
+        // No rascunho, o botão principal "Enviar para atendimento" é só de quem o salvou
+        if ($isDraft && $this->record->canBeSubmittedBy(auth()->user())) {
             $actions[] = Action::make('enviar_para_atendimento')
                 ->label('Enviar para atendimento')
                 ->color('primary')

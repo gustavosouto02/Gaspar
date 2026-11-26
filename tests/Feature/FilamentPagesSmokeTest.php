@@ -261,7 +261,7 @@ class FilamentPagesSmokeTest extends TestCase
             'created_by' => $this->admin->id,
             'status' => DemandStatusEnum::DRAFT,
         ]);
-        $draft->updateQuietly(['sla_due_at' => null]);
+        $this->assertNull($draft->sla_due_at);
 
         Livewire::test(EditDemand::class, ['record' => $draft->getKey()])
             ->call('submitDraft')

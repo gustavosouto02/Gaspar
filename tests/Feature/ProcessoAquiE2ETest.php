@@ -387,12 +387,9 @@ class ProcessoAquiE2ETest extends TestCase
             'status' => DemandStatusEnum::DRAFT,
         ]);
 
-        // SLA deve ter sido calculado automaticamente (120 horas)
-        $this->assertNotNull($demanda->sla_due_at);
-        $this->assertEquals(
-            now()->addHours(120)->format('d/m/Y'),
-            $demanda->sla_due_at->format('d/m/Y')
-        );
+        // Rascunho não tem prazo: o SLA só corre a partir do envio
+        $this->assertNull($demanda->sla_due_at);
+        $this->assertNull($demanda->started_at);
 
         // 2. Transição para a primeira situação de atendimento (Licitando)
         $transition = StatusTransition::where('entity_id', $this->processo->id)
@@ -405,6 +402,12 @@ class ProcessoAquiE2ETest extends TestCase
 
         $this->assertNotNull($demanda->started_at);
         $this->assertEquals(DemandStatusEnum::ACTIVE, $demanda->status);
+
+        // SLA calculado no envio (120 horas)
+        $this->assertEquals(
+            now()->addHours(120)->format('d/m/Y'),
+            $demanda->sla_due_at->format('d/m/Y')
+        );
 
         // 3. Verifica que a rota de PDF exibe o documento com sucesso sem 'Sem prazo'
         $this->actingAs($this->demandante);

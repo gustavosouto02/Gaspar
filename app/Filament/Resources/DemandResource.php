@@ -212,11 +212,11 @@ class DemandResource extends Resource
                                         Forms\Components\Placeholder::make('sla_due_at_label')
                                             ->label('Prazo de atendimento:')
                                             ->content(function ($record, Get $get) {
-                                                if ($record && $record->sla_due_at) {
+                                                if ($record?->deadline) {
                                                     $isClosed = in_array($record->status?->value, ['CLOSED', 'EVALUATED']);
-                                                    $vencido = $record->sla_due_at->isPast() && ! $isClosed;
+                                                    $vencido = $record->deadline->isPast() && ! $isClosed;
 
-                                                    return $record->sla_due_at->format('d/m/Y H:i').($vencido ? ' (Vencido)' : '');
+                                                    return $record->deadline->format('d/m/Y H:i').($vencido ? ' (Vencido)' : '');
                                                 }
 
                                                 $entityId = $get('entity_id') ?? $record?->entity_id;
@@ -537,6 +537,7 @@ class DemandResource extends Resource
 
                 Tables\Columns\TextColumn::make('sla_due_at')
                     ->label('Prazo')
+                    ->getStateUsing(fn (Demand $record) => $record->deadline)
                     ->dateTime('d/m/Y')
                     ->sortable()
                     ->toggleable(),

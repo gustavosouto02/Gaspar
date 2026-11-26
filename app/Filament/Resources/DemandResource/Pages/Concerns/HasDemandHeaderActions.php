@@ -180,6 +180,11 @@ trait HasDemandHeaderActions
             return $actions;
         }
 
+        // Rascunho só é enviado por quem o salvou
+        if ($record->status === DemandStatusEnum::DRAFT && ! $record->canBeSubmittedBy($user)) {
+            return $actions;
+        }
+
         // Carrega as transições disponíveis a partir da situação atual
         $transitions = StatusTransition::query()->with(['toStatus'])
             ->where('entity_id', $record->entity_id)
@@ -227,6 +232,19 @@ trait HasDemandHeaderActions
                         Notification::make()
                             ->title('Não foi possível executar a transição')
                             ->body($e->getMessage())
+                            ->danger()
+                            ->send();
+
+                        return;
+                    } catch (\Throwable $e) {
+                        report($e);
+
+                        // A transição foi revertida no banco: descarta o que ficou em memória
+                        $record->refresh();
+
+                        Notification::make()
+                            ->title('Não foi possível executar a transição')
+                            ->body('Ocorreu um erro inesperado. Tente novamente e, se o problema continuar, avise o administrador do sistema.')
                             ->danger()
                             ->send();
 

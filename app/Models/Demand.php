@@ -23,6 +23,7 @@ use Illuminate\Support\Str;
  * @property Carbon|null $last_deadline_alert_date
  * @property Carbon|null $sla_due_at
  * @property Carbon|null $completed_at
+ * @property-read Carbon|null $deadline
  */
 class Demand extends Model
 {
@@ -77,12 +78,10 @@ class Demand extends Model
     protected static function booted(): void
     {
         static::creating(function (Demand $demand) {
-            // Se o processo possuir sla_hours configurado e o prazo não foi definido manualmente, calcula automaticamente
-            if (empty($demand->sla_due_at) && ! empty($demand->entity_id)) {
-                $entity = $demand->entity ?? CustomEntity::find($demand->entity_id);
-                if ($entity && $entity->sla_hours) {
-                    $demand->sla_due_at = now()->addHours($entity->sla_hours);
-                }
+            // Se o processo possuir sla_hours configurado e o prazo não foi definido manualmente, calcula automaticamente.
+            // O SLA corre a partir do envio: rascunho nasce sem prazo
+            if ($demand->status !== DemandStatusEnum::DRAFT && empty($demand->sla_due_at)) {
+                $demand->sla_due_at = static::slaDeadlineFor($demand->entity_id);
             }
         });
 
@@ -104,6 +103,28 @@ class Demand extends Model
                 }
             }
         });
+    }
+
+    /** Prazo SLA contado a partir de $from (padrão: agora); null quando o processo não tem sla_hours */
+    public static function slaDeadlineFor(?string $entityId, ?Carbon $from = null): ?Carbon
+    {
+        $hours = $entityId ? CustomEntity::find($entityId)?->sla_hours : null;
+
+        return $hours ? ($from ?? now())->copy()->addHours($hours) : null;
+    }
+
+    /**
+     * Prazo a exibir: rascunho não tem prazo, mesmo que tenha um `sla_due_at` antigo gravado.
+     */
+    public function getDeadlineAttribute(): ?Carbon
+    {
+        return $this->status === DemandStatusEnum::DRAFT ? null : $this->sla_due_at;
+    }
+
+    /** Só quem salvou o rascunho pode enviá-lo (vale inclusive para ADMIN) */
+    public function canBeSubmittedBy(User $user): bool
+    {
+        return (string) ($this->created_by ?? $this->requested_by) === (string) $user->id;
     }
 
     /** Processo (CustomEntity) */

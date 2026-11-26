@@ -164,6 +164,7 @@ class DemandReports extends Page implements HasForms, HasTable
 
             Tables\Columns\TextColumn::make('sla_due_at')
                 ->label('Prazo')
+                ->getStateUsing(fn (Demand $record) => $record->deadline)
                 ->dateTime('d/m/Y')
                 ->sortable()
                 ->toggleable(),
@@ -263,7 +264,7 @@ class DemandReports extends Page implements HasForms, HasTable
                                 $demand->status instanceof DemandStatusEnum ? $demand->status->label() : $demand->status,
                                 $demand->priority instanceof DemandPriorityEnum ? $demand->priority->label() : $demand->priority,
                                 $demand->current_responsibles ?? '—',
-                                $demand->sla_due_at ? $demand->sla_due_at->format('d/m/Y') : '—',
+                                $demand->deadline?->format('d/m/Y') ?? '—',
                                 $demand->created_at ? $demand->created_at->format('d/m/Y H:i') : '—',
                             ], ';');
                         });
