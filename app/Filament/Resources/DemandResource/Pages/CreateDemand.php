@@ -2,11 +2,13 @@
 
 namespace App\Filament\Resources\DemandResource\Pages;
 
+use App\Enums\DemandPriorityEnum;
 use App\Enums\DemandStatusEnum;
 use App\Enums\FieldPermissionEnum;
 use App\Filament\Resources\DemandResource;
 use App\Filament\Resources\DemandResource\Pages\Concerns\AdvancesSubmittedDemand;
 use App\Models\CustomEntity;
+use App\Models\Demand;
 use App\Models\DemandFieldValue;
 use App\Services\FieldPermissionResolver;
 use Filament\Actions\Action;
@@ -98,22 +100,40 @@ class CreateDemand extends CreateRecord
             ]);
         }
 
-        // O select de situação é disabled; garante o preenchimento com a situação
-        // "Nova" mesmo quando o processo veio pré-selecionado via URL (o default
-        // por query string não dispara o afterStateUpdated do select de processo)
-        if (empty($data['process_status_id']) && ! empty($data['entity_id'])) {
-            $entity = CustomEntity::find($data['entity_id']);
-            $data['process_status_id'] = $entity?->initialProcessStatus()?->id;
+        // Toda demanda nasce na situação inicial do processo, em nome de quem está salvando:
+        // os campos são desabilitados na tela, mas o servidor não depende disso
+        if (! empty($data['entity_id'])) {
+            $data['process_status_id'] = CustomEntity::find($data['entity_id'])?->initialProcessStatus()?->id;
         }
 
-        // A autoria é sempre de quem está salvando (é ela que libera o envio do rascunho)
+        $data['requested_by'] = auth()->id();
         $data['created_by'] = auth()->id();
+        $data['priority'] = DemandPriorityEnum::MEDIUM->value;
+
+        $this->assertParentAcceptsSubdemand($data['parent_demand_id'] ?? null);
 
         $data['status'] = $this->isDraft
             ? DemandStatusEnum::DRAFT->value
             : DemandStatusEnum::ACTIVE->value;
 
         return $data;
+    }
+
+    /**
+     * A demanda principal chega pela URL: precisa existir e aceitar subdemandas
+     */
+    private function assertParentAcceptsSubdemand(?string $parentId): void
+    {
+        if (blank($parentId) || Demand::find($parentId)?->acceptsSubdemands()) {
+            return;
+        }
+
+        $message = 'Não é possível registrar subdemanda nesta demanda: ela não existe, já foi finalizada ou também é uma subdemanda.';
+
+        // O campo é oculto: sem o aviso, o usuário não veria o motivo
+        Notification::make()->title($message)->danger()->send();
+
+        throw ValidationException::withMessages(['data.parent_demand_id' => $message]);
     }
 
     /**
