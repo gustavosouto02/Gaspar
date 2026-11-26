@@ -12,7 +12,6 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Support\Str;
 
 class CustomRecordTypeResource extends Resource
 {
@@ -52,18 +51,11 @@ class CustomRecordTypeResource extends Resource
                     ->helperText(fn (?CustomRecordType $record) => $record?->is_system
                         ? 'Máximo de 15 caracteres. Altera o nome no menu e na listagem.'
                         : 'Máximo de 15 caracteres.')
-                    ->live(onBlur: true)
-                    ->afterStateUpdated(function (Forms\Set $set, ?string $state, ?CustomRecordType $record) {
-                        if (! $record?->is_system) {
-                            $set('slug', Str::slug($state));
-                        }
-                    }),
-                Forms\Components\TextInput::make('slug')
-                    ->label('Slug')
-                    ->required()
-                    ->maxLength(255)
+                    ->validationAttribute('nome')
                     ->unique(ignoreRecord: true)
-                    ->disabled(fn ($record) => $record?->is_system),
+                    // O identificador interno (slug) é gerado do nome, que precisa ter algo aproveitável.
+                    ->regex('/[\pL\pN]/u')
+                    ->validationMessages(['regex' => 'O nome do cadastro deve conter letras ou números.']),
                 static::managersSelect()
                     ->helperText('Vale para todos os registros deste cadastro. Pode haver mais de um gestor.'),
                 Forms\Components\Toggle::make('is_active')
@@ -83,9 +75,7 @@ class CustomRecordTypeResource extends Resource
                     ->sortable(),
                 Tables\Columns\TextColumn::make('name')
                     ->label('Nome')
-                    ->searchable(),
-                Tables\Columns\TextColumn::make('slug')
-                    ->searchable(),
+                    ->searchable(['name', 'slug']),
                 Tables\Columns\TextColumn::make('managers.name')
                     ->label('Gestores')
                     ->badge()

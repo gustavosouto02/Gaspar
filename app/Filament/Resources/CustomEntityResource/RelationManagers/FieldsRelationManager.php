@@ -45,13 +45,8 @@ class FieldsRelationManager extends RelationManager
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('name')
-                    ->searchable()
+                    ->searchable(['name', 'key'])
                     ->sortable(),
-
-                Tables\Columns\TextColumn::make('key')
-                    ->searchable()
-                    ->sortable()
-                    ->label('Chave (slug)'),
 
                 Tables\Columns\TextColumn::make('field_type')
                     ->badge()
