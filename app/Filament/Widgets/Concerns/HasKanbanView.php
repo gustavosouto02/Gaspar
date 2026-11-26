@@ -2,7 +2,6 @@
 
 namespace App\Filament\Widgets\Concerns;
 
-use App\Enums\ProcessStatusColorEnum;
 use App\Models\Demand;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -83,9 +82,7 @@ trait HasKanbanView
                 return [
                     'key' => $statusId ?: 'none',
                     'name' => $status?->name ?? 'Sem situação',
-                    'color' => $status
-                        ? ProcessStatusColorEnum::tryFrom($status->color)?->filamentColor() ?? 'gray'
-                        : 'gray',
+                    'color' => $status?->badgeColor() ?? 'gray',
                     'order' => $statusId !== '' ? (int) ($orderByStatus[$statusId] ?? PHP_INT_MAX - 1) : PHP_INT_MAX,
                     'records' => $demands,
                 ];

@@ -4,7 +4,6 @@ namespace App\Filament\Widgets;
 
 use App\Enums\DemandPriorityEnum;
 use App\Enums\DemandStatusEnum;
-use App\Enums\ProcessStatusColorEnum;
 use App\Filament\Resources\DemandResource;
 use App\Filament\Widgets\Concerns\HasKanbanView;
 use App\Models\Demand;
@@ -61,9 +60,7 @@ class MyDemandsWidget extends BaseWidget
                 Tables\Columns\TextColumn::make('processStatus.name')
                     ->label('Situação')
                     ->badge()
-                    ->color(fn ($record) => $record->processStatus
-                        ? ProcessStatusColorEnum::tryFrom($record->processStatus->color)?->filamentColor() ?? 'gray'
-                        : 'gray')
+                    ->color(fn ($record) => $record->processStatus?->badgeColor() ?? 'gray')
                     ->placeholder('—'),
 
                 Tables\Columns\TextColumn::make('priority')

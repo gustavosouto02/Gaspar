@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources;
 
-use App\Enums\ProcessStatusColorEnum;
 use App\Enums\UserRoleEnum;
 use App\Filament\Resources\ProcessRoleResource\Pages;
 use App\Models\ProcessRole;
@@ -47,13 +46,6 @@ class ProcessRoleResource extends Resource
                     ->required()
                     ->maxLength(255)
                     ->placeholder('Ex: Aprovador, Demandante, Validador'),
-
-                Forms\Components\Select::make('color')
-                    ->label('Cor')
-                    ->required()
-                    ->options(ProcessStatusColorEnum::options())
-                    ->default('gray')
-                    ->native(false),
 
                 Forms\Components\Textarea::make('description')
                     ->label('Descrição')
@@ -119,12 +111,6 @@ class ProcessRoleResource extends Resource
                     ->searchable()
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('color')
-                    ->label('Cor')
-                    ->badge()
-                    ->formatStateUsing(fn (string $state) => ProcessStatusColorEnum::options()[$state] ?? $state)
-                    ->color(fn (?string $state) => ProcessStatusColorEnum::tryFrom($state ?? '')?->filamentColor() ?? 'gray'),
-                
                 Tables\Columns\IconColumn::make('is_active')
                     ->label('Ativo')
                     ->boolean(),

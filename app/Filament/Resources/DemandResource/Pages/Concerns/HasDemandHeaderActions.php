@@ -4,7 +4,6 @@ namespace App\Filament\Resources\DemandResource\Pages\Concerns;
 
 use App\Enums\DemandButtonEnum;
 use App\Enums\DemandStatusEnum;
-use App\Enums\ProcessStatusColorEnum;
 use App\Enums\SatisfactionRatingEnum;
 use App\Enums\UserRoleEnum;
 use App\Exceptions\DemandTransitionException;
@@ -124,9 +123,7 @@ trait HasDemandHeaderActions
                 continue;
             }
 
-            $color = $transition->toStatus?->color
-                ? (ProcessStatusColorEnum::tryFrom($transition->toStatus->color)?->filamentColor() ?? 'primary')
-                : 'primary';
+            $color = $transition->toStatus?->badgeColor() ?? 'primary';
 
             $label = $transition->label instanceof DemandButtonEnum
                 ? $transition->label->value
