@@ -5,6 +5,7 @@ namespace App\Filament\Resources\DemandResource\Pages;
 use App\Enums\DemandStatusEnum;
 use App\Enums\FieldPermissionEnum;
 use App\Filament\Resources\DemandResource;
+use App\Filament\Resources\DemandResource\Pages\Concerns\AdvancesSubmittedDemand;
 use App\Filament\Resources\DemandResource\Pages\Concerns\HasDemandHeaderActions;
 use App\Filament\Resources\DemandResource\Widgets\DemandEvaluationWidget;
 use App\Models\CustomEntity;
@@ -19,6 +20,7 @@ use Illuminate\Support\Facades\Log;
 
 class EditDemand extends EditRecord
 {
+    use AdvancesSubmittedDemand;
     use HasDemandHeaderActions;
 
     protected static string $resource = DemandResource::class;
@@ -40,7 +42,7 @@ class EditDemand extends EditRecord
         $this->new_treatment = '';
 
         Notification::make()
-            ->title('Tratamento adicionado com sucesso!')
+            ->title('Comentário registrado com sucesso!')
             ->success()
             ->send();
     }
@@ -126,11 +128,15 @@ class EditDemand extends EditRecord
 
         if ($this->isSubmittingDraft) {
             $record = $this->getRecord();
-            $record->autoAssign();
-            $record->refresh();
+            $advanced = $this->advanceSubmittedDemand($record);
+
+            if ($this->submissionFailed) {
+                return;
+            }
 
             try {
-                if ($record->assignee && $record->assignee->id !== auth()->id()) {
+                // Quando a situação avança, o próprio serviço de transição avisa o responsável
+                if (! $advanced && $record->assignee && $record->assignee->id !== auth()->id()) {
                     $record->assignee->notify(new DemandActivityNotification($record, 'Uma nova demanda foi enviada e atribuída a você.'));
                 }
 
@@ -163,28 +169,46 @@ class EditDemand extends EditRecord
     public function submitDraft(): void
     {
         $this->isSubmittingDraft = true;
-        $this->save();
+
+        // A propriedade sobrevive entre requisições: sem desligar, um envio recusado pela
+        // validação faria o "Salvar" seguinte enviar a demanda
+        try {
+            $this->save();
+        } finally {
+            $this->isSubmittingDraft = false;
+        }
     }
 
     protected function getFormActions(): array
     {
-        $actions = [];
+        $isDraft = $this->record->status === DemandStatusEnum::DRAFT;
+
+        // No rascunho em "Nova", "Enviar para atendimento" já é a transição: sem "Enviar" repetido
+        $actions = $this->getWorkflowActions(
+            withTransitions: ! ($isDraft && $this->record->processStatus?->isNew())
+        );
 
         // Se for um rascunho, adiciona o botão principal "Enviar para atendimento"
-        if ($this->record->status === DemandStatusEnum::DRAFT) {
+        if ($isDraft) {
             $actions[] = Action::make('enviar_para_atendimento')
                 ->label('Enviar para atendimento')
                 ->color('primary')
                 ->action(function () {
                     $this->submitDraft();
 
+                    if ($this->submissionFailed) {
+                        return redirect($this->getResource()::getUrl('edit', ['record' => $this->record]));
+                    }
+
                     Notification::make()
                         ->title('Demanda enviada para atendimento!')
                         ->success()
                         ->send();
 
-                    // Redireciona para atualizar a tela e botões
-                    return redirect($this->getResource()::getUrl('edit', ['record' => $this->record]));
+                    // Redireciona para atualizar a tela e botões; quem enviou pode já não poder editar
+                    $page = auth()->user()->can('update', $this->record) ? 'edit' : 'view';
+
+                    return redirect($this->getResource()::getUrl($page, ['record' => $this->record]));
                 });
         }
 
@@ -193,7 +217,7 @@ class EditDemand extends EditRecord
 
         $actions[] = $this->getCancelFormAction();
 
-        return $actions;
+        return [...$actions, ...$this->getReturnActions()];
     }
 
     private function saveFieldValues(string $demandId, string $entityId): void

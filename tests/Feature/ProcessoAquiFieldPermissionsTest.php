@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Resources\DemandResource;
 use App\Enums\DemandStatusEnum;
 use App\Enums\FieldPermissionEnum;
 use App\Exceptions\DemandTransitionException;
@@ -17,6 +18,7 @@ use App\Models\DemandFieldValue;
 use App\Models\FieldPermission;
 use App\Models\ProcessStatus;
 use App\Models\StatusTransition;
+use App\Notifications\DemandActivityNotification;
 use App\Models\User;
 use App\Services\DemandTransitionService;
 use App\Services\FieldPermissionResolver;
@@ -296,8 +298,164 @@ class ProcessoAquiFieldPermissionsTest extends TestCase
             ->assertHasNoFormErrors();
 
         $demand = Demand::where('title', 'Coffee break')->firstOrFail();
-        $this->assertSame($this->situacao('new')->id, $demand->process_status_id);
+        $this->assertSame($this->situacao('Licitando')->id, $demand->process_status_id);
         $this->assertSame(0, $demand->fieldValues()->count());
+    }
+
+    public function test_enviar_para_atendimento_avanca_e_passa_ao_proximo_responsavel(): void
+    {
+        $this->actingAs($this->u['demandante']);
+
+        $lw = Livewire::test(CreateDemand::class)
+            ->fillForm($this->dadosDeCriacao('Enviada'))
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $demand = Demand::where('title', 'Enviada')->firstOrFail();
+        $this->assertSame('Licitando', $demand->processStatus->name);
+        $this->assertSame(DemandStatusEnum::ACTIVE, $demand->status);
+        $this->assertSame($this->u['licitador']->id, $demand->assigned_to);
+
+        // Quem enviou já não edita nesta situação: vai para a visualização
+        $lw->assertRedirect(DemandResource::getUrl('view', ['record' => $demand]));
+    }
+
+    public function test_salvar_mantem_a_demanda_em_nova_e_o_envio_do_rascunho_avanca(): void
+    {
+        $this->actingAs($this->u['demandante']);
+
+        Livewire::test(CreateDemand::class)
+            ->fillForm($this->dadosDeCriacao('Rascunho'))
+            ->callAction('salvar');
+
+        $demand = Demand::where('title', 'Rascunho')->firstOrFail();
+        $this->assertSame($this->situacao('new')->id, $demand->process_status_id);
+        $this->assertSame(DemandStatusEnum::DRAFT, $demand->status);
+
+        Livewire::test(EditDemand::class, ['record' => $demand->id])
+            ->call('submitDraft')
+            ->assertHasNoFormErrors();
+
+        $demand->refresh();
+        $this->assertSame('Licitando', $demand->processStatus->name);
+        $this->assertSame($this->u['licitador']->id, $demand->assigned_to);
+    }
+
+    public function test_salvar_apos_envio_barrado_pela_validacao_nao_envia(): void
+    {
+        $demand = $this->demandaEm('new');
+        $demand->update(['status' => DemandStatusEnum::DRAFT]);
+        $this->actingAs($this->u['demandante']);
+
+        Livewire::test(EditDemand::class, ['record' => $demand->id])
+            ->fillForm(['title' => ''])
+            ->call('submitDraft')
+            ->assertHasFormErrors(['title'])
+            ->fillForm(['title' => 'Corrigido'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $demand->refresh();
+        $this->assertSame('Corrigido', $demand->title);
+        $this->assertSame(DemandStatusEnum::DRAFT, $demand->status);
+        $this->assertSame($this->situacao('new')->id, $demand->process_status_id);
+    }
+
+    public function test_link_do_email_leva_a_visualizacao_quem_nao_pode_editar(): void
+    {
+        $demand = $this->demandaEm('new');
+        $this->enviar($demand, $this->u['demandante']);
+        $notification = new DemandActivityNotification($demand, 'Enviada');
+
+        $this->assertSame(
+            DemandResource::getUrl('view', ['record' => $demand]),
+            $notification->toMail($this->u['demandante'])->actionUrl,
+        );
+        $this->assertSame(
+            DemandResource::getUrl('edit', ['record' => $demand]),
+            $notification->toMail($this->u['licitador'])->actionUrl,
+        );
+    }
+
+    public function test_envio_recusado_pela_transicao_mantem_a_demanda_em_rascunho(): void
+    {
+        // Condicional sem "senão": o serviço recusa a transição
+        StatusTransition::where('entity_id', $this->processo->id)
+            ->where('from_status_id', $this->situacao('new')->id)
+            ->update(['to_status_id' => $this->situacao('conditional')->id, 'default_to_status_id' => null]);
+
+        $this->actingAs($this->u['demandante']);
+
+        Livewire::test(CreateDemand::class)
+            ->fillForm($this->dadosDeCriacao('Recusada'))
+            ->call('create')
+            ->assertNotified('A demanda foi salva como rascunho, mas não foi enviada');
+
+        $demand = Demand::where('title', 'Recusada')->firstOrFail();
+        $this->assertSame($this->situacao('new')->id, $demand->process_status_id);
+        $this->assertSame(DemandStatusEnum::DRAFT, $demand->status);
+    }
+
+    public function test_cabecalho_so_cancela_e_exporta_e_o_fluxo_fica_no_rodape(): void
+    {
+        $demand = $this->demandaEm('new');
+        $demand->update(['status' => DemandStatusEnum::ACTIVE]);
+        $this->actingAs($this->u['demandante']);
+        $this->enviar($demand, $this->u['demandante']);
+        // Admin: vê o cancelamento, que é restrito a ele e ao demandante
+        $this->actingAs($this->u['admin']);
+
+        foreach ([EditDemand::class, ViewDemand::class] as $pagina) {
+            $component = Livewire::test($pagina, ['record' => $demand->id])->instance();
+
+            $esperado = $pagina === ViewDemand::class ? ['edit', 'cancelar', 'export_pdf'] : ['cancelar', 'export_pdf'];
+            $this->assertSame($esperado, $this->nomes($component->getCachedHeaderActions()), $pagina);
+
+            $rodape = $this->nomes($component->getCachedFormActions());
+            $this->assertStringStartsWith('transition_', $rodape[0], $pagina);
+            $this->assertSame('return_previous_status', end($rodape), $pagina);
+        }
+    }
+
+    public function test_visualizacao_nao_oferece_editar_a_quem_nao_pode(): void
+    {
+        $demand = $this->demandaEm('new');
+        $this->enviar($demand, $this->u['demandante']);
+
+        // Em "Licitando" o demandante já não atua
+        $this->actingAs($this->u['demandante']);
+
+        Livewire::test(ViewDemand::class, ['record' => $demand->id])->assertActionHidden('edit');
+    }
+
+    public function test_rascunho_nao_repete_o_botao_de_envio(): void
+    {
+        $demand = $this->demandaEm('new');
+        $demand->update(['status' => DemandStatusEnum::DRAFT]);
+        $this->actingAs($this->u['demandante']);
+
+        $component = Livewire::test(EditDemand::class, ['record' => $demand->id])->instance();
+
+        $this->assertSame(['enviar_para_atendimento', 'save', 'cancel'], $this->nomes($component->getCachedFormActions()));
+    }
+
+    private function nomes(array $actions): array
+    {
+        return array_values(array_map(
+            fn ($action) => $action->getName(),
+            array_filter($actions, fn ($action) => $action->isVisible()),
+        ));
+    }
+
+    private function dadosDeCriacao(string $titulo): array
+    {
+        return [
+            'entity_id' => $this->processo->id,
+            'client_id' => Client::first()->id,
+            'title' => $titulo,
+            'project_id' => 'none',
+            'supplier_id' => 'none',
+        ];
     }
 
     public function test_situacoes_finais_mostram_tudo_somente_leitura_na_visualizacao(): void

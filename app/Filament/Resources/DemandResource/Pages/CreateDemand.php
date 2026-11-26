@@ -5,6 +5,7 @@ namespace App\Filament\Resources\DemandResource\Pages;
 use App\Enums\DemandStatusEnum;
 use App\Enums\FieldPermissionEnum;
 use App\Filament\Resources\DemandResource;
+use App\Filament\Resources\DemandResource\Pages\Concerns\AdvancesSubmittedDemand;
 use App\Models\CustomEntity;
 use App\Models\DemandFieldValue;
 use App\Notifications\DemandActivityNotification;
@@ -16,6 +17,8 @@ use Illuminate\Validation\ValidationException;
 
 class CreateDemand extends CreateRecord
 {
+    use AdvancesSubmittedDemand;
+
     protected static string $resource = DemandResource::class;
 
     private bool $isDraft = false;
@@ -66,7 +69,10 @@ class CreateDemand extends CreateRecord
 
     protected function getRedirectUrl(): string
     {
-        return $this->getResource()::getUrl('edit', ['record' => $this->getRecord()]);
+        // Depois de enviada, quem abriu pode já não ter o que editar nesta situação
+        $page = auth()->user()->can('update', $this->getRecord()) ? 'edit' : 'view';
+
+        return $this->getResource()::getUrl($page, ['record' => $this->getRecord()]);
     }
 
     /**
@@ -114,7 +120,7 @@ class CreateDemand extends CreateRecord
 
     /**
      * Após criar: salva campos customizados sempre.
-     * AutoAssign só roda ao enviar para atendimento (não no rascunho).
+     * Ao enviar para atendimento (não no rascunho), avança para a próxima situação.
      */
     protected function afterCreate(): void
     {
@@ -122,11 +128,15 @@ class CreateDemand extends CreateRecord
 
         if (! $this->isDraft) {
             $record = $this->getRecord();
-            $record->autoAssign();
-            $record->refresh();
+            $advanced = $this->advanceSubmittedDemand($record);
+
+            if ($this->submissionFailed) {
+                return;
+            }
 
             try {
-                if ($record->assignee && $record->assignee->id !== auth()->id()) {
+                // Quando a situação avança, o próprio serviço de transição avisa o responsável
+                if (! $advanced && $record->assignee && $record->assignee->id !== auth()->id()) {
                     $record->assignee->notify(new DemandActivityNotification($record, 'Uma nova demanda foi atribuída a você para atendimento.'));
                 }
 

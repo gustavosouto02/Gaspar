@@ -7,6 +7,7 @@ use App\Models\Demand;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Gate;
 
 class DemandActivityNotification extends Notification
 {
@@ -32,7 +33,11 @@ class DemandActivityNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $demandUrl = DemandResource::getUrl('edit', ['record' => $this->demand]);
+        // Quem não pode editar nesta situação receberia 403 no link de edição
+        $demandUrl = DemandResource::getUrl(
+            Gate::forUser($notifiable)->allows('update', $this->demand) ? 'edit' : 'view',
+            ['record' => $this->demand],
+        );
         $code = $this->demand->code ?: '#' . strtoupper(substr($this->demand->id, 0, 8));
 
         return (new MailMessage)
