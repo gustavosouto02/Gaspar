@@ -6,6 +6,7 @@ use App\Filament\Resources\ClientResource\Pages;
 use App\Filament\Resources\Concerns\CustomFieldsRelationManager;
 use App\Filament\Resources\Concerns\HasRecordTypeLabel;
 use App\Models\Client;
+use App\Support\PhoneInput;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -52,10 +53,8 @@ class ClientResource extends Resource
                             ->nullable()
                             ->maxLength(255),
 
-                        Forms\Components\TextInput::make('phone')
-                            ->label('Telefone')
-                            ->nullable()
-                            ->maxLength(50),
+                        PhoneInput::make('phone')
+                            ->label('Telefone'),
 
                         Forms\Components\Toggle::make('is_active')
                             ->label('Ativo')
