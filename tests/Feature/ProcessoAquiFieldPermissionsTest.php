@@ -18,6 +18,7 @@ use App\Models\DemandFieldValue;
 use App\Models\FieldPermission;
 use App\Models\ProcessStatus;
 use App\Models\StatusTransition;
+use App\Notifications\DemandActivityNotification;
 use App\Models\User;
 use App\Services\DemandTransitionService;
 use App\Services\FieldPermissionResolver;
@@ -338,6 +339,42 @@ class ProcessoAquiFieldPermissionsTest extends TestCase
         $demand->refresh();
         $this->assertSame('Licitando', $demand->processStatus->name);
         $this->assertSame($this->u['licitador']->id, $demand->assigned_to);
+    }
+
+    public function test_salvar_apos_envio_barrado_pela_validacao_nao_envia(): void
+    {
+        $demand = $this->demandaEm('new');
+        $demand->update(['status' => DemandStatusEnum::DRAFT]);
+        $this->actingAs($this->u['demandante']);
+
+        Livewire::test(EditDemand::class, ['record' => $demand->id])
+            ->fillForm(['title' => ''])
+            ->call('submitDraft')
+            ->assertHasFormErrors(['title'])
+            ->fillForm(['title' => 'Corrigido'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $demand->refresh();
+        $this->assertSame('Corrigido', $demand->title);
+        $this->assertSame(DemandStatusEnum::DRAFT, $demand->status);
+        $this->assertSame($this->situacao('new')->id, $demand->process_status_id);
+    }
+
+    public function test_link_do_email_leva_a_visualizacao_quem_nao_pode_editar(): void
+    {
+        $demand = $this->demandaEm('new');
+        $this->enviar($demand, $this->u['demandante']);
+        $notification = new DemandActivityNotification($demand, 'Enviada');
+
+        $this->assertSame(
+            DemandResource::getUrl('view', ['record' => $demand]),
+            $notification->toMail($this->u['demandante'])->actionUrl,
+        );
+        $this->assertSame(
+            DemandResource::getUrl('edit', ['record' => $demand]),
+            $notification->toMail($this->u['licitador'])->actionUrl,
+        );
     }
 
     public function test_envio_recusado_pela_transicao_mantem_a_demanda_em_rascunho(): void

@@ -169,7 +169,14 @@ class EditDemand extends EditRecord
     public function submitDraft(): void
     {
         $this->isSubmittingDraft = true;
-        $this->save();
+
+        // A propriedade sobrevive entre requisições: sem desligar, um envio recusado pela
+        // validação faria o "Salvar" seguinte enviar a demanda
+        try {
+            $this->save();
+        } finally {
+            $this->isSubmittingDraft = false;
+        }
     }
 
     protected function getFormActions(): array
