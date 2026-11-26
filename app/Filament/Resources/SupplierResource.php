@@ -47,13 +47,16 @@ class SupplierResource extends Resource
                     ->label('Telefone'),
                 Forms\Components\TextInput::make('email')
                     ->label('E-mail')
+                    ->required()
                     ->email()
                     ->maxLength(255),
                 Forms\Components\TextInput::make('business')
                     ->label('Negócio')
+                    ->required()
                     ->maxLength(255),
                 Forms\Components\Textarea::make('description')
                     ->label('Descrição')
+                    ->required()
                     ->columnSpanFull(),
 
                 ...array_filter([Supplier::buildCustomFieldComponents()]),

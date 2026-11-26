@@ -43,6 +43,22 @@ class ProcessStatus extends Model
     }
 
     /**
+     * Cor da etiqueta, definida pelo sistema: cada situação base tem a sua e todas
+     * as criadas por usuários compartilham uma só. A coluna "color" não é mais lida.
+     */
+    public function badgeColor(): string
+    {
+        return match ($this->system_key) {
+            'new' => 'gray',
+            'closed' => 'info',
+            'evaluated' => 'success',
+            'canceled' => 'danger',
+            'conditional' => 'warning',
+            default => 'purple',
+        };
+    }
+
+    /**
      * Gerar UUID7 para a chave primária
      */
     public function newUniqueId(): string

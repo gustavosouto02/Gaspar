@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\CustomEntityResource\RelationManagers;
 
-use App\Enums\ProcessStatusColorEnum;
 use App\Filament\Resources\Concerns\LocksProcessStructure;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -69,9 +68,7 @@ class MembersRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('processRole.name')
                     ->label('Papel no Processo')
                     ->badge()
-                    ->color(fn ($record) => $record->processRole
-                        ? ProcessStatusColorEnum::tryFrom($record->processRole->color)?->filamentColor() ?? 'gray'
-                        : 'gray')
+                    ->color('gray')
                     ->sortable(),
             ])
             ->headerActions([

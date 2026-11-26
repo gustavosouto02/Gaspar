@@ -99,7 +99,6 @@ class GestorObrigatorioTest extends TestCase
             Livewire::test(CreateCustomRecordType::class)
                 ->fillForm([
                     'name' => "Produtos {$i}",
-                    'slug' => "produtos-{$i}",
                     'managers' => $vazio,
                 ])
                 ->call('create')
@@ -117,7 +116,6 @@ class GestorObrigatorioTest extends TestCase
         Livewire::test(CreateCustomRecordType::class)
             ->fillForm([
                 'name' => 'Produtos',
-                'slug' => 'produtos',
                 'managers' => [$this->gestor->id],
             ])
             ->call('create')
@@ -138,7 +136,6 @@ class GestorObrigatorioTest extends TestCase
         Livewire::test(CreateCustomRecordType::class)
             ->fillForm([
                 'name' => 'Produtos',
-                'slug' => 'produtos',
                 'managers' => [$this->gestor->id, $outro->id, $terceiro->id],
             ])
             ->call('create')
@@ -216,7 +213,6 @@ class GestorObrigatorioTest extends TestCase
             Livewire::test(CreateCustomRecordType::class)
                 ->fillForm([
                     'name' => 'Produtos',
-                    'slug' => 'produtos',
                     'managers' => [$this->gestor->id, $invalido->id],
                 ])
                 ->call('create')

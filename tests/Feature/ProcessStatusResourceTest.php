@@ -39,7 +39,7 @@ class ProcessStatusResourceTest extends TestCase
         Livewire::test(CreateProcessStatus::class)
             ->assertFormFieldExists('description')
             ->assertFormFieldExists('name')
-            ->assertFormFieldExists('color');
+            ->assertFormFieldDoesNotExist('color');
     }
 
     public function test_situacao_pode_ser_criada_com_descricao(): void
@@ -49,7 +49,6 @@ class ProcessStatusResourceTest extends TestCase
         Livewire::test(CreateProcessStatus::class)
             ->fillForm([
                 'name' => 'Em Análise Técnica',
-                'color' => 'blue',
                 'description' => 'Demanda sob avaliação técnica da equipe responsável.',
             ])
             ->call('create')
@@ -57,30 +56,25 @@ class ProcessStatusResourceTest extends TestCase
 
         $this->assertDatabaseHas('process_statuses', [
             'name' => 'Em Análise Técnica',
-            'color' => 'blue',
             'description' => 'Demanda sob avaliação técnica da equipe responsável.',
             'is_system' => false,
         ]);
     }
 
-    public function test_situacao_pode_ser_criada_sem_descricao(): void
+    public function test_situacao_nao_pode_ser_criada_sem_descricao(): void
     {
         $this->actingAs($this->admin);
 
         Livewire::test(CreateProcessStatus::class)
             ->fillForm([
                 'name' => 'Aguardando Fornecedor',
-                'color' => 'yellow',
                 'description' => null,
             ])
             ->call('create')
-            ->assertHasNoFormErrors();
+            ->assertHasFormErrors(['description' => 'required'])
+            ->assertSee('O campo descrição é obrigatório.');
 
-        $this->assertDatabaseHas('process_statuses', [
-            'name' => 'Aguardando Fornecedor',
-            'color' => 'yellow',
-            'description' => null,
-        ]);
+        $this->assertDatabaseMissing('process_statuses', ['name' => 'Aguardando Fornecedor']);
     }
 
     public function test_descricao_da_situacao_pode_ser_editada(): void
@@ -191,10 +185,38 @@ class ProcessStatusResourceTest extends TestCase
         Livewire::test(CreateProcessStatus::class)
             ->fillForm([
                 'name' => 'Status Longo',
-                'color' => 'blue',
                 'description' => str_repeat('a', 1001),
             ])
             ->call('create')
             ->assertHasFormErrors(['description' => 'max']);
+    }
+    public function test_cor_da_situacao_eh_definida_pelo_sistema(): void
+    {
+        $esperado = [
+            'new' => 'gray',
+            'closed' => 'info',
+            'evaluated' => 'success',
+            'canceled' => 'danger',
+            'conditional' => 'warning',
+        ];
+
+        foreach ($esperado as $systemKey => $cor) {
+            $this->assertSame($cor, ProcessStatus::findBySystemKey($systemKey)->badgeColor(), $systemKey);
+        }
+
+        // Mesmo com uma cor antiga gravada, a situação criada por usuário usa a cor única.
+        foreach (['green', 'red', 'gray'] as $i => $corAntiga) {
+            $status = ProcessStatus::create(['name' => "Própria {$i}", 'color' => $corAntiga]);
+
+            $this->assertSame('purple', $status->badgeColor());
+        }
+    }
+
+    public function test_listagem_de_situacoes_nao_mostra_a_coluna_cor(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(ListProcessStatuses::class)
+            ->assertTableColumnDoesNotExist('color');
     }
 }

@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources;
 
-use App\Enums\ProcessStatusColorEnum;
 use App\Enums\UserRoleEnum;
 use App\Filament\Resources\ProcessStatusResource\Pages;
 use App\Models\ProcessStatus;
@@ -49,16 +48,9 @@ class ProcessStatusResource extends Resource
                     ->maxLength(255)
                     ->placeholder('Ex: Nova, Em Orçamento, Quitada'),
 
-                Forms\Components\Select::make('color')
-                    ->label('Cor')
-                    ->required()
-                    ->options(ProcessStatusColorEnum::options())
-                    ->in(array_keys(ProcessStatusColorEnum::options()))
-                    ->default('gray')
-                    ->native(false),
-
                 Forms\Components\Textarea::make('description')
                     ->label('Descrição')
+                    ->required()
                     ->maxLength(1000)
                     ->rows(3)
                     ->columnSpanFull(),
@@ -88,12 +80,6 @@ class ProcessStatusResource extends Resource
                     ->tooltip(fn (?string $state): ?string => $state)
                     ->searchable()
                     ->toggleable(isToggledHiddenByDefault: true),
-
-                Tables\Columns\TextColumn::make('color')
-                    ->label('Cor')
-                    ->badge()
-                    ->formatStateUsing(fn (string $state) => ProcessStatusColorEnum::options()[$state] ?? $state)
-                    ->color(fn (string $state) => ProcessStatusColorEnum::tryFrom($state)?->filamentColor() ?? 'gray'),
 
                 Tables\Columns\TextColumn::make('creator.name')
                     ->label('Criado por')

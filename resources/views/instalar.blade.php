@@ -552,11 +552,11 @@
 
                         <div class="form-grid-row">
                             <div class="form-group">
-                                <label for="mail_username">Conta / E-mail de Envio</label>
+                                <label for="mail_username">E-mail de Envio</label>
                                 <input type="text" id="mail_username" name="mail_username"
                                     value="{{ old('mail_username') }}"
                                     placeholder="no-reply@seudominio.com.br">
-                                <span class="input-hint">Conta autenticada no provedor</span>
+                                <span class="input-hint">Conta usada para autenticar e como remetente</span>
                             </div>
                             <div class="form-group">
                                 <label for="mail_password">Senha do E-mail</label>
@@ -565,14 +565,6 @@
                                     placeholder="••••••••">
                                 <span class="input-hint">Senha da conta de e-mail</span>
                             </div>
-                        </div>
-
-                        <div class="form-group">
-                            <label for="mail_from_address">E-mail de Envio (Remetente)</label>
-                            <input type="text" id="mail_from_address" name="mail_from_address"
-                                value="{{ old('mail_from_address') }}"
-                                placeholder="no-reply@seudominio.com.br">
-                            <span class="input-hint">Opcional. Se vazio, usará a conta de envio acima.</span>
                         </div>
                     </div>
                 </div>
@@ -593,17 +585,6 @@
     </div>
 
     <script>
-        const mailUsernameInput = document.getElementById('mail_username');
-        const mailFromInput = document.getElementById('mail_from_address');
-
-        if (mailUsernameInput && mailFromInput) {
-            mailUsernameInput.addEventListener('input', function() {
-                if (!mailFromInput.value) {
-                    mailFromInput.placeholder = this.value || 'no-reply@seudominio.com.br';
-                }
-            });
-        }
-
         document.getElementById('installForm').addEventListener('submit', function () {
             const btn = document.getElementById('btnInstall');
             btn.classList.add('loading');

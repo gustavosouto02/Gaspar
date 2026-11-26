@@ -46,19 +46,9 @@ class CustomFieldResource extends Resource
                         ->label('Nome do Campo')
                         ->required()
                         ->maxLength(255)
-                        ->live(debounce: 500)
-                        ->afterStateUpdated(fn (string $operation, $state, Forms\Set $set) => 
-                            $operation === 'create' ? $set('key', str($state)->slug('_')->toString()) : null
-                        ),
-
-                    Forms\Components\TextInput::make('key')
-                        ->label('Chave (slug)')
-                        ->disabled()
-                        ->dehydrated()
-                        ->required()
-                        ->maxLength(255)
-                        ->regex('/^[a-z0-9_]+$/')
-                        ->helperText('Gerado automaticamente a partir do nome do campo.'),
+                        // A chave do campo é gerada do nome, que precisa ter algo aproveitável.
+                        ->regex('/[\pL\pN]/u')
+                        ->validationMessages(['regex' => 'O nome do campo deve conter letras ou números.']),
 
                     Forms\Components\Select::make('field_type')
                         ->options(\App\Enums\FieldTypeEnum::options())
@@ -176,13 +166,8 @@ class CustomFieldResource extends Resource
                     ->sortable(),
 
                 Tables\Columns\TextColumn::make('name')
-                    ->searchable()
+                    ->searchable(['name', 'key'])
                     ->sortable(),
-
-                Tables\Columns\TextColumn::make('key')
-                    ->searchable()
-                    ->sortable()
-                    ->label('Chave (slug)'),
 
                 Tables\Columns\TextColumn::make('field_type')
                     ->badge()

@@ -52,7 +52,6 @@ class InstaladorController extends Controller
             'mail_password'     => 'nullable|string|max:255',
             'mail_encryption'   => 'nullable|string|in:ssl,tls,none',
             'mail_from_name'    => 'nullable|string|max:150',
-            'mail_from_address' => 'nullable|string|max:255',
         ]);
 
         // 1. Testa conexão MySQL e cria o banco se não existir
@@ -142,7 +141,7 @@ class InstaladorController extends Controller
         $mailPassword = $request->input('mail_password') ?: '';
         $mailEncryption = $request->input('mail_encryption') ?: 'ssl';
         $mailFromName = $request->input('mail_from_name') ?: 'Sistema Gaspar';
-        $mailFromAddress = $request->input('mail_from_address') ?: ($mailUsername ?: 'no-reply@gaspar.com.br');
+        $mailFromAddress = $mailUsername ?: 'no-reply@gaspar.com.br';
 
         $mailScheme = ($mailEncryption === 'ssl' || $mailPort === '465') ? 'smtps' : 'smtp';
         if ($mailEncryption === 'none') {
@@ -193,7 +192,6 @@ class InstaladorController extends Controller
             'admin_password'    => 'admin',
             'mail_host'         => $mailHost,
             'mail_port'         => $mailPort,
-            'mail_username'     => $mailUsername,
             'mail_encryption'   => $mailEncryption,
             'mail_from_address' => $mailFromAddress,
             'mail_from_name'    => $mailFromName,

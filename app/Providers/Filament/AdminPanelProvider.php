@@ -32,6 +32,8 @@ class AdminPanelProvider extends PanelProvider
             ->homeUrl(fn (): string => MyDemands::getUrl())
             ->colors([
                 'primary' => Color::Amber,
+                // Situações criadas por usuários (ProcessStatus::badgeColor)
+                'purple' => Color::Purple,
             ])
             ->navigationGroups([
                 NavigationGroup::make('Administração')
@@ -43,6 +45,10 @@ class AdminPanelProvider extends PanelProvider
             ->renderHook(
                 PanelsRenderHook::GLOBAL_SEARCH_BEFORE,
                 fn (): View => view('filament.hooks.header-actions'),
+            )
+            ->renderHook(
+                PanelsRenderHook::BODY_END,
+                fn (): View => view('filament.hooks.required-message'),
             )
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
