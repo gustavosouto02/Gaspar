@@ -17,27 +17,108 @@ use Filament\Actions;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Notifications\Notification;
+use Filament\Resources\Pages\ViewRecord;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 trait HasDemandHeaderActions
 {
     /**
-     * Botões de cabeçalho: fixos (excluir) + dinâmicos (transições de situação).
+     * Cabeçalho: só o que não faz parte do preenchimento (editar, na visualização;
+     * cancelar a demanda; exportar PDF).
+     * Os botões do fluxo ficam no rodapé, depois dos comentários.
      */
     public function getHeaderActions(): array
     {
-        $parentActions = parent::getHeaderActions() ?? [];
+        $record = $this->getRecord();
         $actions = [];
 
-        $record = current(array_filter([
-            $this->record ?? null,
-            method_exists($this, 'getRecord') ? $this->getRecord() : null,
-        ]));
-
-        if (! $record) {
-            return $parentActions;
+        // Na visualização, atalho para a edição de quem tem permissão nesta situação
+        if ($this instanceof ViewRecord) {
+            $actions[] = Actions\EditAction::make()
+                ->visible(fn () => auth()->user()->can('update', $record));
         }
+
+        $actions[] = Actions\Action::make('cancelar')
+            ->label('Cancelar Demanda')
+            ->icon('heroicon-o-x-circle')
+            ->color('danger')
+            ->requiresConfirmation()
+            ->modalHeading('Cancelar Demanda')
+            ->modalDescription('Tem certeza que deseja cancelar esta demanda? Ela continuará salva, mas seu status será alterado para Cancelada.')
+            ->action(function () use ($record) {
+                // Trava de subdemandas pendentes
+                if ($record->hasPendingChildren()) {
+                    Notification::make()
+                        ->title('Não é possível cancelar a demanda')
+                        ->body('Esta demanda possui subdemandas pendentes (ativas ou em rascunho). Conclua ou cancele-as primeiro.')
+                        ->danger()
+                        ->send();
+
+                    return;
+                }
+
+                $canceledStatus = ProcessStatus::findBySystemKey('canceled');
+                $oldStatusId = $record->process_status_id;
+                $oldStatusName = $record->processStatus?->name ?? '—';
+                $newStatusName = $canceledStatus?->name ?? 'Cancelada';
+
+                $record->update([
+                    'status' => DemandStatusEnum::CANCELED->value,
+                    'completed_at' => now(),
+                    'process_status_id' => $canceledStatus ? $canceledStatus->id : $record->process_status_id,
+                ]);
+
+                ActivityLog::create([
+                    'user_id' => auth()->id(),
+                    'event' => 'transition',
+                    'auditable_type' => Demand::class,
+                    'auditable_id' => (string) $record->id,
+                    'old_values' => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
+                    'new_values' => [
+                        'process_status_id' => $canceledStatus?->id ?? $oldStatusId,
+                        'status_name' => $newStatusName,
+                        'action' => 'Cancelamento da Demanda',
+                    ],
+                    'ip_address' => request()->ip(),
+                    'user_agent' => request()->userAgent(),
+                    'created_at' => now(),
+                ]);
+
+                // Notifica todos os envolvidos no processo (exceto quem cancelou)
+                try {
+                    $canceler = auth()->user();
+                    foreach ($record->processParticipants()->reject(fn ($u) => $u->id === $canceler->id) as $participant) {
+                        $participant->notify(new DemandActivityNotification($record, "A demanda foi cancelada por {$canceler->name}"));
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning("Falha ao enviar notificação de cancelamento da demanda: {$e->getMessage()}");
+                }
+
+                Notification::make()->title('Demanda cancelada com sucesso!')->success()->send();
+                $this->redirect(static::getResource()::getUrl('index'));
+            })
+            ->visible(
+                fn () => ! $record->processStatus?->isCanceled()
+                    && ! $record->processStatus?->isClosed()
+                    && ! $record->processStatus?->isEvaluated()
+                    && (auth()->user()->user_role === UserRoleEnum::ADMIN
+                        || $record->requested_by === auth()->id())
+            );
+        $actions[] = $this->makeExportPdfAction($record);
+
+        return $actions;
+    }
+
+    /**
+     * Rodapé: avaliação e uma ação "Enviar" por transição disponível.
+     *
+     * @return array<Actions\Action>
+     */
+    protected function getWorkflowActions(bool $withTransitions = true): array
+    {
+        $record = $this->getRecord();
+        $actions = [];
 
         $user = auth()->user();
 
@@ -94,11 +175,8 @@ trait HasDemandHeaderActions
                 });
         }
 
-        // Se a demanda já está cancelada ou avaliada, não possui mais transições de fluxo
-        // (o PDF continua disponível para consulta do histórico)
-        if ($record->processStatus?->isCanceled() || $record->processStatus?->isEvaluated()) {
-            $actions[] = $this->makeExportPdfAction($record);
-
+        // Demanda cancelada ou avaliada não possui mais transições de fluxo
+        if (! $withTransitions || $record->processStatus?->isCanceled() || $record->processStatus?->isEvaluated()) {
             return $actions;
         }
 
@@ -166,6 +244,24 @@ trait HasDemandHeaderActions
 
                     $this->redirect(static::getResource()::getUrl('view', ['record' => $record]));
                 });
+        }
+
+        return $actions;
+    }
+
+    /**
+     * Rodapé, sempre como último botão: devolver para a situação anterior.
+     *
+     * @return array<Actions\Action>
+     */
+    protected function getReturnActions(): array
+    {
+        $record = $this->getRecord();
+        $user = auth()->user();
+        $actions = [];
+
+        if ($record->processStatus?->isCanceled() || $record->processStatus?->isEvaluated()) {
+            return $actions;
         }
 
         // --- BOTÃO DINÂMICO DE DEVOLVER / RETORNAR ---
@@ -280,75 +376,7 @@ trait HasDemandHeaderActions
                 });
         }
 
-        $actions[] = Actions\Action::make('cancelar')
-            ->label('Cancelar Demanda')
-            ->icon('heroicon-o-x-circle')
-            ->color('danger')
-            ->requiresConfirmation()
-            ->modalHeading('Cancelar Demanda')
-            ->modalDescription('Tem certeza que deseja cancelar esta demanda? Ela continuará salva, mas seu status será alterado para Cancelada.')
-            ->action(function () use ($record) {
-                // Trava de subdemandas pendentes
-                if ($record->hasPendingChildren()) {
-                    Notification::make()
-                        ->title('Não é possível cancelar a demanda')
-                        ->body('Esta demanda possui subdemandas pendentes (ativas ou em rascunho). Conclua ou cancele-as primeiro.')
-                        ->danger()
-                        ->send();
-
-                    return;
-                }
-
-                $canceledStatus = ProcessStatus::findBySystemKey('canceled');
-                $oldStatusId = $record->process_status_id;
-                $oldStatusName = $record->processStatus?->name ?? '—';
-                $newStatusName = $canceledStatus?->name ?? 'Cancelada';
-
-                $record->update([
-                    'status' => DemandStatusEnum::CANCELED->value,
-                    'completed_at' => now(),
-                    'process_status_id' => $canceledStatus ? $canceledStatus->id : $record->process_status_id,
-                ]);
-
-                ActivityLog::create([
-                    'user_id' => auth()->id(),
-                    'event' => 'transition',
-                    'auditable_type' => Demand::class,
-                    'auditable_id' => (string) $record->id,
-                    'old_values' => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
-                    'new_values' => [
-                        'process_status_id' => $canceledStatus?->id ?? $oldStatusId,
-                        'status_name' => $newStatusName,
-                        'action' => 'Cancelamento da Demanda',
-                    ],
-                    'ip_address' => request()->ip(),
-                    'user_agent' => request()->userAgent(),
-                    'created_at' => now(),
-                ]);
-
-                // Notifica todos os envolvidos no processo (exceto quem cancelou)
-                try {
-                    $canceler = auth()->user();
-                    foreach ($record->processParticipants()->reject(fn ($u) => $u->id === $canceler->id) as $participant) {
-                        $participant->notify(new DemandActivityNotification($record, "A demanda foi cancelada por {$canceler->name}"));
-                    }
-                } catch (\Throwable $e) {
-                    Log::warning("Falha ao enviar notificação de cancelamento da demanda: {$e->getMessage()}");
-                }
-
-                Notification::make()->title('Demanda cancelada com sucesso!')->success()->send();
-                $this->redirect(static::getResource()::getUrl('index'));
-            })
-            ->visible(
-                fn () => ! $record->processStatus?->isCanceled()
-                    && ! $record->processStatus?->isClosed()
-                    && ! $record->processStatus?->isEvaluated()
-                    && (auth()->user()->user_role === UserRoleEnum::ADMIN
-                        || $record->requested_by === auth()->id())
-            );
-        $actions[] = $this->makeExportPdfAction($record);
-
-        return array_merge($actions, $parentActions);
+        return $actions;
     }
 
     /**

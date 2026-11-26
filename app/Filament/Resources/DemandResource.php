@@ -301,7 +301,7 @@ class DemandResource extends Resource
                     ->visible(fn ($record) => $record !== null)
                     ->collapsible(),
 
-                Forms\Components\Section::make('Tratamento')
+                Forms\Components\Section::make('Comentários:')
                     ->schema([
                         Forms\Components\ViewField::make('treatments_timeline')
                             ->view('filament.forms.components.demand-timeline')

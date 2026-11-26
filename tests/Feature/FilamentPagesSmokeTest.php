@@ -150,7 +150,8 @@ class FilamentPagesSmokeTest extends TestCase
 
         $this->assertDatabaseHas('demands', [
             'title' => 'Demanda criada pela tela',
-            'status' => DemandStatusEnum::ACTIVE->value,
+            // Enviada: já seguiu o fluxo, que aqui vai de "Nova" direto para "Encerrada"
+            'status' => DemandStatusEnum::CLOSED->value,
             'project_id' => null,
             'supplier_id' => null,
         ]);
@@ -267,7 +268,8 @@ class FilamentPagesSmokeTest extends TestCase
             ->assertHasNoFormErrors();
 
         $draft->refresh();
-        $this->assertSame(DemandStatusEnum::ACTIVE, $draft->status);
+        $this->assertSame(DemandStatusEnum::CLOSED, $draft->status);
+        $this->assertTrue($draft->processStatus->isClosed());
         $this->assertNotNull($draft->sla_due_at);
     }
 

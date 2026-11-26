@@ -6,18 +6,18 @@
 
     @if($demand)
         <div class="mb-4">
-            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Novo Tratamento / Comentário</label>
-            <textarea wire:model="new_treatment" class="w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900 shadow-sm focus:border-primary-500 focus:ring-primary-500" rows="3" placeholder="Escreva aqui seu novo tratamento..."></textarea>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Novo comentário</label>
+            <textarea wire:model="new_treatment" class="w-full rounded-lg border-gray-300 dark:border-gray-700 dark:bg-gray-900 shadow-sm focus:border-primary-500 focus:ring-primary-500" rows="3" placeholder="Escreva aqui seu comentário..."></textarea>
             <div class="mt-2 flex justify-end">
                 <x-filament::button wire:click="addTreatment" type="button" color="primary" icon="heroicon-m-paper-airplane">
-                    Enviar Tratamento
+                    Registrar comentário
                 </x-filament::button>
             </div>
         </div>
     @endif
 
     @if($comments->isEmpty())
-        <div class="text-sm text-gray-500 italic">Nenhum tratamento registrado ainda.</div>
+        <div class="text-sm text-gray-500 italic">Nenhum comentário registrado ainda.</div>
     @else
         <div class="mt-4 space-y-6 pr-2" style="max-height: 280px; overflow-y: auto;">
             @foreach($comments as $comment)

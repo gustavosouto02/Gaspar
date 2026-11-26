@@ -25,7 +25,7 @@ class ViewProject extends ViewRecord
         $this->new_treatment = '';
 
         \Filament\Notifications\Notification::make()
-            ->title('Tratamento adicionado com sucesso!')
+            ->title('Comentário registrado com sucesso!')
             ->success()
             ->send();
     }

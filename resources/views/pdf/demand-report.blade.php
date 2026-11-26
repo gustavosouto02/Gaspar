@@ -407,7 +407,7 @@
 
     <!-- SEÇÃO 7: RELATOS DE TRATAMENTO (HISTÓRICO DE COMENTÁRIOS) -->
     <div class="section">
-        <div class="section-title">7. Histórico de Tratamentos e Relatos</div>
+        <div class="section-title">7. Histórico de Comentários</div>
         @if($demand->comments && $demand->comments->isNotEmpty())
             <table class="grid-table">
                 <thead>

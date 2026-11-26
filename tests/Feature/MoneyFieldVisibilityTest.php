@@ -686,8 +686,9 @@ class MoneyFieldVisibilityTest extends TestCase
             ->call('create')
             ->assertHasNoFormErrors();
 
+        // Nasce na situação inicial e, ao ser enviada, segue o fluxo
         $criada = Demand::where('title', 'Criada pela URL')->firstOrFail();
-        $this->assertSame($this->situacao->id, $criada->process_status_id);
+        $this->assertTrue($criada->processStatus->isClosed());
         $this->assertSame('2500.00', DemandFieldValue::where('demand_id', $criada->id)
             ->where('custom_field_id', $this->campoValor->id)->value('value'));
     }

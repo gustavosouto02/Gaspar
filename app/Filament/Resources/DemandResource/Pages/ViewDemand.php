@@ -14,6 +14,8 @@ class ViewDemand extends ViewRecord
 
     protected static string $resource = DemandResource::class;
 
+    protected static string $view = 'filament.resources.demand-resource.pages.view-demand';
+
     public string $new_treatment = '';
 
     public function addTreatment()
@@ -29,7 +31,7 @@ class ViewDemand extends ViewRecord
         $this->new_treatment = '';
 
         \Filament\Notifications\Notification::make()
-            ->title('Tratamento adicionado com sucesso!')
+            ->title('Comentário registrado com sucesso!')
             ->success()
             ->send();
     }
@@ -46,6 +48,11 @@ class ViewDemand extends ViewRecord
         }
 
         return $data;
+    }
+
+    public function getFormActions(): array
+    {
+        return [...$this->getWorkflowActions(), ...$this->getReturnActions()];
     }
 
     protected function getFooterWidgets(): array
