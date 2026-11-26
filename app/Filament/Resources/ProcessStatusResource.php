@@ -59,6 +59,7 @@ class ProcessStatusResource extends Resource
 
                 Forms\Components\Textarea::make('description')
                     ->label('Descrição')
+                    ->required()
                     ->maxLength(1000)
                     ->rows(3)
                     ->columnSpanFull(),
