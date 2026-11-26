@@ -55,8 +55,7 @@ class StatusTransitionsRelationManager extends RelationManager
         // Cancelada e Avaliada não são opções de destino manual de transição no fluxo do processo
         $toStatusOptions = $entity->processStatuses()->withoutUnmanualTransitions()->pluck('name', 'process_statuses.id')->toArray();
         $roleOptions = [
-            '__requester__' => 'Demandante (Quem abriu a demanda)',
-            '__assignee__' => 'Responsável (Executor atual)',
+            '__requester__' => 'Quem abriu a demanda (automático)',
         ];
 
         // Busca todos os papéis e verifica se há usuários atrelados a eles neste processo
@@ -429,7 +428,7 @@ class StatusTransitionsRelationManager extends RelationManager
                         $labels = collect();
 
                         if (in_array('__requester__', $ids)) {
-                            $labels->push('Demandante');
+                            $labels->push('Quem abriu a demanda');
                         }
                         if (in_array('__assignee__', $ids)) {
                             $labels->push('Responsável (Atual)');
