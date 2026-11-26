@@ -8,11 +8,10 @@ use App\Filament\Resources\DemandResource;
 use App\Filament\Resources\DemandResource\Pages\Concerns\AdvancesSubmittedDemand;
 use App\Models\CustomEntity;
 use App\Models\DemandFieldValue;
-use App\Notifications\DemandActivityNotification;
 use App\Services\FieldPermissionResolver;
 use Filament\Actions\Action;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
 
 class CreateDemand extends CreateRecord
@@ -67,6 +66,12 @@ class CreateDemand extends CreateRecord
         ];
     }
 
+    /** Envio recusado: fica só o aviso de erro, sem o "Criado" padrão */
+    protected function getCreatedNotification(): ?Notification
+    {
+        return $this->submissionFailed ? null : parent::getCreatedNotification();
+    }
+
     protected function getRedirectUrl(): string
     {
         // Depois de enviada, quem abriu pode já não ter o que editar nesta situação
@@ -78,7 +83,7 @@ class CreateDemand extends CreateRecord
     /**
      * Antes de criar, extrai field_data e configura o status:
      * - Rascunho (Salvar): status = DRAFT, sem SLA
-     * - Envio (Enviar): status = ACTIVE, calcula SLA
+     * - Envio (Enviar): status = ACTIVE (o SLA é calculado pelo model na criação)
      */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
@@ -101,19 +106,12 @@ class CreateDemand extends CreateRecord
             $data['process_status_id'] = $entity?->initialProcessStatus()?->id;
         }
 
-        if ($this->isDraft) {
-            $data['status'] = DemandStatusEnum::DRAFT->value;
-        } else {
-            $data['status'] = DemandStatusEnum::ACTIVE->value;
+        // A autoria é sempre de quem está salvando (é ela que libera o envio do rascunho)
+        $data['created_by'] = auth()->id();
 
-            // Calcula SLA somente ao enviar para atendimento
-            if (! empty($data['entity_id']) && empty($data['sla_due_at'])) {
-                $entity = CustomEntity::find($data['entity_id']);
-                if ($entity && $entity->sla_hours) {
-                    $data['sla_due_at'] = now()->addHours($entity->sla_hours);
-                }
-            }
-        }
+        $data['status'] = $this->isDraft
+            ? DemandStatusEnum::DRAFT->value
+            : DemandStatusEnum::ACTIVE->value;
 
         return $data;
     }
@@ -134,18 +132,12 @@ class CreateDemand extends CreateRecord
                 return;
             }
 
-            try {
-                // Quando a situação avança, o próprio serviço de transição avisa o responsável
-                if (! $advanced && $record->assignee && $record->assignee->id !== auth()->id()) {
-                    $record->assignee->notify(new DemandActivityNotification($record, 'Uma nova demanda foi atribuída a você para atendimento.'));
-                }
-
-                if ($record->requester) {
-                    $record->requester->notify(new DemandActivityNotification($record, 'Sua demanda foi cadastrada com sucesso e enviada para atendimento.'));
-                }
-            } catch (\Throwable $e) {
-                Log::warning("Falha ao enviar notificação de criação de demanda: {$e->getMessage()}");
-            }
+            $this->notifySubmission(
+                $record,
+                $advanced,
+                'Uma nova demanda foi atribuída a você para atendimento.',
+                'Sua demanda foi cadastrada com sucesso e enviada para atendimento.',
+            );
         }
     }
 

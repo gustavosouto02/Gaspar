@@ -21,7 +21,7 @@
         DemandStatusEnum::EVALUATED,
         DemandStatusEnum::CANCELED,
     ], true);
-    $slaOverdue = (bool) $demand->sla_due_at?->isPast() && ($finishedCanBeOverdue || ! $finished);
+    $slaOverdue = (bool) $demand->deadline?->isPast() && ($finishedCanBeOverdue || ! $finished);
 @endphp
 
 <a href="{{ $href }}"
@@ -59,7 +59,7 @@
     @endif
 
     <div class="flex items-center justify-between gap-2 text-xs">
-        @if ($demand->sla_due_at)
+        @if ($demand->deadline)
             <span @class([
                 'flex items-center gap-1',
                 'font-semibold text-danger-600 dark:text-danger-400' => $slaOverdue,
@@ -68,7 +68,7 @@
                 <x-dynamic-component
                     :component="$slaOverdue ? 'heroicon-o-exclamation-triangle' : 'heroicon-o-calendar'"
                     class="h-4 w-4 shrink-0" />
-                {{ $demand->sla_due_at->format('d/m/Y') }}
+                {{ $demand->deadline->format('d/m/Y') }}
             </span>
         @else
             <span></span>

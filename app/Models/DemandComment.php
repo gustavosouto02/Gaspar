@@ -40,25 +40,30 @@ class DemandComment extends Model
             $authorName = $author ? $author->name : 'Usuário';
             $commentText = \Illuminate\Support\Str::limit(strip_tags($comment->comment), 100);
 
-            try {
-                // Notifica o responsável se não foi ele quem comentou
-                if ($demand->assignee && $demand->assignee->id !== $comment->user_id) {
-                    $demand->assignee->notify(new \App\Notifications\DemandActivityNotification(
-                        $demand,
-                        "Novo relato adicionado por {$authorName}: \"{$commentText}\""
-                    ));
-                }
+            // Destinatários de quando o relato foi escrito; o e-mail só sai depois do commit
+            $demand->load('assignee', 'requester');
 
-                // Notifica o solicitante se não foi ele quem comentou
-                if ($demand->requester && $demand->requester->id !== $comment->user_id) {
-                    $demand->requester->notify(new \App\Notifications\DemandActivityNotification(
-                        $demand,
-                        "Novo relato adicionado por {$authorName}: \"{$commentText}\""
-                    ));
+            \Illuminate\Support\Facades\DB::afterCommit(function () use ($demand, $comment, $authorName, $commentText) {
+                try {
+                    // Notifica o responsável se não foi ele quem comentou
+                    if ($demand->assignee && $demand->assignee->id !== $comment->user_id) {
+                        $demand->assignee->notify(new \App\Notifications\DemandActivityNotification(
+                            $demand,
+                            "Novo relato adicionado por {$authorName}: \"{$commentText}\""
+                        ));
+                    }
+
+                    // Notifica o solicitante se não foi ele quem comentou
+                    if ($demand->requester && $demand->requester->id !== $comment->user_id) {
+                        $demand->requester->notify(new \App\Notifications\DemandActivityNotification(
+                            $demand,
+                            "Novo relato adicionado por {$authorName}: \"{$commentText}\""
+                        ));
+                    }
+                } catch (\Throwable $e) {
+                    \Illuminate\Support\Facades\Log::warning("Falha ao enviar notificação de novo relato: {$e->getMessage()}");
                 }
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::warning("Falha ao enviar notificação de novo relato: {$e->getMessage()}");
-            }
+            });
         });
     }
 

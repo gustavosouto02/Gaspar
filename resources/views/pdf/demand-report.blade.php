@@ -295,9 +295,9 @@
                 </td>
                 <td style="width: 25%;">
                     <span class="label">Prazo Limite (SLA)</span>
-                    <span class="value" style="font-weight: 700; color: {{ $demand->sla_due_at && $demand->sla_due_at->isPast() && $demand->status?->value === 'ACTIVE' ? '#b91c1c' : '#0f172a' }};">
-                        @if($demand->sla_due_at)
-                            {{ $demand->sla_due_at->format('d/m/Y H:i') }}
+                    <span class="value" style="font-weight: 700; color: {{ $demand->deadline && $demand->deadline->isPast() && $demand->status?->value === 'ACTIVE' ? '#b91c1c' : '#0f172a' }};">
+                        @if($demand->deadline)
+                            {{ $demand->deadline->format('d/m/Y H:i') }}
                         @elseif($demand->entity && $demand->entity->sla_hours)
                             {{ $demand->entity->sla_hours }}h (~{{ round($demand->entity->sla_hours / 24, 1) }} dias)
                         @else

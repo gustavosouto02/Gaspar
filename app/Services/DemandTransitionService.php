@@ -6,7 +6,6 @@ use App\Enums\DemandStatusEnum;
 use App\Enums\FieldPermissionEnum;
 use App\Exceptions\DemandTransitionException;
 use App\Models\ActivityLog;
-use App\Models\CustomEntity;
 use App\Models\CustomField;
 use App\Models\Demand;
 use App\Models\ProcessStatus;
@@ -14,6 +13,7 @@ use App\Models\StatusTransition;
 use App\Models\User;
 use App\Notifications\DemandActivityNotification;
 use App\Notifications\DemandSatisfactionNotification;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 class DemandTransitionService
@@ -39,6 +39,12 @@ class DemandTransitionService
         $currentStatus = $demand->processStatus;
         if ($currentStatus && ($currentStatus->isCanceled() || $currentStatus->isEvaluated())) {
             throw new DemandTransitionException("Não é possível realizar transições em uma demanda já finalizada ({$currentStatus->name}).");
+        }
+
+        // Rascunho só sai de rascunho pelas mãos de quem o salvou (cancelar não é enviar)
+        $isDraft = $demand->status === DemandStatusEnum::DRAFT;
+        if ($isDraft && ! $target->isCanceled() && ! $demand->canBeSubmittedBy($user)) {
+            throw new DemandTransitionException('Apenas quem salvou o rascunho pode enviá-lo.');
         }
 
         // Gateway: a Condicional nunca recebe a demanda; a tabela de decisão
@@ -74,74 +80,79 @@ class DemandTransitionService
         $oldStatusId = $demand->process_status_id;
         $oldStatusName = $demand->processStatus?->name ?? '—';
 
-        $discardedFields = $this->discardValuesFromLaterSteps($demand, $target);
+        // Tudo ou nada: uma falha no meio não deixa a demanda em estado parcial
+        DB::transaction(function () use ($demand, $transition, $user, $target, $matchedRule, $isDraft, $oldStatusId, $oldStatusName) {
+            $discardedFields = $this->discardValuesFromLaterSteps($demand, $target);
 
-        // Executa a transição
-        $demand->process_status_id = $target->id;
+            // Executa a transição
+            $demand->process_status_id = $target->id;
 
-        // Se estava em rascunho, ativa ao avançar no fluxo
-        if ($demand->status === DemandStatusEnum::DRAFT) {
-            $demand->status = DemandStatusEnum::ACTIVE;
-        }
-
-        // Registra o início do atendimento na primeira transição
-        if (empty($demand->started_at)) {
-            $demand->started_at = now();
-        }
-
-        // Se o prazo SLA ainda não foi calculado e o processo possui sla_hours
-        if (empty($demand->sla_due_at)) {
-            $entity = $demand->entity ?? CustomEntity::find($demand->entity_id);
-            if ($entity && $entity->sla_hours) {
-                $demand->sla_due_at = ($demand->started_at ?? now())->copy()->addHours($entity->sla_hours);
+            // Se estava em rascunho, ativa ao avançar no fluxo
+            if ($isDraft) {
+                $demand->status = DemandStatusEnum::ACTIVE;
             }
-        }
 
-        if ($target->isClosed()) {
-            $demand->status = DemandStatusEnum::CLOSED;
-            $demand->completed_at = now();
-        }
-        $demand->save(); // save first so autoAssign sees new status
-        $demand->autoAssign();
+            // Registra o início do atendimento na primeira transição
+            if (empty($demand->started_at)) {
+                $demand->started_at = now();
+            }
 
-        // Registra no audit log
-        ActivityLog::create([
-            'user_id' => $user->id,
-            'event' => 'transition',
-            'auditable_type' => Demand::class,
-            'auditable_id' => (string) $demand->id,
-            'old_values' => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
-            'new_values' => array_merge(
-                [
-                    'process_status_id' => $target->id,
-                    'status_name' => $target->name,
-                    'action' => 'Enviar',
-                    'transition_id' => $transition->id,
-                ],
-                $transition->toStatus?->isConditional()
-                    ? ['via' => 'Condicional', 'rule_order' => $matchedRule?->rule_order]
-                    : [],
-                $discardedFields ? ['discarded_fields' => $discardedFields] : [],
-            ),
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-            'created_at' => now(),
-        ]);
+            // Calcula o prazo SLA se ainda não houver; no rascunho enviado agora, o prazo
+            // conta a partir do envio, mesmo que exista um prazo antigo gravado
+            if ($isDraft || empty($demand->sla_due_at)) {
+                $demand->sla_due_at = Demand::slaDeadlineFor($demand->entity_id, $isDraft ? null : $demand->started_at);
+            }
 
-        // Dispara notificações com proteção contra falha de SMTP
-        try {
-            if ($demand->assignee && $demand->assignee->id !== $user->id) {
-                $demand->assignee->notify(new DemandActivityNotification($demand, "A situação foi alterada para: {$target->name}"));
+            if ($target->isClosed()) {
+                $demand->status = DemandStatusEnum::CLOSED;
+                $demand->completed_at = now();
             }
-            if ($demand->requester && $demand->requester->id !== $user->id) {
-                $demand->requester->notify(new DemandActivityNotification($demand, "A situação foi alterada para: {$target->name}"));
+            $demand->save(); // save first so autoAssign sees new status
+            $demand->autoAssign();
+
+            // Registra no audit log
+            ActivityLog::create([
+                'user_id' => $user->id,
+                'event' => 'transition',
+                'auditable_type' => Demand::class,
+                'auditable_id' => (string) $demand->id,
+                'old_values' => ['process_status_id' => $oldStatusId, 'status_name' => $oldStatusName],
+                'new_values' => array_merge(
+                    [
+                        'process_status_id' => $target->id,
+                        'status_name' => $target->name,
+                        'action' => 'Enviar',
+                        'transition_id' => $transition->id,
+                    ],
+                    $transition->toStatus?->isConditional()
+                        ? ['via' => 'Condicional', 'rule_order' => $matchedRule?->rule_order]
+                        : [],
+                    $discardedFields ? ['discarded_fields' => $discardedFields] : [],
+                ),
+                'ip_address' => request()->ip(),
+                'user_agent' => request()->userAgent(),
+                'created_at' => now(),
+            ]);
+        });
+
+        // Dispara notificações só depois do commit (transação revertida não envia e-mail),
+        // com proteção contra falha de SMTP
+        DB::afterCommit(function () use ($demand, $target, $user) {
+            try {
+                if ($demand->assignee && $demand->assignee->id !== $user->id) {
+                    $demand->assignee->notify(new DemandActivityNotification($demand, "A situação foi alterada para: {$target->name}"));
+                }
+                // Demandante que também é o responsável já recebeu o aviso acima
+                if ($demand->requester && $demand->requester->id !== $user->id && $demand->requester->id !== $demand->assignee?->id) {
+                    $demand->requester->notify(new DemandActivityNotification($demand, "A situação foi alterada para: {$target->name}"));
+                }
+                if ($target->isClosed() && $demand->requester) {
+                    $demand->requester->notify(new DemandSatisfactionNotification($demand));
+                }
+            } catch (\Throwable $e) {
+                Log::warning("Falha ao enviar notificação de transição de demanda: {$e->getMessage()}");
             }
-            if ($target->isClosed() && $demand->requester) {
-                $demand->requester->notify(new DemandSatisfactionNotification($demand));
-            }
-        } catch (\Throwable $e) {
-            Log::warning("Falha ao enviar notificação de transição de demanda: {$e->getMessage()}");
-        }
+        });
 
         return $target;
     }
