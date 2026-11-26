@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Enums\DemandPriorityEnum;
 use App\Enums\DemandStatusEnum;
 use App\Filament\Resources\DemandResource\Pages\CreateDemand;
 use App\Filament\Resources\DemandResource\Pages\EditDemand;
@@ -13,7 +14,10 @@ use App\Models\User;
 use Database\Seeders\AquiProcessSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
+use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -86,10 +90,70 @@ class DemandProtectedAttributesTest extends TestCase
             ])
             ->set('data.process_status_id', ProcessStatus::findBySystemKey('closed')->id)
             ->set('data.requested_by', $this->outro->id)
+            ->set('data.priority', 'URGENT')
             ->callAction('salvar');
 
         $demand = Demand::where('title', 'Criação conferida')->firstOrFail();
         $this->assertSame(ProcessStatus::findBySystemKey('new')->id, $demand->process_status_id);
         $this->assertSame($this->demandante->id, $demand->requested_by);
+        $this->assertSame(DemandPriorityEnum::MEDIUM, $demand->priority);
+    }
+
+    public static function maesRecusadas(): array
+    {
+        return [
+            'inexistente' => ['inexistente'],
+            'finalizada' => ['finalizada'],
+            'já é subdemanda' => ['subdemanda'],
+        ];
+    }
+
+    #[DataProvider('maesRecusadas')]
+    public function test_subdemanda_exige_demanda_principal_valida(string $caso): void
+    {
+        $raiz = $this->demandaPrincipal();
+        $mae = match ($caso) {
+            'inexistente' => (string) Str::uuid7(),
+            'finalizada' => $this->demandaPrincipal(['status' => DemandStatusEnum::CLOSED])->id,
+            'subdemanda' => $this->demandaPrincipal(['parent_demand_id' => $raiz->id])->id,
+        };
+
+        $this->criarSubdemanda($mae)->assertHasFormErrors(['parent_demand_id']);
+
+        $this->assertFalse(Demand::where('title', 'Filha')->exists());
+    }
+
+    public function test_subdemanda_sob_demanda_em_andamento_eh_aceita(): void
+    {
+        $mae = $this->demandaPrincipal();
+
+        $this->criarSubdemanda($mae->id)->assertHasNoFormErrors();
+
+        $this->assertSame($mae->id, Demand::where('title', 'Filha')->firstOrFail()->parent_demand_id);
+    }
+
+    private function demandaPrincipal(array $atributos = []): Demand
+    {
+        return Demand::factory()->create($atributos + [
+            'entity_id' => $this->processo->id,
+            'client_id' => Client::first()->id,
+            'process_status_id' => ProcessStatus::findBySystemKey('new')->id,
+            'status' => DemandStatusEnum::ACTIVE,
+            'parent_demand_id' => null,
+        ]);
+    }
+
+    private function criarSubdemanda(string $maeId): Testable
+    {
+        return Livewire::test(CreateDemand::class)
+            ->fillForm([
+                'entity_id' => $this->processo->id,
+                'client_id' => Client::first()->id,
+                'title' => 'Filha',
+                'project_id' => 'none',
+                'supplier_id' => 'none',
+            ])
+            ->set('data.parent_demand_id', $maeId)
+            ->call('create');
     }
 }

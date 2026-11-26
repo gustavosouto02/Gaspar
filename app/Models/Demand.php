@@ -121,6 +121,23 @@ class Demand extends Model
         return $this->status === DemandStatusEnum::DRAFT ? null : $this->sla_due_at;
     }
 
+    /** Subdemanda só sob demanda principal (um único nível) e ainda não finalizada */
+    public function acceptsSubdemands(): bool
+    {
+        $finished = [
+            DemandStatusEnum::CLOSED,
+            DemandStatusEnum::CANCELED,
+            DemandStatusEnum::EVALUATED,
+            DemandStatusEnum::COMPLETED,
+        ];
+
+        return $this->parent_demand_id === null
+            && ! in_array($this->status, $finished, true)
+            && ! $this->processStatus?->isClosed()
+            && ! $this->processStatus?->isCanceled()
+            && ! $this->processStatus?->isEvaluated();
+    }
+
     /** Só quem salvou o rascunho pode enviá-lo (vale inclusive para ADMIN) */
     public function canBeSubmittedBy(User $user): bool
     {

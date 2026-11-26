@@ -2,11 +2,13 @@
 
 namespace App\Filament\Resources\DemandResource\Pages;
 
+use App\Enums\DemandPriorityEnum;
 use App\Enums\DemandStatusEnum;
 use App\Enums\FieldPermissionEnum;
 use App\Filament\Resources\DemandResource;
 use App\Filament\Resources\DemandResource\Pages\Concerns\AdvancesSubmittedDemand;
 use App\Models\CustomEntity;
+use App\Models\Demand;
 use App\Models\DemandFieldValue;
 use App\Services\FieldPermissionResolver;
 use Filament\Actions\Action;
@@ -106,12 +108,32 @@ class CreateDemand extends CreateRecord
 
         $data['requested_by'] = auth()->id();
         $data['created_by'] = auth()->id();
+        $data['priority'] = DemandPriorityEnum::MEDIUM->value;
+
+        $this->assertParentAcceptsSubdemand($data['parent_demand_id'] ?? null);
 
         $data['status'] = $this->isDraft
             ? DemandStatusEnum::DRAFT->value
             : DemandStatusEnum::ACTIVE->value;
 
         return $data;
+    }
+
+    /**
+     * A demanda principal chega pela URL: precisa existir e aceitar subdemandas
+     */
+    private function assertParentAcceptsSubdemand(?string $parentId): void
+    {
+        if (blank($parentId) || Demand::find($parentId)?->acceptsSubdemands()) {
+            return;
+        }
+
+        $message = 'Não é possível registrar subdemanda nesta demanda: ela não existe, já foi finalizada ou também é uma subdemanda.';
+
+        // O campo é oculto: sem o aviso, o usuário não veria o motivo
+        Notification::make()->title($message)->danger()->send();
+
+        throw ValidationException::withMessages(['data.parent_demand_id' => $message]);
     }
 
     /**

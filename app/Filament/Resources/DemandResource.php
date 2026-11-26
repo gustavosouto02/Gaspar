@@ -286,6 +286,7 @@ class DemandResource extends Resource
                             ->label('Registrar Subdemanda')
                             ->icon('heroicon-m-plus')
                             ->color('warning')
+                            ->visible(fn ($record) => (bool) $record?->acceptsSubdemands())
                             ->url(fn ($record) => $record ? DemandResource::getUrl('create', [
                                 'parent_demand_id' => $record->id,
                                 'client_id' => $record->client_id,
