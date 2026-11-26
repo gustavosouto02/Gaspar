@@ -74,10 +74,7 @@ class ProcessStatusResourceTest extends TestCase
             ->assertHasFormErrors(['description' => 'required'])
             ->assertSee('O campo descrição é obrigatório.');
 
-        $this->assertDatabaseHas('process_statuses', [
-            'name' => 'Aguardando Fornecedor',
-            'description' => null,
-        ]);
+        $this->assertDatabaseMissing('process_statuses', ['name' => 'Aguardando Fornecedor']);
     }
 
     public function test_descricao_da_situacao_pode_ser_editada(): void
