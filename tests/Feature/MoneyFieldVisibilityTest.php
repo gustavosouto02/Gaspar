@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Enums\DemandButtonEnum;
 use App\Enums\DemandStatusEnum;
 use App\Enums\FieldPermissionEnum;
 use App\Enums\FieldTypeEnum;
@@ -119,7 +118,6 @@ class MoneyFieldVisibilityTest extends TestCase
             'entity_id' => $this->processo->id,
             'from_status_id' => $this->situacao->id,
             'to_status_id' => $this->processo->processStatuses()->where('system_key', 'closed')->firstOrFail()->id,
-            'label' => DemandButtonEnum::cases()[0]->value,
             'allowed_role_ids' => [],
             'display_order' => 0,
         ]);

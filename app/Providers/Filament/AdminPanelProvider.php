@@ -32,7 +32,7 @@ class AdminPanelProvider extends PanelProvider
             ->homeUrl(fn (): string => MyDemands::getUrl())
             ->colors([
                 'primary' => Color::Amber,
-                // Situações criadas por usuários (ProcessStatus::badgeColor)
+                // Situação Condicional (ProcessStatus::badgeColor)
                 'purple' => Color::Purple,
             ])
             ->navigationGroups([

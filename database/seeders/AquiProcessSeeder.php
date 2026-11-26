@@ -2,7 +2,6 @@
 
 namespace Database\Seeders;
 
-use App\Enums\DemandButtonEnum;
 use App\Enums\DemandPriorityEnum;
 use App\Enums\DemandStatusEnum;
 use App\Enums\FieldPermissionEnum;
@@ -400,7 +399,6 @@ class AquiProcessSeeder extends Seeder
             'entity_id' => $processo->id,
             'from_status_id' => $statusNova->id,
             'to_status_id' => $statusMapeados['Licitando']->id,
-            'label' => DemandButtonEnum::ENVIAR->value,
             'allowed_role_ids' => ['__requester__'],
             'display_order' => 1,
         ]);
@@ -411,7 +409,6 @@ class AquiProcessSeeder extends Seeder
             'from_status_id' => $statusMapeados['Licitando']->id,
             'to_status_id' => $statusCondicional->id,
             'default_to_status_id' => $statusMapeados['Adquirindo']->id,
-            'label' => DemandButtonEnum::ENVIAR->value,
             'allowed_role_ids' => [$rolesMapeados['Licitador']->id],
             'display_order' => 2,
         ]);
@@ -450,7 +447,6 @@ class AquiProcessSeeder extends Seeder
             'from_status_id' => $statusMapeados['Aprovando']->id,
             'to_status_id' => $statusCondicional->id,
             'default_to_status_id' => $statusMapeados['Adquirindo']->id,
-            'label' => DemandButtonEnum::ENVIAR->value,
             'allowed_role_ids' => [$rolesMapeados['Aprovador']->id],
             'display_order' => 3,
         ]);
@@ -474,7 +470,6 @@ class AquiProcessSeeder extends Seeder
             'from_status_id' => $statusMapeados['Aprovando alto']->id,
             'to_status_id' => $statusCondicional->id,
             'default_to_status_id' => $statusMapeados['Adquirindo']->id,
-            'label' => DemandButtonEnum::ENVIAR->value,
             'allowed_role_ids' => [$rolesMapeados['Aprovador alto']->id],
             'display_order' => 4,
         ]);
@@ -497,7 +492,6 @@ class AquiProcessSeeder extends Seeder
             'entity_id' => $processo->id,
             'from_status_id' => $statusMapeados['Adquirindo']->id,
             'to_status_id' => $statusMapeados['Quitando']->id,
-            'label' => DemandButtonEnum::ENVIAR->value,
             'allowed_role_ids' => [$rolesMapeados['Adquirente']->id],
             'display_order' => 5,
         ]);
@@ -507,7 +501,6 @@ class AquiProcessSeeder extends Seeder
             'entity_id' => $processo->id,
             'from_status_id' => $statusMapeados['Quitando']->id,
             'to_status_id' => $statusEncerrada->id,
-            'label' => DemandButtonEnum::ENVIAR->value,
             'allowed_role_ids' => [$rolesMapeados['Quitador']->id],
             'display_order' => 6,
         ]);

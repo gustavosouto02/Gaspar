@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Enums\DemandButtonEnum;
 use App\Enums\DemandStatusEnum;
 use App\Enums\UserRoleEnum;
 use App\Filament\Pages\ControlPanel;
@@ -85,7 +84,6 @@ class FilamentPagesSmokeTest extends TestCase
             'entity_id' => $this->entity->id,
             'from_status_id' => $new->id,
             'to_status_id' => $closed->id,
-            'label' => DemandButtonEnum::ENVIAR->value,
             'allowed_role_ids' => ['__requester__'],
             'display_order' => 1,
         ]);

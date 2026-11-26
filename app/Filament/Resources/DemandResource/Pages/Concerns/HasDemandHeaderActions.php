@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\DemandResource\Pages\Concerns;
 
-use App\Enums\DemandButtonEnum;
 use App\Enums\DemandStatusEnum;
 use App\Enums\SatisfactionRatingEnum;
 use App\Enums\UserRoleEnum;
@@ -123,18 +122,12 @@ trait HasDemandHeaderActions
                 continue;
             }
 
-            $color = $transition->toStatus?->badgeColor() ?? 'primary';
-
-            $label = $transition->label instanceof DemandButtonEnum
-                ? $transition->label->value
-                : ($transition->label ?? DemandButtonEnum::ENVIAR->value);
-
             $actions[] = Actions\Action::make('transition_'.Str::slug($transition->id))
-                ->label($label)
-                ->color($color)
+                ->label('Enviar')
+                ->color('primary')
                 ->icon('heroicon-o-arrow-right-circle')
                 ->requiresConfirmation()
-                ->modalHeading("Confirmar: {$label}")
+                ->modalHeading('Confirmar envio')
                 ->modalDescription(function () use ($transition) {
                     $from = $transition->fromStatus?->name ?? 'Qualquer';
                     $to = $transition->toStatus?->name ?? '?';
@@ -213,7 +206,7 @@ trait HasDemandHeaderActions
             // O retorno à situação anterior é sempre permitido, independente do fluxo configurado.
             $actions[] = Actions\Action::make('return_previous_status')
                 ->label("Retornar para: {$previousStatusName}")
-                ->color('warning')
+                ->color('gray')
                 ->icon('heroicon-o-arrow-uturn-left')
                 ->requiresConfirmation()
                 ->modalHeading('Devolver Demanda')

@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Enums\DemandButtonEnum;
 use App\Enums\UserRoleEnum;
 use App\Filament\Resources\CustomEntityResource\Pages\CreateCustomEntity;
 use App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity;
@@ -247,69 +246,9 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
         ])
             ->callTableAction('create', data: [
                 'to_status_id' => $status->id,
-                'label' => DemandButtonEnum::ENVIAR->value,
                 'allowed_role_ids' => [],
             ])
             ->assertHasTableActionErrors(['allowed_role_ids' => 'required']);
-    }
-
-    public function test_campo_label_na_transicao_deve_ser_salvar_ou_enviar_e_rejeita_customizado(): void
-    {
-        $macro = Macroprocess::create([
-            'name' => 'Macroprocesso Teste Enum',
-            'acronym' => 'MTE',
-            'value_chain_function' => 'Suportar Processos',
-            'description' => 'Descrição',
-            'is_active' => true,
-            'created_by' => $this->admin->id,
-        ]);
-
-        $entity = CustomEntity::create([
-            'name' => 'Processo Teste Enum',
-            'macroprocess_id' => $macro->id,
-            'purpose' => 'Finalístico',
-            'sla_hours' => 24,
-            'description' => 'Descrição',
-            'is_active' => true,
-            'created_by' => $this->admin->id,
-        ]);
-
-        $status = ProcessStatus::create([
-            'name' => 'Em Análise Enum',
-            'color' => 'blue',
-            'is_system' => false,
-        ]);
-        $entity->processStatuses()->attach($status->id, ['display_order' => 1]);
-
-        // Rejeita nome customizado como 'Aprovar' ou 'Customizado'
-        Livewire::test(StatusTransitionsRelationManager::class, [
-            'ownerRecord' => $entity,
-            'pageClass' => EditCustomEntity::class,
-        ])
-            ->callTableAction('create', data: [
-                'to_status_id' => $status->id,
-                'label' => 'Nome Customizado Invalido',
-                'allowed_role_ids' => ['__requester__'],
-            ])
-            ->assertHasTableActionErrors(['label']);
-
-        // Aceita 'Salvar' e 'Enviar'
-        Livewire::test(StatusTransitionsRelationManager::class, [
-            'ownerRecord' => $entity,
-            'pageClass' => EditCustomEntity::class,
-        ])
-            ->callTableAction('create', data: [
-                'to_status_id' => $status->id,
-                'label' => DemandButtonEnum::SALVAR->value,
-                'allowed_role_ids' => ['__requester__'],
-            ])
-            ->assertHasNoTableActionErrors();
-
-        $this->assertDatabaseHas('status_transitions', [
-            'entity_id' => $entity->id,
-            'to_status_id' => $status->id,
-            'label' => 'Salvar',
-        ]);
     }
 
     public function test_telas_de_edicao_e_visualizacao_do_processo_exibem_titulo_sistematizacao(): void
