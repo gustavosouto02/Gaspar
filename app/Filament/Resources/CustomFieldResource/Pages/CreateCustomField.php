@@ -11,9 +11,8 @@ class CreateCustomField extends CreateRecord
 
     protected function mutateFormDataBeforeCreate(array $data): array
     {
-        if (empty($data['key']) && ! empty($data['name'])) {
-            $data['key'] = str($data['name'])->slug('_')->toString();
-        }
+        // A chave não aparece na tela: vem sempre do nome.
+        $data['key'] = str($data['name'])->slug('_')->toString();
 
         return CustomFieldResource::packLookup($data);
     }
