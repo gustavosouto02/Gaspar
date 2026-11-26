@@ -85,19 +85,31 @@ class StatusTransitionsRelationManager extends RelationManager
                 ->toArray();
         };
 
+        // Toda demanda nasce em "Nova": é a origem sugerida
+        $initialStatusId = $entity->initialProcessStatus()?->id;
+
         return $form->schema([
             Forms\Components\Select::make('from_status_id')
                 ->label('De (situação atual)')
                 ->options($fromStatusOptions)
-                ->nullable()
+                ->default($initialStatusId)
+                ->required()
                 ->live()
-                ->placeholder('Qualquer situação (inicial)')
-                ->helperText('Deixe vazio para permitir a transição de qualquer situação'),
+                // Se a origem passar a ser igual ao destino já escolhido, o destino é limpo
+                ->afterStateUpdated(function (?string $state, Get $get, Set $set): void {
+                    if ($state && $get('to_status_id') === $state) {
+                        $set('to_status_id', null);
+                    }
+                })
+                ->placeholder('Selecione a situação de origem'),
 
             Forms\Components\Select::make('to_status_id')
                 ->label('Para (próxima situação)')
-                ->options($toStatusOptions)
+                // A própria situação de origem não é destino possível
+                ->options(fn (Get $get) => array_diff_key($toStatusOptions, [$get('from_status_id') => true]))
                 ->required()
+                ->different('from_status_id')
+                ->validationMessages(['different' => 'O destino precisa ser diferente da situação de origem.'])
                 ->live(),
 
             Forms\Components\Select::make('label')
