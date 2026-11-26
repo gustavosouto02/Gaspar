@@ -4,7 +4,6 @@ namespace App\Filament\Pages;
 
 use App\Enums\DemandPriorityEnum;
 use App\Enums\DemandStatusEnum;
-use App\Enums\ProcessStatusColorEnum;
 use App\Filament\Resources\DemandResource;
 use App\Livewire\Attributes\UrlArray;
 use App\Models\CustomEntity;
@@ -137,9 +136,7 @@ class DemandReports extends Page implements HasForms, HasTable
             Tables\Columns\TextColumn::make('processStatus.name')
                 ->label('Situação')
                 ->badge()
-                ->color(fn ($record) => $record->processStatus
-                    ? ProcessStatusColorEnum::tryFrom($record->processStatus->color)?->filamentColor() ?? 'gray'
-                    : 'gray')
+                ->color(fn ($record) => $record->processStatus?->badgeColor() ?? 'gray')
                 ->placeholder('—')
                 ->toggleable(),
 

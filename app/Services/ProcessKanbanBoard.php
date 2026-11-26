@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Enums\ProcessStatusColorEnum;
 use App\Models\CustomEntity;
 use App\Models\Demand;
 use App\Models\ProcessStatus;
@@ -41,7 +40,7 @@ class ProcessKanbanBoard
         $columns = $statuses->map(fn (ProcessStatus $status) => [
             'key' => $status->id,
             'name' => $status->name,
-            'color' => ProcessStatusColorEnum::tryFrom((string) $status->color)?->filamentColor() ?? 'gray',
+            'color' => $status->badgeColor(),
             'total' => (int) ($totals[$status->id] ?? 0),
             'records' => $this->cards(
                 $entity,

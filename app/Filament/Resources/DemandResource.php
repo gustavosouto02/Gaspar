@@ -5,7 +5,6 @@ namespace App\Filament\Resources;
 use App\Enums\DemandPriorityEnum;
 use App\Enums\DemandStatusEnum;
 use App\Enums\FieldPermissionEnum;
-use App\Enums\ProcessStatusColorEnum;
 use App\Enums\UserRoleEnum;
 use App\Filament\Resources\DemandResource\Pages;
 use App\Models\ActivityLog;
@@ -513,9 +512,7 @@ class DemandResource extends Resource
                 Tables\Columns\TextColumn::make('processStatus.name')
                     ->label('Situação')
                     ->badge()
-                    ->color(fn ($record) => $record->processStatus
-                        ? ProcessStatusColorEnum::tryFrom($record->processStatus->color)?->filamentColor() ?? 'gray'
-                        : 'gray')
+                    ->color(fn ($record) => $record->processStatus?->badgeColor() ?? 'gray')
                     ->placeholder('—'),
 
                 Tables\Columns\TextColumn::make('priority')

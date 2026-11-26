@@ -4,7 +4,6 @@ namespace App\Filament\Resources\DemandResource\RelationManagers;
 
 use App\Enums\DemandPriorityEnum;
 use App\Enums\DemandStatusEnum;
-use App\Enums\ProcessStatusColorEnum;
 use App\Filament\Resources\DemandResource;
 use App\Models\Demand;
 use Filament\Forms;
@@ -80,9 +79,7 @@ class SubDemandsRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('processStatus.name')
                     ->label('Situação')
                     ->badge()
-                    ->color(fn ($record) => $record->processStatus
-                        ? ProcessStatusColorEnum::tryFrom($record->processStatus->color)?->filamentColor() ?? 'gray'
-                        : 'gray')
+                    ->color(fn ($record) => $record->processStatus?->badgeColor() ?? 'gray')
                     ->placeholder('—'),
 
                 Tables\Columns\TextColumn::make('priority')
