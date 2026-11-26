@@ -98,15 +98,13 @@ class CreateDemand extends CreateRecord
             ]);
         }
 
-        // O select de situação é disabled; garante o preenchimento com a situação
-        // "Nova" mesmo quando o processo veio pré-selecionado via URL (o default
-        // por query string não dispara o afterStateUpdated do select de processo)
-        if (empty($data['process_status_id']) && ! empty($data['entity_id'])) {
-            $entity = CustomEntity::find($data['entity_id']);
-            $data['process_status_id'] = $entity?->initialProcessStatus()?->id;
+        // Toda demanda nasce na situação inicial do processo, em nome de quem está salvando:
+        // os campos são desabilitados na tela, mas o servidor não depende disso
+        if (! empty($data['entity_id'])) {
+            $data['process_status_id'] = CustomEntity::find($data['entity_id'])?->initialProcessStatus()?->id;
         }
 
-        // A autoria é sempre de quem está salvando (é ela que libera o envio do rascunho)
+        $data['requested_by'] = auth()->id();
         $data['created_by'] = auth()->id();
 
         $data['status'] = $this->isDraft

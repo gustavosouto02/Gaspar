@@ -93,13 +93,17 @@ class EditDemand extends EditRecord
         $this->newTreatment = $data['new_treatment'] ?? null;
         unset($data['new_treatment']);
 
-        // Campos ocultos/desabilitados podem vir adulterados no payload: a autoria não muda na
-        // edição, e o rascunho só sai de rascunho/de "Nova" pelo envio
-        unset($data['created_by']);
-
-        if ($this->record->status === DemandStatusEnum::DRAFT) {
-            unset($data['status'], $data['process_status_id'], $data['requested_by']);
-        }
+        // Definidos pelo sistema ou pelo fluxo, nunca pelo salvar: campo oculto ou desabilitado
+        // não é garantia, então o que vier do navegador é descartado
+        unset(
+            $data['entity_id'],
+            $data['process_status_id'],
+            $data['status'],
+            $data['priority'],
+            $data['requested_by'],
+            $data['created_by'],
+            $data['parent_demand_id'],
+        );
 
         if ($this->isSubmittingDraft) {
             $data['status'] = DemandStatusEnum::ACTIVE->value;
