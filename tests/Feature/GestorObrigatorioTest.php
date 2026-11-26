@@ -526,7 +526,7 @@ class GestorObrigatorioTest extends TestCase
         [$macro, $processo, $tipo, $outroGestor] = $this->cenarioDeGestao();
 
         Livewire::test(EditUser::class, ['record' => $this->gestor->id])
-            ->fillForm(['user_role' => UserRoleEnum::EXECUTOR->value, 'is_active' => false])
+            ->fillForm(['user_role' => UserRoleEnum::EXECUTOR->value, 'is_active' => false, 'phone' => '(61) 98888-0000'])
             ->call('save')
             ->assertHasNoFormErrors();
 

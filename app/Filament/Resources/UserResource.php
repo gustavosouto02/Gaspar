@@ -7,6 +7,7 @@ use App\Filament\Resources\Concerns\CustomFieldsRelationManager;
 use App\Filament\Resources\Concerns\HasRecordTypeLabel;
 use App\Filament\Resources\UserResource\Pages;
 use App\Models\User;
+use App\Support\PhoneInput;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -62,10 +63,8 @@ class UserResource extends Resource
                     ->required()
                     ->unique(ignoreRecord: true),
 
-                TextInput::make('phone')
-                    ->label('Fone')
-                    ->tel()
-                    ->maxLength(255),
+                PhoneInput::make('phone')
+                    ->label('Fone'),
 
                 TextInput::make('password')
                     ->label('Senha')

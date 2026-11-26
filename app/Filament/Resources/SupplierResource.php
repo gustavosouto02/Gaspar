@@ -6,6 +6,7 @@ use App\Filament\Resources\Concerns\CustomFieldsRelationManager;
 use App\Filament\Resources\Concerns\HasRecordTypeLabel;
 use App\Filament\Resources\SupplierResource\Pages;
 use App\Models\Supplier;
+use App\Support\PhoneInput;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -42,10 +43,8 @@ class SupplierResource extends Resource
                     ->label('Nome')
                     ->required()
                     ->maxLength(255),
-                Forms\Components\TextInput::make('phone')
-                    ->label('Telefone')
-                    ->tel()
-                    ->maxLength(255),
+                PhoneInput::make('phone')
+                    ->label('Telefone'),
                 Forms\Components\TextInput::make('email')
                     ->label('E-mail')
                     ->email()
