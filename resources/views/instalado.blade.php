@@ -299,7 +299,7 @@
             </div>
         </div>
 
-        @if(!empty($mail_username) || !empty($mail_host))
+        @if(!empty($mail_host))
         <div class="credentials-card">
             <div class="credentials-title">
                 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -312,12 +312,6 @@
                 <span class="credential-label">Servidor SMTP</span>
                 <span class="credential-value">{{ $mail_host }}:{{ $mail_port }} ({{ strtoupper($mail_encryption ?: 'NENHUMA') }})</span>
             </div>
-            @if(!empty($mail_username))
-            <div class="credential-row">
-                <span class="credential-label">Conta de Envio</span>
-                <span class="credential-value">{{ $mail_username }}</span>
-            </div>
-            @endif
             <div class="credential-row">
                 <span class="credential-label">Remetente</span>
                 <span class="credential-value">{{ $mail_from_name }} &lt;{{ $mail_from_address }}&gt;</span>
