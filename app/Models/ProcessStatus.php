@@ -53,8 +53,8 @@ class ProcessStatus extends Model
             'closed' => 'info',
             'evaluated' => 'success',
             'canceled' => 'danger',
-            'conditional' => 'warning',
-            default => 'purple',
+            'conditional' => 'purple',
+            default => 'primary',
         };
     }
 

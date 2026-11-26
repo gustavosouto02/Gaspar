@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Enums\DemandButtonEnum;
 use App\Enums\DemandStatusEnum;
 use App\Enums\FieldPermissionEnum;
 use App\Exceptions\DemandTransitionException;
@@ -116,7 +115,7 @@ class DemandTransitionService
                 [
                     'process_status_id' => $target->id,
                     'status_name' => $target->name,
-                    'action' => $transition->label instanceof DemandButtonEnum ? $transition->label->value : $transition->label,
+                    'action' => 'Enviar',
                     'transition_id' => $transition->id,
                 ],
                 $transition->toStatus?->isConditional()

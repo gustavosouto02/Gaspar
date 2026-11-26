@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Enums\DemandButtonEnum;
 use App\Enums\DemandStatusEnum;
 use App\Enums\FieldPermissionEnum;
 use App\Enums\FieldTypeEnum;
@@ -133,7 +132,6 @@ class VersionamentoProcessosTest extends TestCase
             'from_status_id' => $new->id,
             'to_status_id' => $conditional->id,
             'default_to_status_id' => $this->emValidacao->id,
-            'label' => DemandButtonEnum::ENVIAR->value,
             'allowed_role_ids' => ['__requester__'],
             'display_order' => 1,
         ]);
@@ -147,7 +145,6 @@ class VersionamentoProcessosTest extends TestCase
             'entity_id' => $this->v1->id,
             'from_status_id' => $this->emAprovacao->id,
             'to_status_id' => $this->emAnalise->id,
-            'label' => DemandButtonEnum::ENVIAR->value,
             'display_order' => 2,
         ]);
 

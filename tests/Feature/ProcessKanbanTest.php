@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Enums\DemandButtonEnum;
 use App\Enums\DemandStatusEnum;
 use App\Enums\UserRoleEnum;
 use App\Filament\Pages\DemandReports;
@@ -68,7 +67,7 @@ class ProcessKanbanTest extends TestCase
         // Nova -> (Condicional: regra -> Aprovando, senão Em análise); Em análise -> Aprovando -> Encerrada
         $entrada = StatusTransition::create([
             'entity_id' => $this->processo->id, 'from_status_id' => $new->id, 'to_status_id' => $conditional->id,
-            'default_to_status_id' => $this->analise->id, 'label' => DemandButtonEnum::ENVIAR->value,
+            'default_to_status_id' => $this->analise->id,
             'allowed_role_ids' => ['__requester__'], 'display_order' => 1,
         ]);
         TransitionRule::create([
@@ -79,7 +78,7 @@ class ProcessKanbanTest extends TestCase
         foreach ([[$this->analise, $this->aprovando], [$this->aprovando, $closed]] as $i => [$de, $para]) {
             StatusTransition::create([
                 'entity_id' => $this->processo->id, 'from_status_id' => $de->id, 'to_status_id' => $para->id,
-                'label' => DemandButtonEnum::ENVIAR->value, 'allowed_role_ids' => [], 'display_order' => $i + 2,
+                'allowed_role_ids' => [], 'display_order' => $i + 2,
             ]);
         }
     }
@@ -409,10 +408,10 @@ class ProcessKanbanTest extends TestCase
         $antes = app(ProcessKanbanBoard::class)->orderedStatuses($this->processo)->pluck('name')->all();
 
         // De qualquer situação para Aprovando e para Em análise: não definem posição no fluxo
-        foreach ([[$this->aprovando, 'Reabrir'], [$this->analise, 'Voltar']] as $i => [$destino, $rotulo]) {
+        foreach ([$this->aprovando, $this->analise] as $i => $destino) {
             StatusTransition::create([
                 'entity_id' => $this->processo->id, 'from_status_id' => null, 'to_status_id' => $destino->id,
-                'label' => $rotulo, 'allowed_role_ids' => [], 'display_order' => 10 + $i,
+                'allowed_role_ids' => [], 'display_order' => 10 + $i,
             ]);
         }
 

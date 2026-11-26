@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Enums\DemandButtonEnum;
 use App\Enums\FieldPermissionEnum;
 use App\Enums\FieldTypeEnum;
 use App\Enums\UserRoleEnum;
@@ -65,7 +64,6 @@ class HistoricoPermissoesTest extends TestCase
             'entity_id' => $this->processo->id,
             'from_status_id' => $this->situacao->id,
             'to_status_id' => $outra->id,
-            'label' => DemandButtonEnum::SALVAR->value,
             'allowed_role_ids' => ['__assignee__'],
             'display_order' => 1,
         ]);

@@ -197,7 +197,7 @@ class ProcessStatusResourceTest extends TestCase
             'closed' => 'info',
             'evaluated' => 'success',
             'canceled' => 'danger',
-            'conditional' => 'warning',
+            'conditional' => 'purple',
         ];
 
         foreach ($esperado as $systemKey => $cor) {
@@ -208,7 +208,7 @@ class ProcessStatusResourceTest extends TestCase
         foreach (['green', 'red', 'gray'] as $i => $corAntiga) {
             $status = ProcessStatus::create(['name' => "Própria {$i}", 'color' => $corAntiga]);
 
-            $this->assertSame('purple', $status->badgeColor());
+            $this->assertSame('primary', $status->badgeColor());
         }
     }
 

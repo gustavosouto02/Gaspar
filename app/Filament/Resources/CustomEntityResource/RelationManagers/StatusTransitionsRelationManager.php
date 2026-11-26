@@ -2,7 +2,6 @@
 
 namespace App\Filament\Resources\CustomEntityResource\RelationManagers;
 
-use App\Enums\DemandButtonEnum;
 use App\Enums\FieldTypeEnum;
 use App\Enums\RuleOperatorEnum;
 use App\Filament\Resources\Concerns\LocksProcessStructure;
@@ -18,6 +17,7 @@ use Filament\Forms\Set;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Validation\Rules\Unique;
 
 class StatusTransitionsRelationManager extends RelationManager
 {
@@ -93,6 +93,9 @@ class StatusTransitionsRelationManager extends RelationManager
                 ->options($fromStatusOptions)
                 ->default($initialStatusId)
                 ->required()
+                // Cada situação de origem tem um único destino: uma só transição "Enviar"
+                ->unique(ignoreRecord: true, modifyRuleUsing: fn (Unique $rule) => $rule->where('entity_id', $entity->id))
+                ->validationMessages(['unique' => 'Já existe uma transição saindo desta situação.'])
                 ->live()
                 // Se a origem passar a ser igual ao destino já escolhido, o destino é limpo
                 ->afterStateUpdated(function (?string $state, Get $get, Set $set): void {
@@ -110,14 +113,6 @@ class StatusTransitionsRelationManager extends RelationManager
                 ->different('from_status_id')
                 ->validationMessages(['different' => 'O destino precisa ser diferente da situação de origem.'])
                 ->live(),
-
-            Forms\Components\Select::make('label')
-                ->label('Texto do botão')
-                ->options(DemandButtonEnum::options())
-                ->default(DemandButtonEnum::ENVIAR->value)
-                ->required()
-                ->in(array_keys(DemandButtonEnum::options()))
-                ->helperText('Selecione se o botão de ação na demanda será Salvar ou Enviar'),
 
             Forms\Components\Select::make('allowed_role_ids')
                 ->label('Papéis que podem disparar')
@@ -393,7 +388,7 @@ class StatusTransitionsRelationManager extends RelationManager
     {
         return $table
             ->description(fn () => $this->structureLockedNotice())
-            ->recordTitleAttribute('label')
+            ->recordTitle(fn (StatusTransition $record): string => "{$record->fromStatus?->name} → {$record->toStatus?->name}")
             ->modifyQueryUsing(fn ($query) => $query->with(['fromStatus', 'toStatus', 'defaultToStatus', 'rules.toStatus']))
             ->columns([
                 Tables\Columns\TextColumn::make('fromStatus.name')
@@ -420,11 +415,6 @@ class StatusTransitionsRelationManager extends RelationManager
 
                         return $targets !== '' ? "Condicional → {$targets}" : 'Condicional';
                     }),
-
-                Tables\Columns\TextColumn::make('label')
-                    ->label('Botão de ação')
-                    ->badge()
-                    ->color(fn (StatusTransition $record) => $record->label instanceof DemandButtonEnum ? $record->label->filamentColor() : 'success'),
 
                 Tables\Columns\TextColumn::make('allowed_role_ids')
                     ->label('Papéis permitidos')

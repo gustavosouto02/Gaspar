@@ -84,6 +84,38 @@ class StatusTransitionOriginTest extends TestCase
         $this->assertSame(0, StatusTransition::where('entity_id', $this->entity->id)->count());
     }
 
+    public function test_editar_uma_transicao_salva_sem_erro(): void
+    {
+        $transition = StatusTransition::create([
+            'entity_id' => $this->entity->id,
+            'from_status_id' => ProcessStatus::findBySystemKey('new')->id,
+            'to_status_id' => ProcessStatus::findBySystemKey('closed')->id,
+            'allowed_role_ids' => ['__requester__'],
+        ]);
+
+        $this->transitions()
+            ->mountTableAction('edit', $transition)
+            ->assertFormFieldDoesNotExist('label', 'mountedTableActionForm')
+            ->callMountedTableAction()
+            ->assertHasNoTableActionErrors();
+    }
+
+    public function test_situacao_de_origem_aceita_uma_unica_transicao(): void
+    {
+        $new = ProcessStatus::findBySystemKey('new')->id;
+        $data = [
+            'from_status_id' => $new,
+            'to_status_id' => ProcessStatus::findBySystemKey('closed')->id,
+            'allowed_role_ids' => ['__requester__'],
+        ];
+
+        $this->transitions()->callTableAction('create', data: $data)->assertHasNoTableActionErrors();
+        $this->transitions()->callTableAction('create', data: $data)
+            ->assertHasTableActionErrors(['from_status_id' => 'unique']);
+
+        $this->assertSame(1, StatusTransition::where('entity_id', $this->entity->id)->count());
+    }
+
     public function test_destino_nao_oferece_a_situacao_de_origem(): void
     {
         $new = ProcessStatus::findBySystemKey('new')->id;

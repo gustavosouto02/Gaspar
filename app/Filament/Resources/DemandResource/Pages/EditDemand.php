@@ -189,7 +189,7 @@ class EditDemand extends EditRecord
         }
 
         // Botão padrão de salvar alterações
-        $actions[] = $this->getSaveFormAction()->label('Salvar Alterações');
+        $actions[] = $this->getSaveFormAction()->label('Salvar');
 
         $actions[] = $this->getCancelFormAction();
 
