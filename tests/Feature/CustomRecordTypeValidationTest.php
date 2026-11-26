@@ -6,6 +6,7 @@ use App\Enums\UserRoleEnum;
 use App\Filament\Resources\ClientResource;
 use App\Filament\Resources\CustomRecordTypeResource\Pages\CreateCustomRecordType;
 use App\Filament\Resources\CustomRecordTypeResource\Pages\EditCustomRecordType;
+use App\Filament\Resources\CustomRecordTypeResource\Pages\ListCustomRecordTypes;
 use App\Filament\Resources\MacroprocessResource;
 use App\Filament\Resources\SupplierResource;
 use App\Models\Client;
@@ -46,14 +47,13 @@ class CustomRecordTypeValidationTest extends TestCase
 
         Livewire::test(CreateCustomRecordType::class)
             ->set('data.name', '123456789012345') // 15 caracteres
-            ->set('data.slug', 'teste-15-chars')
             ->set('data.managers', [$this->gestor->id])
             ->call('create')
             ->assertHasNoFormErrors();
 
         $this->assertDatabaseHas('custom_record_types', [
             'name' => '123456789012345',
-            'slug' => 'teste-15-chars',
+            'slug' => '123456789012345',
             'is_system' => false,
         ]);
     }
@@ -64,7 +64,6 @@ class CustomRecordTypeValidationTest extends TestCase
 
         Livewire::test(CreateCustomRecordType::class)
             ->set('data.name', '1234567890123456') // 16 caracteres
-            ->set('data.slug', 'teste-16-chars')
             ->call('create')
             ->assertHasFormErrors(['name' => 'max']);
     }
@@ -108,16 +107,73 @@ class CustomRecordTypeValidationTest extends TestCase
             ->assertHasFormErrors(['name' => 'max']);
     }
 
-    public function test_slug_permanece_bloqueado_para_cadastro_base(): void
+    public function test_slug_fica_oculto_no_formulario_e_na_listagem(): void
     {
         $this->actingAs($this->admin);
 
-        $baseType = CustomRecordType::where('model_class', Client::class)
-            ->where('is_system', true)
-            ->firstOrFail();
+        Livewire::test(CreateCustomRecordType::class)
+            ->assertFormFieldDoesNotExist('slug');
 
-        Livewire::test(EditCustomRecordType::class, ['record' => $baseType->id])
-            ->assertFormFieldIsDisabled('slug');
+        Livewire::test(ListCustomRecordTypes::class)
+            ->assertTableColumnDoesNotExist('slug');
+    }
+
+    public function test_slug_eh_gerado_do_nome_e_nao_muda_ao_renomear(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(CreateCustomRecordType::class)
+            ->set('data.name', 'Veículos')
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $tipo = CustomRecordType::where('name', 'Veículos')->firstOrFail();
+        $this->assertSame('veiculos', $tipo->slug);
+
+        Livewire::test(EditCustomRecordType::class, ['record' => $tipo->id])
+            ->set('data.name', 'Frota')
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame('veiculos', $tipo->fresh()->slug);
+
+        // O nome antigo ficou livre, mas o slug dele continua ocupado.
+        Livewire::test(CreateCustomRecordType::class)
+            ->set('data.name', 'Veículos')
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('custom_record_types', ['name' => 'Veículos', 'slug' => 'veiculos-2']);
+    }
+
+    public function test_listagem_pesquisa_pelo_slug_mesmo_sem_mostra_lo(): void
+    {
+        $this->actingAs($this->admin);
+
+        $renomeado = CustomRecordType::create(['name' => 'Frota', 'slug' => 'veiculos']);
+        $outro = CustomRecordType::create(['name' => 'Produtos', 'slug' => 'produtos']);
+
+        Livewire::test(ListCustomRecordTypes::class)
+            ->searchTable('veiculos')
+            ->assertCanSeeTableRecords([$renomeado])
+            ->assertCanNotSeeTableRecords([$outro]);
+    }
+
+    public function test_nome_repetido_ou_sem_letras_e_numeros_eh_recusado(): void
+    {
+        $this->actingAs($this->admin);
+
+        CustomRecordType::create(['name' => 'Produtos', 'slug' => 'produtos']);
+
+        Livewire::test(CreateCustomRecordType::class)
+            ->set('data.name', 'Produtos')
+            ->call('create')
+            ->assertHasFormErrors(['name' => 'unique']);
+
+        Livewire::test(CreateCustomRecordType::class)
+            ->set('data.name', '---')
+            ->call('create')
+            ->assertHasFormErrors(['name' => 'regex']);
     }
 
     public function test_cadastro_legado_com_nome_longo_pode_ser_editado_quando_nome_nao_muda(): void

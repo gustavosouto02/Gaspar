@@ -6,6 +6,7 @@ use App\Enums\FieldTypeEnum;
 use App\Enums\UserRoleEnum;
 use App\Filament\Resources\CustomFieldResource\Pages\CreateCustomField;
 use App\Filament\Resources\CustomFieldResource\Pages\EditCustomField;
+use App\Filament\Resources\CustomFieldResource\Pages\ListCustomFields;
 use App\Models\CustomField;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -28,12 +29,13 @@ class CustomFieldValidationTest extends TestCase
         ]);
     }
 
-    public function test_chave_slug_eh_bloqueada_e_gerada_automaticamente_a_partir_do_nome(): void
+    public function test_chave_slug_fica_oculta_e_eh_gerada_a_partir_do_nome(): void
     {
         $this->actingAs($this->admin);
 
         $component = Livewire::test(CreateCustomField::class)
-            ->assertFormFieldIsDisabled('key')
+            ->assertFormFieldDoesNotExist('key')
+            ->assertDontSee('Chave (slug)')
             ->set('data.name', 'Prazo de Entrega Estimado')
             ->set('data.field_type', FieldTypeEnum::TEXT->value)
             ->call('create')
@@ -46,7 +48,7 @@ class CustomFieldValidationTest extends TestCase
         ]);
     }
 
-    public function test_chave_slug_permanece_bloqueada_na_edicao(): void
+    public function test_chave_slug_fica_oculta_e_preservada_na_edicao(): void
     {
         $this->actingAs($this->admin);
 
@@ -59,7 +61,38 @@ class CustomFieldValidationTest extends TestCase
         ]);
 
         Livewire::test(EditCustomField::class, ['record' => $field->id])
-            ->assertFormFieldIsDisabled('key');
+            ->assertFormFieldDoesNotExist('key')
+            ->set('data.name', 'Data Final')
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame('data_limite', $field->fresh()->key);
+    }
+
+    public function test_listagem_pesquisa_pela_chave_mesmo_sem_mostra_la(): void
+    {
+        $this->actingAs($this->admin);
+
+        $renomeado = CustomField::factory()->create(['name' => 'Data Final', 'key' => 'data_limite']);
+        $outro = CustomField::factory()->create(['name' => 'Ramal', 'key' => 'ramal']);
+
+        Livewire::test(ListCustomFields::class)
+            ->searchTable('data_limite')
+            ->assertCanSeeTableRecords([$renomeado])
+            ->assertCanNotSeeTableRecords([$outro]);
+    }
+
+    public function test_nome_sem_letras_ou_numeros_eh_recusado(): void
+    {
+        $this->actingAs($this->admin);
+
+        Livewire::test(CreateCustomField::class)
+            ->set('data.name', '---')
+            ->set('data.field_type', FieldTypeEnum::TEXT->value)
+            ->call('create')
+            ->assertHasFormErrors(['name' => 'regex']);
+
+        $this->assertDatabaseMissing('custom_fields', ['name' => '---']);
     }
 
     public function test_campo_do_tipo_moeda_pode_ser_criado_no_formulario(): void
