@@ -314,4 +314,36 @@ class MacroprocessoAndProcessoValidationTest extends TestCase
             'value_chain_function' => 'Suportar Processos',
         ]);
     }
+
+    public function test_modal_de_vincular_papel_oferece_salvar_e_vincular_outro(): void
+    {
+        $this->actingAs($this->admin);
+
+        $macro = Macroprocess::create([
+            'name' => 'Compras', 'acronym' => 'COMP', 'description' => 'Descrição',
+            'value_chain_function' => 'Suportar Processos',
+            'created_by' => $this->admin->id, 'manager_id' => $this->admin->id,
+        ]);
+        $processo = \App\Models\CustomEntity::create([
+            'name' => 'Processo', 'description' => 'Descrição', 'macroprocess_id' => $macro->id,
+            'purpose' => 'Apoio', 'sla_hours' => 24, 'is_active' => true,
+            'created_by' => $this->admin->id, 'manager_id' => $this->admin->id,
+        ]);
+        $papel = \App\Models\ProcessRole::create(['name' => 'Aprovador', 'created_by' => $this->admin->id]);
+
+        Livewire::test(\App\Filament\Resources\CustomEntityResource\RelationManagers\MembersRelationManager::class, [
+            'ownerRecord' => $processo,
+            'pageClass' => \App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity::class,
+        ])
+            ->mountTableAction('create')
+            ->assertSee('Salvar e vincular outro')
+            ->assertDontSee('Salvar e criar outro')
+            ->setTableActionData(['user_id' => $this->admin->id, 'process_role_id' => $papel->id])
+            ->callMountedTableAction(['another' => true])
+            ->assertHasNoTableActionErrors()
+            // Grava e mantém o modal aberto para o próximo vínculo
+            ->assertSet('mountedTableActions', ['create']);
+
+        $this->assertSame(1, $processo->members()->count());
+    }
 }

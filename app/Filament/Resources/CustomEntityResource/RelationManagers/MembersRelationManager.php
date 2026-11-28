@@ -78,7 +78,12 @@ class MembersRelationManager extends RelationManager
                     ->label('Vincular Papel')
                     ->color('primary')
                     ->modalHeading('Vincular Papel')
-                    ->modalSubmitActionLabel('Vincular'),
+                    ->modalSubmitActionLabel('Vincular')
+                    // O Filament não tem um setter só para o rótulo do "criar outro": o botão é redeclarado
+                    ->extraModalFooterActions(fn (Tables\Actions\CreateAction $action): array => [
+                        $action->makeModalSubmitAction('createAnother', arguments: ['another' => true])
+                            ->label('Salvar e vincular outro'),
+                    ]),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
