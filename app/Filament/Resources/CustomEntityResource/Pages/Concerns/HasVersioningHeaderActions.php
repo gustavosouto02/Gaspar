@@ -18,13 +18,13 @@ use Filament\Notifications\Notification;
 trait HasVersioningHeaderActions
 {
     /**
-     * "Editar estrutura": só aparece quando a versão vigente já tem demandas (a estrutura
+     * "Criar nova versão": só aparece quando a versão vigente já tem demandas (a estrutura
      * está travada). Sem demandas a estrutura é editada direto, sem criar versão.
      */
     protected function editStructureAction(): Actions\Action
     {
         return Actions\Action::make('edit_structure')
-            ->label('Editar estrutura')
+            ->label('Criar nova versão')
             ->icon('heroicon-o-pencil-square')
             ->color('warning')
             ->visible(fn () => auth()->user()?->user_role === UserRoleEnum::ADMIN
@@ -32,7 +32,7 @@ trait HasVersioningHeaderActions
                 && app(ProcessVersioningService::class)->hasDemands($this->record)
                 && ! $this->draftRecord())
             ->requiresConfirmation()
-            ->modalHeading('Editar estrutura do processo')
+            ->modalHeading('Criar nova versão do processo')
             ->modalDescription(fn () => 'Esta versão já tem demandas, por isso a estrutura (campos, situações, transições, permissões e papéis) não pode ser alterada. Será criado um rascunho da versão v'.app(ProcessVersioningService::class)->nextVersionNumber($this->record).', copiado desta. Esta versão continua vigente, recebendo demandas, até você publicar o rascunho; ao publicar, ela passa a ser antiga (intacta, só não abre novas demandas) e as demandas em aberto seguem nela.')
             ->modalSubmitActionLabel('Criar rascunho')
             ->action(function () {

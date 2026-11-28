@@ -199,7 +199,7 @@ class ProcessoSomenteLeituraTest extends TestCase
             ->assertActionHidden('edit_structure')
             ->assertActionHidden('inactive_versions');
 
-        // O aviso de estrutura travada fala de "Editar estrutura": não vale para quem só consulta
+        // O aviso de estrutura travada fala de "Criar nova versão": não vale para quem só consulta
         foreach (CustomEntityResource::getRelations() as $manager) {
             Livewire::test($manager, ['ownerRecord' => $v2->fresh(), 'pageClass' => ViewCustomEntity::class])
                 ->assertDontSee(ProcessVersioningService::LOCKED_STRUCTURE_MESSAGE);

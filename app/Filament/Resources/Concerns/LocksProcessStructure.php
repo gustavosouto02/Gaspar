@@ -37,7 +37,7 @@ trait LocksProcessStructure
     /** Aviso para a descrição da tabela (null quando a estrutura está liberada) */
     protected function structureLockedNotice(): ?string
     {
-        // O aviso manda usar "Editar estrutura", ação que só o ADMIN tem
+        // O aviso manda usar "Criar nova versão", ação que só o ADMIN tem
         if (auth()->user()?->user_role !== UserRoleEnum::ADMIN) {
             return null;
         }
