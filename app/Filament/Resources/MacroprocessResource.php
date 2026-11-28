@@ -17,7 +17,6 @@ use Filament\Forms\Components\Toggle;
 use Filament\Forms\Form;
 use Filament\Infolists;
 use Filament\Infolists\Infolist;
-use Filament\Navigation\NavigationItem;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Columns\IconColumn;
@@ -33,35 +32,21 @@ class MacroprocessResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
 
-    protected static ?string $navigationGroup = 'Cadastros';
+    protected static ?string $navigationGroup = 'Administração';
+
+    protected static ?int $navigationSort = 2;
 
     protected static ?string $modelLabel = 'Macroprocesso';
 
     protected static ?string $pluralModelLabel = 'Macroprocessos';
 
-    public static function getNavigationItems(): array
+    /**
+     * No menu só para o admin, que mantém os macroprocessos. Os demais chegam a eles
+     * pela Cadeia de Valor no Painel de Controle.
+     */
+    public static function shouldRegisterNavigation(): bool
     {
-        $label = static::getNavigationLabel();
-
-        $items = [
-            NavigationItem::make($label)
-                ->group('Cadastros')
-                ->icon(static::getNavigationIcon())
-                ->sort(5)
-                ->url(static::getUrl('index'))
-                ->isActiveWhen(fn () => request()->routeIs(static::getRouteBaseName().'.*')),
-        ];
-
-        if (auth()->user()?->user_role === UserRoleEnum::ADMIN) {
-            $items[] = NavigationItem::make($label)
-                ->group('Administração')
-                ->icon(static::getNavigationIcon())
-                ->sort(2)
-                ->url(static::getUrl('index'))
-                ->isActiveWhen(fn () => request()->routeIs(static::getRouteBaseName().'.*'));
-        }
-
-        return $items;
+        return auth()->user()?->user_role === UserRoleEnum::ADMIN;
     }
 
     public static function canCreate(): bool
@@ -163,14 +148,15 @@ class MacroprocessResource extends Resource
                                 Infolists\Components\TextEntry::make('name')
                                     ->label('')
                                     ->formatStateUsing(fn ($record) => $record->full_display_name)
-                                    ->url(fn ($record) => auth()->user()?->user_role === UserRoleEnum::ADMIN ? CustomEntityResource::getUrl('edit', ['record' => $record]) : null)
-                                    ->color(fn () => auth()->user()?->user_role === UserRoleEnum::ADMIN ? 'primary' : 'gray'),
+                                    // ADMIN vai para a edição; os demais, para a visualização somente leitura
+                                    ->url(fn ($record) => CustomEntityResource::getUrl(auth()->user()?->user_role === UserRoleEnum::ADMIN ? 'edit' : 'view', ['record' => $record]))
+                                    ->color('primary'),
                             ])
                             ->grid(1)
                             ->columnSpanFull(),
                     ]),
 
-                // Versões antigas de processos (somente leitura): só aparece quando há alguma
+                // Versões antigas de processos (somente leitura): só para ADMIN e quando há alguma
                 Infolists\Components\Section::make('Versões antigas de processos')
                     ->schema([
                         Infolists\Components\RepeatableEntry::make('inactiveProcessVersions')
@@ -179,14 +165,15 @@ class MacroprocessResource extends Resource
                                 Infolists\Components\TextEntry::make('name')
                                     ->label('')
                                     ->formatStateUsing(fn ($record) => $record->full_display_name)
-                                    ->url(fn ($record) => auth()->user()?->user_role === UserRoleEnum::ADMIN ? CustomEntityResource::getUrl('view', ['record' => $record]) : null)
+                                    ->url(fn ($record) => CustomEntityResource::getUrl('view', ['record' => $record]))
                                     ->color('gray'),
                             ])
                             ->grid(1)
                             ->columnSpanFull(),
                     ])
                     ->collapsed()
-                    ->visible(fn ($record) => $record?->inactiveProcessVersions()->exists()),
+                    ->visible(fn ($record) => auth()->user()?->user_role === UserRoleEnum::ADMIN
+                        && $record?->inactiveProcessVersions()->exists()),
             ]);
     }
 

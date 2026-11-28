@@ -279,8 +279,10 @@ class ProcessoAquiE2ETest extends TestCase
         ])
             ->assertTableActionVisible('attach');
 
+        // Quem não é ADMIN consulta os campos só na visualização, nunca na edição
         $this->actingAs($this->demandante);
-        $this->assertFalse($manager::canViewForRecord($this->processo, \App\Filament\Resources\CustomEntityResource\Pages\ViewCustomEntity::class));
+        $this->assertTrue($manager::canViewForRecord($this->processo, \App\Filament\Resources\CustomEntityResource\Pages\ViewCustomEntity::class));
+        $this->assertFalse($manager::canViewForRecord($this->processo, \App\Filament\Resources\CustomEntityResource\Pages\EditCustomEntity::class));
     }
 
     public function test_rota_seed_aqui_eh_restrita_a_admin_e_executa_o_seeder(): void

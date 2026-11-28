@@ -1,5 +1,5 @@
 {{-- Cópia de vendor/filament/filament/resources/views/resources/pages/view-record.blade.php (Filament v3.3.50).
-     Alterações: título "Sistematização do processo:" acima dos relation managers e seção "Quadro de demandas" (Livewire) ao final.
+     Alterações: título "Sistematização do processo:" acima dos relation managers e seção "Quadro de demandas" (Livewire, só ADMIN) ao final.
      Ao atualizar o Filament, comparar com o original. --}}
 <x-filament-panels::page
     @class([
@@ -52,5 +52,7 @@
         </div>
     @endif
 
-    @livewire(\App\Livewire\ProcessDemandsKanban::class, ['entityId' => $record->getKey()], key('process-demands-kanban-'.$record->getKey()))
+    @if (auth()->user()?->user_role === \App\Enums\UserRoleEnum::ADMIN)
+        @livewire(\App\Livewire\ProcessDemandsKanban::class, ['entityId' => $record->getKey()], key('process-demands-kanban-'.$record->getKey()))
+    @endif
 </x-filament-panels::page>

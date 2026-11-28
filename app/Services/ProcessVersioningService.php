@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\DB;
  */
 class ProcessVersioningService
 {
-    public const LOCKED_STRUCTURE_MESSAGE = 'Esta versão já tem demandas. Use "Editar estrutura" para criar uma nova versão.';
+    public const LOCKED_STRUCTURE_MESSAGE = 'Esta versão já tem demandas. Use o botão "Criar nova versão" para alterar a estrutura.';
 
     public const INACTIVE_VERSION_MESSAGE = 'Esta é uma versão antiga do processo e está somente leitura.';
 

@@ -222,4 +222,17 @@ class CustomRecordTypeValidationTest extends TestCase
 
         $this->assertContains('Processos Mae', $labels);
     }
+
+    public function test_lista_de_cadastros_nao_mostra_macroprocessos(): void
+    {
+        $this->actingAs($this->admin);
+
+        $macro = CustomRecordType::where('model_class', Macroprocess::class)->firstOrFail();
+        $cliente = CustomRecordType::where('model_class', Client::class)->firstOrFail();
+        $customizado = CustomRecordType::create(['name' => 'Veículos', 'slug' => 'veiculos']);
+
+        Livewire::test(ListCustomRecordTypes::class)
+            ->assertCanSeeTableRecords([$cliente, $customizado])
+            ->assertCanNotSeeTableRecords([$macro]);
+    }
 }

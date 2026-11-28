@@ -4,7 +4,9 @@ namespace App\Filament\Resources\CustomEntityResource\RelationManagers;
 
 use App\Enums\UserRoleEnum;
 use App\Filament\Resources\Concerns\LocksProcessStructure;
+use App\Models\CustomEntity;
 use Filament\Forms\Form;
+use Filament\Resources\Pages\ViewRecord;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
@@ -25,7 +27,16 @@ class FieldsRelationManager extends RelationManager
     public static function canViewForRecord(Model $ownerRecord, string $pageClass): bool
     {
         // Na tela de visualização o Filament exibe a aba somente leitura (sem vincular/desvincular)
-        return auth()->user()?->user_role === UserRoleEnum::ADMIN;
+        $user = auth()->user();
+
+        if ($user?->user_role === UserRoleEnum::ADMIN) {
+            return true;
+        }
+
+        // Quem não é ADMIN só consulta os campos na visualização de um processo que pode ver
+        return $ownerRecord instanceof CustomEntity
+            && is_subclass_of($pageClass, ViewRecord::class)
+            && (bool) $user?->can('view', $ownerRecord);
     }
 
     public function form(Form $form): Form

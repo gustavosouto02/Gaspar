@@ -458,7 +458,7 @@ class VersionamentoProcessosTest extends TestCase
     }
 
     // ------------------------------------------------------------------
-    // "Editar estrutura" e metadados
+    // "Criar nova versão" e metadados
     // ------------------------------------------------------------------
 
     public function test_editar_estrutura_so_aparece_com_demandas_e_cria_a_nova_versao(): void
@@ -796,7 +796,7 @@ class VersionamentoProcessosTest extends TestCase
     {
         $v2 = $this->publishedVersion($this->v1);
 
-        // Simula a corrida com "Editar estrutura": a v1 já voltou a ser vigente no banco
+        // Simula a corrida com "Criar nova versão": a v1 já voltou a ser vigente no banco
         // enquanto a instância da v2 ainda acredita que é a vigente
         CustomEntity::whereKey($this->v1->id)->update(['is_current' => true]);
         $this->assertTrue($v2->is_current);

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\CustomEntityResource\RelationManagers;
 
+use App\Enums\UserRoleEnum;
 use App\Filament\Resources\Concerns\LocksProcessStructure;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -63,7 +64,8 @@ class MembersRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('user.user_role')
                     ->label('Perfil do Sistema')
                     ->badge()
-                    ->sortable(),
+                    ->sortable()
+                    ->visible(fn () => auth()->user()?->user_role === UserRoleEnum::ADMIN),
 
                 Tables\Columns\TextColumn::make('processRole.name')
                     ->label('Papel no Processo')
@@ -76,7 +78,12 @@ class MembersRelationManager extends RelationManager
                     ->label('Vincular Papel')
                     ->color('primary')
                     ->modalHeading('Vincular Papel')
-                    ->modalSubmitActionLabel('Vincular'),
+                    ->modalSubmitActionLabel('Vincular')
+                    // O Filament não tem um setter só para o rótulo do "criar outro": o botão é redeclarado
+                    ->extraModalFooterActions(fn (Tables\Actions\CreateAction $action): array => [
+                        $action->makeModalSubmitAction('createAnother', arguments: ['another' => true])
+                            ->label('Salvar e vincular outro'),
+                    ]),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
