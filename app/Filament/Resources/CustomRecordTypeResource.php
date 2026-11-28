@@ -7,11 +7,13 @@ use App\Filament\Resources\Concerns\HasManagerField;
 use App\Filament\Resources\CustomEntityResource\RelationManagers\FieldsRelationManager;
 use App\Filament\Resources\CustomRecordTypeResource\Pages;
 use App\Models\CustomRecordType;
+use App\Models\Macroprocess;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class CustomRecordTypeResource extends Resource
 {
@@ -68,6 +70,11 @@ class CustomRecordTypeResource extends Resource
     public static function table(Table $table): Table
     {
         return $table
+            // Macroprocessos não aparece aqui: é mantido pela própria tela e visto pela Cadeia de Valor.
+            // O registro continua no banco, de onde vêm o nome, os campos e o relatório dele.
+            ->modifyQueryUsing(fn (Builder $query) => $query->where(
+                fn (Builder $q) => $q->whereNull('model_class')->orWhere('model_class', '!=', Macroprocess::class)
+            ))
             ->columns([
                 Tables\Columns\TextColumn::make('code')
                     ->label('Número')

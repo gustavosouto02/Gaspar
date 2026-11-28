@@ -82,6 +82,23 @@ class CadeiaValorTest extends TestCase
         $this->get('/admin/painel-de-controle')->assertOk()->assertSeeLivewire(ValueChainWidget::class);
     }
 
+    public function test_macroprocessos_fica_no_menu_so_em_administracao_para_o_admin(): void
+    {
+        $this->assertTrue(MacroprocessResource::shouldRegisterNavigation());
+        $this->assertSame(
+            ['Administração'],
+            array_map(fn ($item) => $item->getGroup(), MacroprocessResource::getNavigationItems()),
+        );
+
+        $macro = $this->macro('Compras', 'COMP', ValueChainFunctionEnum::SUPORTAR->value);
+        $this->actingAs(User::factory()->create(['user_role' => UserRoleEnum::EXECUTOR, 'is_active' => true]));
+
+        $this->assertFalse(MacroprocessResource::shouldRegisterNavigation());
+        // Sem item no menu, mas a tela continua aberta a partir da Cadeia de Valor
+        $this->get('/admin/painel-de-controle')->assertOk()->assertSeeLivewire(ValueChainWidget::class);
+        $this->get(MacroprocessResource::getUrl('view', ['record' => $macro]))->assertOk();
+    }
+
     public function test_formulario_so_aceita_as_funcoes_do_enum(): void
     {
         Livewire::test(CreateMacroprocess::class)
