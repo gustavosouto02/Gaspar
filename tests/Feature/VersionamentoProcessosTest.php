@@ -848,7 +848,7 @@ class VersionamentoProcessosTest extends TestCase
     // Telas de versões inativas
     // ------------------------------------------------------------------
 
-    public function test_listagem_de_processos_mostra_so_vigentes_e_leva_as_versoes_inativas(): void
+    public function test_listagem_de_processos_mostra_so_vigentes_e_nao_tem_versoes_inativas(): void
     {
         $this->actingAs($this->admin);
         $v2 = $this->publishedVersion($this->v1);
@@ -857,16 +857,18 @@ class VersionamentoProcessosTest extends TestCase
         Livewire::test(ListCustomEntities::class)
             ->assertCanSeeTableRecords([$v2, $outro])
             ->assertCanNotSeeTableRecords([$this->v1->fresh()])
-            ->assertActionVisible('inactive_versions')
+            ->assertActionDoesNotExist('inactive_versions')
             ->assertSee("{$this->v1->code} · v2", false);
 
-        Livewire::test(ListInactiveCustomEntityVersions::class)
+        Livewire::withQueryParams(['processo' => $this->v1->id])
+            ->test(ListInactiveCustomEntityVersions::class)
             ->assertSuccessful()
             ->assertCanSeeTableRecords([$this->v1->fresh()])
             ->assertCanNotSeeTableRecords([$v2, $outro])
             ->assertTableActionHidden('edit', $this->v1->fresh());
 
-        $this->get(CustomEntityResource::getUrl('inactive-versions'))->assertOk();
+        // Sem o processo não há o que listar
+        $this->get(CustomEntityResource::getUrl('inactive-versions'))->assertNotFound();
     }
 
     public function test_versoes_inativas_de_um_processo_filtram_pela_raiz(): void

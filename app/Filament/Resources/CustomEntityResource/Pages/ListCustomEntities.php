@@ -12,7 +12,7 @@ class ListCustomEntities extends ListRecords
     protected static string $resource = CustomEntityResource::class;
 
     /**
-     * A listagem mostra as versões vigentes e os rascunhos; as antigas ficam em "Versões inativas"
+     * A listagem mostra as versões vigentes e os rascunhos; as antigas ficam em "Versões inativas", dentro de cada processo
      */
     protected function getTableQuery(): ?Builder
     {
@@ -24,12 +24,6 @@ class ListCustomEntities extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Actions\Action::make('inactive_versions')
-                ->label('Versões inativas')
-                ->icon('heroicon-o-archive-box')
-                ->color('gray')
-                ->url(fn () => CustomEntityResource::getUrl('inactive-versions')),
-
             Actions\CreateAction::make(),
         ];
     }
