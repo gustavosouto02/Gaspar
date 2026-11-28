@@ -11,8 +11,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Livewire\Attributes\Url;
 
 /**
- * Versões antigas (não vigentes) de processos, somente leitura. Com `?processo=<id da raiz>`
- * lista só as versões antigas daquele processo.
+ * Versões antigas (não vigentes) de um processo, somente leitura. O processo vem em
+ * `?processo=<id da raiz>`, obrigatório: não há listagem das versões antigas de todo o sistema.
  */
 class ListInactiveCustomEntityVersions extends ListRecords
 {
@@ -21,11 +21,20 @@ class ListInactiveCustomEntityVersions extends ListRecords
     #[Url(as: 'processo')]
     public ?string $processo = null;
 
+    public function mount(): void
+    {
+        parent::mount();
+
+        // O Filament só confere o acesso depois do mount(): sem isto quem não é ADMIN veria 404 em vez de 403
+        abort_unless(CustomEntityResource::canAccess(), 403);
+        abort_unless($this->processo && CustomEntity::withTrashed()->whereKey($this->processo)->exists(), 404);
+    }
+
     public function getTitle(): string|Htmlable
     {
-        $root = $this->processo ? CustomEntity::withTrashed()->find($this->processo) : null;
+        $root = CustomEntity::withTrashed()->find($this->processo);
 
-        return $root ? "Versões inativas — {$root->name}" : 'Versões inativas de processos';
+        return $root ? "Versões inativas — {$root->name}" : 'Versões inativas';
     }
 
     public function getBreadcrumb(): string
@@ -37,7 +46,7 @@ class ListInactiveCustomEntityVersions extends ListRecords
     {
         return parent::getTableQuery()
             ->inactiveVersions()
-            ->when($this->processo, fn (Builder $query) => $query->where('root_entity_id', $this->processo))
+            ->where('root_entity_id', $this->processo)
             ->with(['rootEntity', 'macroprocess', 'manager', 'creator']);
     }
 
