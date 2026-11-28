@@ -46,8 +46,10 @@ class CustomEntityResource extends Resource
     public static function form(Form $form): Form
     {
         return $form
-            // Versão antiga: nem os metadados são editáveis (só leitura)
-            ->disabled(fn (?CustomEntity $record) => $record !== null && ! $record->is_current && ! $record->is_draft)
+            // Versão antiga: nem os metadados são editáveis (só leitura).
+            // Quem não é ADMIN só visualiza: este disabled() substitui o da ViewRecord
+            ->disabled(fn (?CustomEntity $record) => auth()->user()?->user_role !== UserRoleEnum::ADMIN
+                || ($record !== null && ! $record->is_current && ! $record->is_draft))
             ->schema([
                 Forms\Components\Placeholder::make('id_placeholder')
                     ->label('Número')

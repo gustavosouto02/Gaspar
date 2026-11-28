@@ -18,10 +18,11 @@ class CustomEntityPolicy
 
     /**
      * Determina se o usuário pode ver os detalhes de uma entidade.
+     * Quem não é ADMIN só vê a versão vigente publicada (nem rascunho, nem versão antiga).
      */
     public function view(User $user, CustomEntity $customEntity): bool
     {
-        return true;
+        return $user->user_role === UserRoleEnum::ADMIN || ($customEntity->is_current && ! $customEntity->is_draft);
     }
 
     /**
